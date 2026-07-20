@@ -1,0 +1,260 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1c1f23;
+  --muted: #6b7280;
+  --border: #e2e5ea;
+  --accent: #4f6ef7;
+  --accent-text: #ffffff;
+  --danger: #d64545;
+  --ok: #2f9e5f;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17191d;
+    --card: #212429;
+    --text: #e8eaed;
+    --muted: #9aa2ad;
+    --border: #33373d;
+    --accent: #6b84ff;
+  }
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+nav.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 10px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+nav.tabs button {
+  flex: 1;
+  padding: 8px 4px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+nav.tabs button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+main.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.row.spread {
+  justify-content: space-between;
+}
+.grow {
+  flex: 1;
+}
+button.btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button.btn:hover {
+  border-color: var(--accent);
+}
+button.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+button.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.error {
+  color: var(--danger);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.ok {
+  color: var(--ok);
+}
+.pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.55;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.badge.on {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.day-item {
+  border-top: 1px solid var(--border);
+  padding: 8px 2px;
+  cursor: pointer;
+}
+.day-item:first-of-type {
+  border-top: none;
+}
+.subtabs {
+  display: flex;
+  gap: 4px;
+}
+.subtabs button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.subtabs button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+ul.items {
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.progress-wrap {
+  padding: 8px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.progress-track {
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.25s;
+}
+table.excel {
+  border-collapse: collapse;
+  font-size: 11px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+table.excel th,
+table.excel td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  white-space: nowrap;
+  text-align: left;
+}
+table.excel th {
+  background: var(--bg);
+  font-weight: 600;
+}
+table.excel td.empty {
+  color: var(--muted);
+}
+.scroll-x {
+  overflow-x: auto;
+}
+form.settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+form.settings input,
+form.settings select,
+form.settings textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+form.settings textarea {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  min-height: 110px;
+  resize: vertical;
+}
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+h3 {
+  font-size: 13px;
+}
+h4 {
+  font-size: 12px;
+  color: var(--muted);
+}
