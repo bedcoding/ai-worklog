@@ -53,16 +53,30 @@ function isComplete(d: DayDigest): boolean {
   return Number.isFinite(builtMs) && builtMs >= kstStartOfDayMs(d.date) + DAY_MS
 }
 
+export interface DigestOptions {
+  /** 캐시를 무시하고 원본 로그를 다시 스캔한다 (사용자의 "새로고침") */
+  force?: boolean
+  /**
+   * 화면 표시용 조회. 캐시가 있으면 완결성과 무관하게 즉시 반환해 스캔 비용을 없앤다.
+   * 요약 생성 경로는 이 옵션을 쓰지 않으므로 정확성에는 영향이 없다.
+   */
+  preferCache?: boolean
+}
+
 /**
  * 날짜의 다이제스트를 확보한다.
- * 하루가 끝난 뒤 만들어진 캐시만 재사용하고, 그 외(오늘 / 하루 도중에 만들어진
- * 부분 캐시)는 재수집한다. 자동 실행이 18시에 만든 오늘치 다이제스트가
- * 다음날 확정본으로 굳어 이후 활동이 누락되는 것을 막는다.
+ * 요약 생성 경로에서는 하루가 끝난 뒤 만들어진 캐시만 재사용한다 — 자동 실행이
+ * 18시에 만든 오늘치 다이제스트가 다음날 확정본으로 굳어 이후 활동이 누락되는 것을 막는다.
  */
-export async function ensureDayDigest(date: string): Promise<DayDigest> {
-  if (date < todayKst()) {
+export async function ensureDayDigest(
+  date: string,
+  opts: DigestOptions = {}
+): Promise<DayDigest> {
+  if (!opts.force) {
     const cachedDigest = await readJson<DayDigest>(dayDigestPath(date))
-    if (cachedDigest && isComplete(cachedDigest)) return cachedDigest
+    if (cachedDigest && (opts.preferCache || (date < todayKst() && isComplete(cachedDigest)))) {
+      return cachedDigest
+    }
   }
   const { digests } = await collectDigests(date, date, { excludeCwds: [claudeWorkdir()] })
   const digest = digests.get(date) ?? emptyDigest(date)

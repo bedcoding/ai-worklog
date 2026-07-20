@@ -1,4 +1,13 @@
 import { useState, type ReactNode } from 'react'
+import type { ModelChoice } from '@shared/types'
+
+/** 설정의 모델 선택값을 사람이 읽는 이름으로 */
+export function modelLabel(model: ModelChoice | string): string {
+  if (model === 'haiku') return 'Haiku 4.5'
+  if (model === 'sonnet') return 'Sonnet 5'
+  if (model === 'default') return 'CLI 기본 모델'
+  return model
+}
 
 /** invoke 에러를 사용자 문구로 (Electron이 붙이는 접두어 제거) */
 export function errMsg(e: unknown): string {
