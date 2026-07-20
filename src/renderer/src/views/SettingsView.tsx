@@ -17,7 +17,7 @@ const PROFILE_FIELDS: { key: keyof Profile; label: string; placeholder: string }
   { key: 'amount', label: '금액(현지통화)', placeholder: '예: 100 US' }
 ]
 
-export default function SettingsView(): ReactNode {
+export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
   const [form, setForm] = useState<Settings | null>(null)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,6 +26,11 @@ export default function SettingsView(): ReactNode {
 
   useEffect(() => {
     void window.api.getSettings().then(setForm)
+    // 어떤 claude가 연결됐는지 열자마자 보이도록 자동 감지한다
+    window.api
+      .detectClaude()
+      .then((i) => setClaudeInfo(`✓ ${i.version} — ${i.path}`))
+      .catch((e: unknown) => setClaudeInfo(`✗ ${errMsg(e)}`))
   }, [])
 
   if (!form) return <Spinner label="설정을 불러오는 중…" />
@@ -44,6 +49,7 @@ export default function SettingsView(): ReactNode {
       .then((s) => {
         setForm(s)
         setSaved(true)
+        onSaved?.()
         return window.api.setAutoLaunch(s.autoLaunch)
       })
       .catch((e: unknown) => setError(errMsg(e)))
@@ -104,6 +110,9 @@ export default function SettingsView(): ReactNode {
           </button>
           {claudeInfo && <span className="muted grow">{claudeInfo}</span>}
         </div>
+        <div className="muted">
+          요약은 이 실행 파일을 로컬에서 호출합니다. 구독 쿼터를 사용하며 API 과금은 없습니다.
+        </div>
         <div className="grid2">
           <label>
             요약 모델
@@ -111,9 +120,9 @@ export default function SettingsView(): ReactNode {
               value={form.model}
               onChange={(e) => patch({ model: e.target.value as Settings['model'] })}
             >
-              <option value="default">기본 모델</option>
-              <option value="haiku">Haiku (빠르고 저렴)</option>
-              <option value="sonnet">Sonnet</option>
+              <option value="default">CLI 기본 모델</option>
+              <option value="haiku">Haiku 4.5 (빠르고 저렴)</option>
+              <option value="sonnet">Sonnet 5</option>
             </select>
           </label>
           <label>

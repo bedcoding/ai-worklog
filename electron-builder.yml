@@ -19,6 +19,7 @@ mac:
   category: public.app-category.productivity
   extendInfo:
     LSUIElement: true # Dock 아이콘 없는 메뉴바 상주 앱
+# Apple Silicon은 서명되지 않은 바이너리를 실행하지 않으므로 인증서 없이 ad-hoc 서명한다
 afterPack: scripts/ad-hoc-sign.mjs
 publish:
   provider: github

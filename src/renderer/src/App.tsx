@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { BackfillProgress } from '@shared/types'
+import StatusBar from './StatusBar'
 import DailyView from './views/DailyView'
 import MonthView from './views/MonthView'
 import SettingsView from './views/SettingsView'
@@ -17,6 +18,8 @@ type TabId = (typeof TABS)[number]['id']
 export default function App(): ReactNode {
   const [tab, setTab] = useState<TabId>('daily')
   const [progress, setProgress] = useState<BackfillProgress | null>(null)
+  // 설정을 저장하면 상태바가 claude 연결/모델을 다시 확인한다
+  const [claudeNonce, setClaudeNonce] = useState(0)
 
   useEffect(
     () => window.api.onBackfillProgress((p) => setProgress(p.phase === 'idle' ? null : p)),
@@ -48,9 +51,10 @@ export default function App(): ReactNode {
             display: tab === 'settings' ? 'contents' : 'none'
           }}
         >
-          <SettingsView />
+          <SettingsView onSaved={() => setClaudeNonce((n) => n + 1)} />
         </div>
       </main>
+      <StatusBar nonce={claudeNonce} onOpenSettings={() => setTab('settings')} />
     </div>
   )
 }

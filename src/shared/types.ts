@@ -225,8 +225,11 @@ export interface WorklogApi {
   listDays(ym: string): Promise<{ status: MonthStatus; summaries: DaySummary[] }>
   /** 특정 날짜 요약 생성 (force면 캐시 무시) */
   generateDay(date: string, force?: boolean): Promise<DaySummary>
-  /** 원본 추출 내역 — AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0) */
-  getDayDigest(date: string): Promise<DayDigest>
+  /**
+   * 원본 추출 내역 — AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0).
+   * 기본은 캐시 우선이며, force=true면 원본 로그를 다시 스캔한다.
+   */
+  getDayDigest(date: string, force?: boolean): Promise<DayDigest>
   getPeriod(key: string): Promise<PeriodSummary | null>
   /** 주간/월간 요약 생성. source=daily면 미요약 날짜를 먼저 백필 */
   generatePeriod(req: PeriodRequest): Promise<PeriodSummary>
