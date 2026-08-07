@@ -29,7 +29,7 @@ Claude Code는 모든 대화를 이미 내 맥에 기록하고 있습니다. Wor
    요약을 위해 전달되는 것은 "내가 이미 Claude Code에 입력했던 프롬프트"의 절단본뿐입니다.
    `--no-session-persistence`로 실행되어 이 요약 작업 자체는 대화 기록에 남지 않습니다.
 3. **원본 로그(`~/.claude`)는 읽기 전용** — 절대 수정/삭제하지 않습니다.
-   생성물은 `~/Library/Application Support/claude-worklog/`에만 저장됩니다.
+   생성물은 `~/Library/Application Support/ai-worklog/`에만 저장됩니다.
 4. **생성된 보고서에는 원본 프롬프트·코드·도구 출력이 포함되지 않습니다** — 업무 단위로
    일반화된 요약만 담깁니다. (도구 출력(tool_result)은 아예 파싱 단계에서 버려집니다)
 5. **최소 의존성** — 런타임 의존성은 `react`, `react-dom`, `exceljs` 3개뿐이고, 릴리스 바이너리는
@@ -37,7 +37,7 @@ Claude Code는 모든 대화를 이미 내 맥에 기록하고 있습니다. Wor
 
 ## 설치
 
-1. [Releases](https://github.com/bedcoding/claude-worklog/releases)에서 `.dmg`(또는 `.zip`) 다운로드
+1. [Releases](https://github.com/bedcoding/ai-worklog/releases)에서 `.dmg`(또는 `.zip`) 다운로드
 2. 앱을 Applications로 드래그
 3. **첫 실행**: 서명되지 않은 앱이므로 우클릭 → "열기"로 실행하거나, 터미널에서:
    ```bash
