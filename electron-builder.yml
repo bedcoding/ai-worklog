@@ -1,4 +1,4 @@
-appId: dev.bedcoding.claude-worklog
+appId: dev.bedcoding.ai-worklog
 productName: WorkLog
 directories:
   output: dist-release

@@ -1,11 +1,11 @@
 {
-  "name": "claude-worklog",
+  "name": "ai-worklog",
   "version": "0.1.0",
   "description": "Claude Code 사용 내역으로 일일 업무 요약과 월간 기안 초안을 자동 생성하는 macOS 메뉴바 앱",
   "main": "./out/main/index.cjs",
   "author": "bedcoding",
   "license": "MIT",
-  "homepage": "https://github.com/bedcoding/claude-worklog",
+  "homepage": "https://github.com/bedcoding/ai-worklog",
   "scripts": {
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
