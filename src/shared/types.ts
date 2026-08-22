@@ -97,21 +97,36 @@ export interface DaySummary {
   fallbackText?: string
 }
 
+/**
+ * 기간 요약의 한 부분.
+ *
+ * 부분마다 따로 만들 수 있으므로 만든 시각·모델·반영 범위도 부분마다 갖는다.
+ * 하나로 두면 제목만 다시 만들어도 내용의 생성 시각까지 바뀌어 화면이 거짓말을 한다.
+ */
+export interface PeriodPart {
+  text: string
+  /** 만들 때 반영한 마지막 날짜 (오늘 이후로 잘린다) */
+  end: string
+  model: string
+  generatedAt: string
+  /** 구간이 끝나기 전에 만들어 아직 덜 반영된 부분 (조회 시 계산) */
+  stale?: boolean
+}
+
+/** 기간 요약의 두 부분. 서로 다른 데이터를 보고 따로 만든다 */
+export type PeriodPartKind = 'overview' | 'detail'
+
 /** 주간/월간 자유 텍스트 요약. key 예: "2026-W29", "2026-07" */
 export interface PeriodSummary {
   key: string
   kind: 'week' | 'month'
-  /** 시작/끝 날짜 (KST, inclusive) */
+  /** 구간 자체의 시작/끝 (KST, inclusive). 부분의 반영 범위와는 다르다 */
   start: string
   end: string
-  /** 한 줄 요약. 일별 헤드라인만 보고 만든다 */
-  overview: string
-  /** 상세 요약. 일별 항목만 보고 만든다 */
-  detail: string
-  model: string
-  generatedAt: string
-  /** 기간이 끝나기 전에 생성되어 end까지만 반영된 요약 (조회 시 계산) */
-  stale?: boolean
+  /** 제목. 날짜별 헤드라인만 보고 만든 한 줄 */
+  overview: PeriodPart | null
+  /** 내용. 날짜별 항목만 보고 만든 상세 */
+  detail: PeriodPart | null
 }
 
 /** 임의 구간(주/월 공용)의 활동 현황. end는 오늘 이후로 넘어가지 않게 잘린다. */
@@ -199,7 +214,7 @@ export interface WorklogApi {
   getDayDigest(date: string, force?: boolean): Promise<DayDigest>
   getPeriod(key: string): Promise<PeriodSummary | null>
   /** 주간/월간 요약 생성. 구간의 모든 활동일이 요약돼 있어야 한다 (claude 1회) */
-  generatePeriod(req: PeriodRequest): Promise<PeriodSummary>
+  generatePeriod(req: PeriodRequest, part: PeriodPartKind): Promise<PeriodSummary>
   cancelBackfill(): Promise<void>
   copyToClipboard(text: string): Promise<void>
   setAutoLaunch(enabled: boolean): Promise<void>

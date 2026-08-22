@@ -3,7 +3,15 @@ import { kstDateOf, kstDateTimeKo, shortDateKo } from '@shared/dates'
 import { renderDigestText } from '@shared/digest-text'
 import { rangeStateOf } from '@shared/range-state'
 import { cursorOf, keyOf, labelOf, rangeOf, shift, withSpan, type Cursor, type Span } from '@shared/span'
-import type { BackfillProgress, DayDigest, DaySummary, PeriodSummary, RangeStatus } from '@shared/types'
+import type {
+  BackfillProgress,
+  DayDigest,
+  DaySummary,
+  PeriodPart,
+  PeriodPartKind,
+  PeriodSummary,
+  RangeStatus
+} from '@shared/types'
 import { CopyButton, Spinner, Tip, errMsg, modelLabel } from '../common'
 
 export default function SummaryView({ progress }: { progress: BackfillProgress | null }): ReactNode {
@@ -19,7 +27,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [loading, setLoading] = useState(false)
   const [busyDate, setBusyDate] = useState<string | null>(null)
   const [backfilling, setBackfilling] = useState(false)
-  const [composing, setComposing] = useState(false)
+  const [composing, setComposing] = useState<PeriodPartKind | null>(null)
   const [openDate, setOpenDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음)
@@ -123,21 +131,22 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       })
   }
 
-  const compose = (): void => {
-    setComposing(true)
+  // 부분씩 만든다. 마음에 안 드는 쪽만 다시 부르면 claude 호출도 그 한 번이다
+  const compose = (part: PeriodPartKind): void => {
+    setComposing(part)
     setError(null)
     window.api
-      .generatePeriod({ kind: cursor.span, key: periodKey })
+      .generatePeriod({ kind: cursor.span, key: periodKey }, part)
       .then((p) => setPeriod(p))
       .catch((e: unknown) => setError(errMsg(e)))
-      .finally(() => setComposing(false))
+      .finally(() => setComposing(null))
   }
 
   // 아직 도착하지 않은 응답과 다른 구간의 응답은 똑같이 '모른다'로 취급한다.
   // 지난주 개수가 이번 달 라벨 아래 남으면 화면이 거짓말을 한다.
   const settled = loadedKey === periodKey
   const state = rangeStateOf(settled ? status : null)
-  const busy = busyDate !== null || backfilling || composing
+  const busy = busyDate !== null || backfilling || composing !== null
   const spanWord = cursor.span === 'week' ? '주간' : '월간'
   const days = settled ? [...(status?.activeDays ?? [])].sort().reverse() : []
   const todayInRange = today >= start && today <= end
@@ -289,30 +298,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       </div>
 
       <div className="card">
-        <div className="row spread">
-          <h3>{spanWord} 요약</h3>
-          <div className="row">
-            {period && <CopyButton text={periodText(period)} />}
-            <button
-              type="button"
-              className="btn steady tip-host"
-              disabled={busy || state.kind !== 'ready'}
-              onClick={compose}
-            >
-              {composing ? '만드는 중…' : period ? '다시 만들기' : '만들기'}
-              {/* 이 카드는 항상 맨 아래다. 아래로 펼치면 스크롤 영역이 말풍선만큼
-                  늘어나 없던 스크롤바가 생기고, 그 폭에 목록 글자까지 밀린다.
-                  위로 펼치면 이미 있는 내용을 덮으므로 영역이 늘지 않는다. */}
-              <Tip
-                toLeft
-                up
-                text={
-                  '이미 만들어 둔 날짜별 요약을 묶습니다.\n한 줄과 상세를 따로 만들어 claude를 2번 부릅니다.'
-                }
-              />
-            </button>
-          </div>
-        </div>
+        <h3>{spanWord} 요약</h3>
         {/* loading일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중…'이 그
             상태를 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다. */}
         {state.kind === 'pending' ? (
@@ -322,33 +308,91 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         ) : state.kind === 'empty' ? (
           <div className="muted">이 기간에는 묶을 기록이 없습니다.</div>
         ) : null}
-        {period && (
-          <>
-            {period.stale && (
-              <div className="muted">
-                ⚠️ {shortDateKo(period.end)}까지만 반영된 요약입니다. 다시 만드세요.
-              </div>
-            )}
-            {/* 날짜 상세와 같은 짜임이다. 한 줄이 굵게 위에 오고 항목이 아래에 온다.
-                한 줄이 없는 것은 나누기 전에 만들어 둔 요약이다. 자리를 비워 둔다. */}
-            {period.overview && <strong className="selectable">{period.overview}</strong>}
-            {period.detail && <div className="pre">{period.detail}</div>}
-            <div className="muted">
-              {modelLabel(period.model)} · {kstDateTimeKo(period.generatedAt)}
-            </div>
-          </>
-        )}
+        {/* 부분마다 자기 버튼을 옆에 둔다. 카드 머리에 버튼 둘을 몰아 두면 어느
+            버튼이 무엇을 만드는지 라벨만으로 말해야 해서 라벨이 길어진다. */}
+        <PeriodPartBlock
+          title="제목"
+          oneLine
+          part={period?.overview ?? null}
+          locked={busy || state.kind !== 'ready'}
+          working={composing === 'overview'}
+          onMake={() => compose('overview')}
+          tip={'날짜별 한 줄 요약만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
+        />
+        <PeriodPartBlock
+          title="내용"
+          part={period?.detail ?? null}
+          locked={busy || state.kind !== 'ready'}
+          working={composing === 'detail'}
+          onMake={() => compose('detail')}
+          tip={'날짜별 상세 항목만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
+        />
       </div>
     </>
   )
 }
 
 /**
- * 복사용 텍스트. 화면에 보이는 것과 같아야 한다.
- * 날짜 상세의 복사가 헤드라인과 항목을 함께 주는 것과 같은 방식이다.
+ * 기간 요약의 한 부분. 제목과 내용이 같은 짜임을 쓴다.
+ *
+ * 복사도 부분마다 따로 둔다. 보고서에 제목과 본문을 각각 붙이는 것이 실제 쓰임이라,
+ * 하나로 묶어 주면 붙인 뒤에 손으로 잘라야 한다.
  */
-function periodText(p: PeriodSummary): string {
-  return [p.overview, p.detail].filter(Boolean).join('\n\n')
+function PeriodPartBlock({
+  title,
+  oneLine,
+  part,
+  locked,
+  working,
+  onMake,
+  tip
+}: {
+  title: string
+  /** 한 줄짜리 부분은 굵게 세운다. 여러 줄은 줄바꿈을 살려 그대로 둔다 */
+  oneLine?: boolean
+  part: PeriodPart | null
+  locked: boolean
+  working: boolean
+  onMake: () => void
+  tip: string
+}): ReactNode {
+  return (
+    <div className="period-part">
+      <div className="row spread">
+        <h4>{title}</h4>
+        <div className="row">
+          {part && <CopyButton text={part.text} />}
+          <button
+            type="button"
+            className="btn steady tip-host"
+            disabled={locked}
+            onClick={onMake}
+          >
+            {working ? '만드는 중…' : part ? '다시 만들기' : '만들기'}
+            {/* 이 카드는 항상 맨 아래다. 아래로 펼치면 스크롤 영역이 말풍선만큼
+                늘어나 없던 스크롤바가 생기고, 그 폭에 목록 글자까지 밀린다.
+                위로 펼치면 이미 있는 내용을 덮으므로 영역이 늘지 않는다. */}
+            <Tip toLeft up text={tip} />
+          </button>
+        </div>
+      </div>
+      {part?.stale && (
+        <div className="muted">⚠️ {shortDateKo(part.end)}까지만 반영됐습니다. 다시 만드세요.</div>
+      )}
+      {part &&
+        (oneLine ? (
+          <strong className="selectable">{part.text}</strong>
+        ) : (
+          <div className="pre">{part.text}</div>
+        ))}
+      {/* generatedAt이 빈 옛 캐시가 있다. 그대로 넘기면 'NaN:NaN'이 찍힌다 */}
+      {part?.generatedAt && (
+        <div className="muted">
+          {modelLabel(part.model)} · {kstDateTimeKo(part.generatedAt)}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function DayDetail({

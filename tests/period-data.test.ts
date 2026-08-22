@@ -95,24 +95,69 @@ describe('두 데이터 모두', () => {
   })
 })
 
-describe('나누기 전에 만들어 둔 캐시', () => {
-  it('text 하나만 있던 요약을 상세로 읽는다', async () => {
-    // 이미 만들어 둔 주간 요약이 빈칸으로 보이면 안 된다. 다시 만들기 전까지는
-    // 한 줄이 없을 뿐이고, 있던 글은 상세 자리에 그대로 남아야 한다.
+describe('옛 캐시 읽기', () => {
+  // 부분으로 나누기 전까지 디스크 형태가 두 번 바뀌었다. 이미 만들어 둔 요약이
+  // 빈칸으로 보이면 안 되므로 세 형태 모두 읽어야 한다.
+  const base = { key: '2026-W34', kind: 'week', start: '2026-08-17', end: '2026-08-23' }
+
+  it('text 하나만 있던 요약을 내용으로 읽는다', async () => {
     initCache(mkdtempSync(join(tmpdir(), 'worklog-period-')))
     await writeJsonAtomic(periodPath('2026-W34'), {
-      key: '2026-W34',
-      kind: 'week',
-      start: '2026-08-17',
-      end: '2026-08-23',
+      ...base,
       text: '# 주간 업무 보고\n- 요약 기능 검증',
       model: 'default',
       generatedAt: '2026-08-22T19:32:52.997Z'
     })
 
     const p = await getCachedPeriod('2026-W34')
-    expect(p?.detail).toBe('# 주간 업무 보고\n- 요약 기능 검증')
-    expect(p?.overview).toBe('')
-    expect(p?.stale).toBe(false)
+    expect(p?.detail?.text).toBe('# 주간 업무 보고\n- 요약 기능 검증')
+    // 최상위에 있던 메타데이터를 그 부분의 것으로 옮긴다
+    expect(p?.detail?.generatedAt).toBe('2026-08-22T19:32:52.997Z')
+    expect(p?.detail?.end).toBe('2026-08-23')
+    expect(p?.overview).toBeNull()
+  })
+
+  it('부분이 문자열이던 형태도 읽는다', async () => {
+    initCache(mkdtempSync(join(tmpdir(), 'worklog-period-')))
+    await writeJsonAtomic(periodPath('2026-W34'), {
+      ...base,
+      overview: '업무일지 앱 요약 기능 검증',
+      detail: '* [ai-worklog] 검증',
+      model: 'haiku',
+      generatedAt: '2026-08-22T19:53:48.708Z'
+    })
+
+    const p = await getCachedPeriod('2026-W34')
+    expect(p?.overview?.text).toBe('업무일지 앱 요약 기능 검증')
+    expect(p?.detail?.text).toBe('* [ai-worklog] 검증')
+    expect(p?.overview?.model).toBe('haiku')
+  })
+
+  it('빈 문자열이던 부분은 없는 것으로 읽는다', async () => {
+    // ''를 부분으로 만들면 화면이 빈 굵은 줄과 생성 시각만 그린다
+    initCache(mkdtempSync(join(tmpdir(), 'worklog-period-')))
+    await writeJsonAtomic(periodPath('2026-W34'), { ...base, overview: '', detail: '내용' })
+    const p = await getCachedPeriod('2026-W34')
+    expect(p?.overview).toBeNull()
+    expect(p?.detail?.text).toBe('내용')
+  })
+})
+
+describe('덜 반영된 부분 표시', () => {
+  it('부분마다 따로 판정한다', async () => {
+    // 제목은 수요일에, 내용은 일요일에 만들 수 있다. 하나로 판정하면 한쪽이 거짓이 된다
+    initCache(mkdtempSync(join(tmpdir(), 'worklog-period-')))
+    await writeJsonAtomic(periodPath('2026-W34'), {
+      key: '2026-W34',
+      kind: 'week',
+      start: '2026-08-17',
+      end: '2026-08-23',
+      overview: { text: '제목', end: '2026-08-19', model: 'default', generatedAt: 'x' },
+      detail: { text: '내용', end: '2026-08-23', model: 'default', generatedAt: 'x' }
+    })
+
+    const p = await getCachedPeriod('2026-W34')
+    expect(p?.overview?.stale).toBe(true)
+    expect(p?.detail?.stale).toBe(false)
   })
 })
