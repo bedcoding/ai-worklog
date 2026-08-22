@@ -20,9 +20,10 @@ mac:
   extendInfo:
     LSUIElement: true # Dock 아이콘 없는 메뉴바 상주 앱
 win:
-  # 512x512 PNG → electron-builder가 16~256px 7종 .ico로 자동 변환한다 (.ico 수동 제작 불필요).
-  # 256px 미만으로 줄이면 ERR_ICON_TOO_SMALL로 빌드가 실패한다.
-  icon: resources/icon.png
+  # 크기별로 직접 찍은 프레임을 담은 .ico (scripts/gen-tray-icon.mjs 가 생성).
+  # PNG만 주면 electron-builder가 512px를 bicubic 축소해 넣는데, 16~32px 프레임이
+  # 회색 덩어리로 뭉개진다. 최대 프레임은 256px 이상이어야 빌드가 통과한다.
+  icon: resources/icon.ico
   # 인증서가 없으므로 signtool 호출을 건너뛴다 (README의 SmartScreen 안내 참고).
   # signAndEditExecutable: false 로 하면 아이콘·버전정보 주입까지 사라지므로 반드시 이 옵션을 쓴다.
   signExecutable: false
