@@ -210,7 +210,7 @@ function DayDetail({
       : ''
 
   return (
-    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="day-detail">
       <div className="row spread">
         <div className="subtabs">
           <button type="button" className={sub === 'raw' ? 'active' : ''} onClick={() => setSub('raw')}>
@@ -238,14 +238,17 @@ function DayDetail({
                   </li>
                 ))}
               </ul>
-              <div className="row spread">
-                <span className="muted selectable grow">{keywords.join(', ')}</span>
-                <button type="button" className="btn" disabled={busy} onClick={() => onGenerate(true)}>
-                  {busy ? '생성 중…' : '다시 생성'}
-                </button>
-              </div>
-              <div className="muted">
-                {modelLabel(summary.model)} · {kstDateTimeKo(summary.generatedAt)}
+              {/* 키워드·모델·생성시각은 요약 본문이 아니라 그 요약에 붙는 정보라 선으로 가른다 */}
+              <div className="detail-foot">
+                <div className="row spread">
+                  <span className="muted selectable grow">{keywords.join(', ')}</span>
+                  <button type="button" className="btn" disabled={busy} onClick={() => onGenerate(true)}>
+                    {busy ? '생성 중…' : '다시 생성'}
+                  </button>
+                </div>
+                <div className="muted">
+                  {modelLabel(summary.model)} · {kstDateTimeKo(summary.generatedAt)}
+                </div>
               </div>
             </>
           )
@@ -271,18 +274,18 @@ function DayDetail({
               ) : (
                 <div className="pre">{renderDigestText(digest)}</div>
               )}
-              <div className="row spread">
-                <span className="muted">
-                  {kstDateTimeKo(digest.builtAt)} 추출됨
-                </span>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={digestBusy}
-                  onClick={() => onLoadDigest(true)}
-                >
-                  {digestBusy ? '읽는 중…' : '새로고침'}
-                </button>
+              <div className="detail-foot">
+                <div className="row spread">
+                  <span className="muted">{kstDateTimeKo(digest.builtAt)} 추출됨</span>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={digestBusy}
+                    onClick={() => onLoadDigest(true)}
+                  >
+                    {digestBusy ? '읽는 중…' : '새로고침'}
+                  </button>
+                </div>
               </div>
             </>
           )}
