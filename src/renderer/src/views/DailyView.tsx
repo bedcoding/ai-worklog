@@ -121,9 +121,28 @@ export default function DailyView(): ReactNode {
                 <span className="grow muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {s?.empty ? '활동 없음' : (s?.headline ?? s?.fallbackText?.slice(0, 40) ?? '')}
                 </span>
-                <span className={`badge${s && !s.empty ? ' on' : ''}`}>
-                  {s ? (s.empty ? '없음' : 'AI 요약됨') : '미요약'}
-                </span>
+                {s ? (
+                  <span className={`badge${s.empty ? '' : ' on'}`}>
+                    {s.empty ? '없음' : 'AI 요약됨'}
+                  </span>
+                ) : (
+                  // 미요약 배지는 그 자리에서 생성을 실행한다.
+                  // stopPropagation이 없으면 행 펼치기까지 함께 발동한다.
+                  // 이미 요약된 날짜는 버튼으로 만들지 않는다 — 실수로 눌러 쿼터를 쓰는 것을 막고,
+                  // 강제 재생성은 행을 펼친 뒤 '다시 생성'으로만 하게 둔다.
+                  <button
+                    type="button"
+                    className="badge action"
+                    disabled={busyDate !== null}
+                    title={`${shortDateKo(date)} AI 요약 생성`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      generate(date)
+                    }}
+                  >
+                    {busyDate === date ? '생성 중…' : '요약 생성'}
+                  </button>
+                )}
               </div>
               {open && (
                 <DayDetail
