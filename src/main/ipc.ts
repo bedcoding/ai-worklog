@@ -2,6 +2,7 @@ import { app, clipboard, ipcMain, type BrowserWindow } from 'electron'
 import {
   IPC,
   type BackfillProgress,
+  type PeriodPartKind,
   type PeriodRequest,
   type Settings
 } from '@shared/types'
@@ -10,7 +11,7 @@ import {
   backfillRange,
   ensureDayDigest,
   ensureDaySummary,
-  ensurePeriodSummary,
+  ensurePeriodPart,
   getCachedDaySummary,
   getCachedPeriod,
   getRangeStatus
@@ -100,11 +101,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle(IPC.periodGet, (_e, key: string) => getCachedPeriod(key))
   // 이미 만들어 둔 일별 요약을 묶기만 한다 (claude 1회). 미요약 날짜가 있으면 거부된다.
-  ipcMain.handle(IPC.periodGenerate, async (_e, req: PeriodRequest) => {
+  ipcMain.handle(IPC.periodGenerate, async (_e, req: PeriodRequest, part: PeriodPartKind) => {
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
     longRunning = true
     try {
-      return await ensurePeriodSummary(req)
+      return await ensurePeriodPart(req, part)
     } finally {
       longRunning = false
     }

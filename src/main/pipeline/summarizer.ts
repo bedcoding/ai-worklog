@@ -21,6 +21,8 @@ import {
 import type {
   DayDigest,
   DaySummary,
+  PeriodPart,
+  PeriodPartKind,
   PeriodRequest,
   PeriodSummary,
   RangeStatus
@@ -283,27 +285,72 @@ export function renderItemLines(summaries: DaySummary[]): string {
  * 캐시된 기간 요약. 기간이 끝나기 전에 만들어져 일부만 반영된 요약은
  * stale=true로 표시해 UI가 "N일까지만 반영됨"을 알릴 수 있게 한다.
  */
-export async function getCachedPeriod(key: string): Promise<PeriodSummary | null> {
-  // 한 줄/상세로 나누기 전 캐시는 text 하나만 갖고 있다. 그 글은 지금의 상세 요약과
-  // 같은 자리이므로 detail로 읽는다. 버리면 이미 만들어 둔 요약이 빈칸으로 보인다.
-  const cached = await readJson<PeriodSummary & { text?: string }>(periodPath(key))
-  if (!cached) return null
-  const { end } = periodRangeOf({ kind: cached.kind, key })
-  return {
-    ...cached,
-    overview: cached.overview ?? '',
-    detail: cached.detail ?? cached.text ?? '',
-    stale: cached.end < end
-  }
+/** 디스크에 남아 있는 옛 형태들. 부분으로 나누기 전까지 두 번 모양이 바뀌었다 */
+type StoredPeriod = Omit<PeriodSummary, 'overview' | 'detail'> & {
+  overview?: PeriodPart | string | null
+  detail?: PeriodPart | string | null
+  /** 나누기 전: 상세 하나만 최상위 text에 있었다 */
+  text?: string
+  model?: string
+  generatedAt?: string
 }
 
 /**
- * 이미 만들어 둔 일별 요약을 묶어 주간/월간 요약을 만든다. claude는 1번만 부른다.
+ * 옛 형태를 지금 형태로 맞춘다. 버리면 이미 만들어 둔 요약이 빈칸으로 보인다.
+ * - text 하나만 있던 것: 그 글은 지금의 '내용'과 같은 자리다
+ * - 문자열 overview/detail: 부분별 메타데이터가 없던 중간 형태다
+ */
+function normalizePeriod(key: string, c: StoredPeriod): PeriodSummary {
+  const meta = {
+    end: c.end,
+    model: c.model ?? 'default',
+    generatedAt: c.generatedAt ?? ''
+  }
+  const asPart = (v: PeriodPart | string | null | undefined): PeriodPart | null => {
+    if (!v) return null
+    return typeof v === 'string' ? (v.trim() ? { text: v, ...meta } : null) : v
+  }
+  return {
+    key,
+    kind: c.kind,
+    start: c.start,
+    end: c.end,
+    overview: asPart(c.overview),
+    detail: asPart(c.detail ?? c.text)
+  }
+}
+
+/** 부분마다 따로 판정한다. 제목은 수요일에, 내용은 금요일에 만들 수 있다 */
+function withStale(p: PeriodSummary): PeriodSummary {
+  const { end } = periodRangeOf({ kind: p.kind, key: p.key })
+  const mark = (part: PeriodPart | null): PeriodPart | null =>
+    part ? { ...part, stale: part.end < end } : null
+  return { ...p, end, overview: mark(p.overview), detail: mark(p.detail) }
+}
+
+async function readPeriod(key: string): Promise<PeriodSummary | null> {
+  const stored = await readJson<StoredPeriod>(periodPath(key))
+  return stored ? normalizePeriod(key, stored) : null
+}
+
+export async function getCachedPeriod(key: string): Promise<PeriodSummary | null> {
+  const p = await readPeriod(key)
+  return p ? withStale(p) : null
+}
+
+/**
+ * 이미 만들어 둔 일별 요약을 묶어 주간/월간 요약의 한 부분을 만든다. claude는 1번만 부른다.
+ *
+ * 부분씩 만든다. 제목과 내용은 보는 데이터가 다르고 고치고 싶은 쪽도 따로이기 때문에,
+ * 한 번에 둘을 만들면 마음에 안 드는 한쪽 때문에 두 번을 다시 불러야 한다.
  *
  * 미요약 날짜가 남아 있으면 만들지 않고 거부한다. 예전에는 여기서 조용히 백필해
  * 한 번의 클릭이 N+1 번 호출이 됐다. 백필은 backfillRange로 따로 부른다.
  */
-export async function ensurePeriodSummary(req: PeriodRequest): Promise<PeriodSummary> {
+export async function ensurePeriodPart(
+  req: PeriodRequest,
+  part: PeriodPartKind
+): Promise<PeriodSummary> {
   const { start, end } = periodRangeOf(req)
   const today = todayKst()
   if (start > today) throw new Error('아직 시작되지 않은 기간입니다')
@@ -322,34 +369,32 @@ export async function ensurePeriodSummary(req: PeriodRequest): Promise<PeriodSum
   }
   const settings = await getSettings()
   const label = periodLabelOf(req, start, endClamped)
-  const opts = await claudeOpts()
 
-  // 두 번 부른다. 한 줄 요약은 날짜별 헤드라인만, 상세 요약은 날짜별 항목만 본다.
-  // 한 번에 둘을 만들게 하면 한 줄 쪽이 항목을 압축한 문장이 되어 날짜별 헤드라인을
-  // 묶은 것과 달라진다. 순서대로 부른다. 동시에 부르면 claude 두 개가 같이 돈다.
-  const overview = await runClaude(
-    renderTemplate(settings.prompts.periodOverview, {
-      label,
-      data: renderHeadlineLines(summaries)
-    }),
-    opts
-  )
-  const detail = await runClaude(
-    renderTemplate(settings.prompts.periodDetail, { label, data: renderItemLines(summaries) }),
-    opts
-  )
+  // 부분마다 보는 데이터가 다르다. 제목은 날짜별 헤드라인만, 내용은 날짜별 항목만
+  // 본다. 섞어 넘기면 제목이 항목을 압축한 문장이 되어 헤드라인을 묶은 것과 달라진다.
+  const [tpl, data] =
+    part === 'overview'
+      ? [settings.prompts.periodOverview, renderHeadlineLines(summaries)]
+      : [settings.prompts.periodDetail, renderItemLines(summaries)]
+  const text = await runClaude(renderTemplate(tpl, { label, data }), await claudeOpts())
 
+  const made: PeriodPart = {
+    text: text.trim(),
+    end: endClamped,
+    model: settings.model,
+    generatedAt: new Date().toISOString()
+  }
+  // 다른 부분은 그대로 둔다. 제목을 다시 만들 때 내용이 사라지면 안 된다
+  const prev = await readPeriod(req.key)
   const period: PeriodSummary = {
     key: req.key,
     kind: req.kind,
     start,
-    end: endClamped,
-    overview: overview.trim(),
-    detail: detail.trim(),
-    model: settings.model,
-    generatedAt: new Date().toISOString()
+    end,
+    overview: part === 'overview' ? made : (prev?.overview ?? null),
+    detail: part === 'detail' ? made : (prev?.detail ?? null)
   }
   await writeJsonAtomic(periodPath(req.key), period)
-  return period
+  return withStale(period)
 }
 

@@ -299,6 +299,19 @@ button.btn.steady {
   color: var(--accent);
   border-color: var(--accent);
 }
+/* 기간 요약의 제목·내용 두 덩이. 각자 버튼을 갖고 따로 만들어지므로 선으로 가른다.
+   첫 덩이에는 위쪽 선을 두지 않는다. 카드 머리(h3) 바로 아래라 선이 겹쳐 보인다. */
+.period-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.period-part:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
 ul.items {
   /* 불릿을 쓰지 않는다. 선택·복사에 포함되지 않아 화면과 복사 결과가 어긋난다.
      항목 경계는 줄머리의 회색 [프로젝트] 태그가 만든다. 접힌 줄은 늘 검은 글자라
