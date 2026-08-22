@@ -1,0 +1,7 @@
+# PNG는 텍스트 변환 금지 (아이콘 자산 손상 방지)
+*.png binary
+*.ico binary
+# 빌드 산출물 — diff/merge 대상 아님
+*.tsbuildinfo -text -diff
+# 셸 스크립트는 LF 고정 (윈도우 체크아웃에서도 bash가 실행 가능해야 함)
+*.sh text eol=lf
