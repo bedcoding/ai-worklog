@@ -19,20 +19,51 @@ const PROFILE_FIELDS: { key: keyof Profile; label: string; placeholder: string }
 
 export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
   const [form, setForm] = useState<Settings | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reload, setReload] = useState(0)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [claudeInfo, setClaudeInfo] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
 
   useEffect(() => {
-    void window.api.getSettings().then(setForm)
+    let alive = true
+    setLoadError(null)
+    window.api
+      .getSettings()
+      .then((s) => alive && setForm(s))
+      // 실패를 삼키면 안 된다 — 폼을 기본값으로 채우면 그 스냅샷이 그대로 저장돼
+      // 실제 설정을 덮어쓴다. 폼을 아예 그리지 않고 재시도를 제공한다.
+      .catch((e: unknown) => alive && setLoadError(errMsg(e)))
+    return () => {
+      alive = false
+    }
+  }, [reload])
+
+  useEffect(() => {
     // 어떤 claude가 연결됐는지 열자마자 보이도록 자동 감지한다
+    let alive = true
     window.api
       .detectClaude()
-      .then((i) => setClaudeInfo(`✓ ${i.version} — ${i.path}`))
-      .catch((e: unknown) => setClaudeInfo(`✗ ${errMsg(e)}`))
+      .then((i) => alive && setClaudeInfo(`✓ ${i.version} — ${i.path}`))
+      .catch((e: unknown) => alive && setClaudeInfo(`✗ ${errMsg(e)}`))
+    return () => {
+      alive = false
+    }
   }, [])
 
+  if (loadError) {
+    return (
+      <div className="card">
+        <div className="error">{loadError}</div>
+        <div className="row">
+          <button type="button" className="btn primary" onClick={() => setReload((n) => n + 1)}>
+            다시 시도
+          </button>
+        </div>
+      </div>
+    )
+  }
   if (!form) return <Spinner label="설정을 불러오는 중…" />
 
   const patch = (p: Partial<Settings>): void => {

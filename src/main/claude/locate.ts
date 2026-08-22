@@ -75,11 +75,14 @@ function winCandidates(): string[] {
  */
 async function resolveShim(p: string): Promise<string | null> {
   if (!IS_WIN) return null
-  const ext = extname(p).toLowerCase()
+  // basename의 ext 비교는 대소문자를 구분하므로 소문자화한 값을 넘기면
+  // 'CLAUDE.CMD' 같은 입력에서 확장자가 떨어지지 않아 'claude.CMD.exe'를 찾게 된다
+  const rawExt = extname(p)
+  const ext = rawExt.toLowerCase()
   if (ext === '.exe') return (await isRunnable(p)) ? p : null
   const dir = dirname(p)
   // 1) 형제 네이티브 바이너리
-  const sibling = join(dir, `${basename(p, ext)}.exe`)
+  const sibling = join(dir, `${basename(p, rawExt)}.exe`)
   if (await isRunnable(sibling)) return sibling
   // 2) 이 셰임이 속한 npm prefix의 패키지 내부 바이너리
   const npmLayout = join(dir, NPM_PKG_BIN)
@@ -158,12 +161,12 @@ async function autoDetect(): Promise<string | null> {
 }
 
 /**
- * 윈도우 파일명에 애초에 쓸 수 없는 문자들.
+ * 윈도우 경로에 애초에 존재할 수 없는 문자들.
  * 셸을 전혀 쓰지 않으므로 인젝션 위험은 없지만, 이런 입력은 spawn 단계에서
  * ENOENT로 뭉개지는 대신 설정 탭에서 즉시 명확한 에러가 되는 게 낫다.
- * '%'는 정상 폴더명에 쓸 수 있으므로(예: "100% done") 제외한다.
+ * '&' '^' '%'는 정상 폴더명에 쓸 수 있으므로(예: "R&D", "100% done") 넣지 않는다.
  */
-const WIN_INVALID_PATH_CHARS = /[&|<>^"\r\n]/
+const WIN_INVALID_PATH_CHARS = /["<>|\r\n]/
 
 export async function locateClaude(override?: string | null): Promise<string> {
   if (override) {
@@ -172,10 +175,14 @@ export async function locateClaude(override?: string | null): Promise<string> {
     }
     const direct = (await isRunnable(override)) ? override : await resolveShim(override)
     if (direct) return direct
-    // 저장된 경로가 죽은 경우(nvm 버전 전환 등)를 자동 복구한다.
-    // C:\Program Files\nodejs 가 nvm 심볼릭 링크라 활성 버전이 바뀌면 조용히 무효가 된다.
-    const recovered = await autoDetect()
-    if (recovered) return recovered
+    // 윈도우 한정으로 자동 복구한다. C:\Program Files\nodejs 가 nvm 심볼릭 링크라
+    // 활성 버전이 바뀌면 저장된 경로가 조용히 무효가 되기 때문이다.
+    // 맥에는 이런 무효화 요인이 없어, 사용자가 명시한 경로를 다른 바이너리로
+    // 조용히 대체하는 쪽이 오히려 해롭다.
+    if (IS_WIN) {
+      const recovered = await autoDetect()
+      if (recovered) return recovered
+    }
     throw new Error(`설정된 claude 경로를 실행할 수 없습니다: ${override}`)
   }
   const found = await autoDetect()
