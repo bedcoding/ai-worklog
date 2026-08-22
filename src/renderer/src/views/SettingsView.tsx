@@ -158,10 +158,12 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
               onClick={testClaude}
             >
               {testing ? '확인 중…' : '연결 테스트'}
+              {/* 한 줄이 말풍선 폭(270px)을 넘으면 자동으로 한 번 더 접힌다.
+                  줄을 짧게 끊어 두면 의도한 곳에서만 나뉜다. */}
               <Tip
                 toLeft
                 text={
-                  '위 경로(비우면 자동 탐지)를 실제 실행 파일로 해석하고\nclaude --version 을 직접 실행해 봅니다.\n요약이 쓰는 것과 같은 경로라, 여기서 되면 요약도 됩니다.'
+                  '위 경로를 실제 실행 파일로 해석해\nclaude --version 을 실행합니다.\n요약도 같은 경로를 쓰므로,\n여기서 되면 요약도 됩니다.'
                 }
               />
             </button>
