@@ -312,6 +312,30 @@ button.btn.steady {
   padding-top: 0;
   border-top: none;
 }
+/* 만들어지는 중인 글. 아직 완성이 아니라는 것이 보여야 한다.
+   글자색을 죽이고 끝에 깜빡이는 막대를 붙인다. 색만 바꾸면 다 만들어진 것과 헷갈린다. */
+.pre.streaming {
+  color: var(--muted);
+}
+.pre.streaming::after {
+  content: '▍';
+  color: var(--accent);
+  animation: caret-blink 1s step-end infinite;
+}
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pre.streaming::after {
+    animation: none;
+  }
+}
 .items {
   /* 불릿을 쓰지 않는다. 선택·복사에 포함되지 않아 화면과 복사 결과가 어긋난다.
      들여쓰기도 쓰지 않는다. 접힌 줄이 혼자 들여쓰이면 흘린 글자처럼 보인다.

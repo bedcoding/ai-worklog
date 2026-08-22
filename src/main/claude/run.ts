@@ -1,12 +1,23 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { ModelChoice } from '@shared/types'
 
+/**
+ * 생성 중인 글을 조각으로 알린다.
+ * reset은 재시도로 처음부터 다시 쓴다는 뜻이다. 받아둔 조각을 버려야 한다.
+ */
+export type StreamEvent = { kind: 'reset' } | { kind: 'delta'; text: string }
+
 export interface ClaudeRunOptions {
   claudePath: string
   model: ModelChoice
   /** claude 실행 cwd. 로그 자기오염 방지를 위해 전용 디렉토리를 쓴다 */
   cwd: string
   timeoutMs?: number
+  /**
+   * 넘기면 stream-json으로 실행해 글이 만들어지는 대로 조각을 보낸다.
+   * 넘기지 않으면 예전처럼 json 한 덩이로 받는다. 최종 결과는 두 경우 모두 같다.
+   */
+  onStream?: (e: StreamEvent) => void
 }
 
 interface ResultEnvelope {
@@ -14,6 +25,59 @@ interface ResultEnvelope {
   subtype?: string
   is_error?: boolean
   result?: string
+}
+
+/** stream-json이 한 줄에 하나씩 내보내는 이벤트. 쓰는 것만 적는다 */
+interface StreamLine {
+  type?: string
+  subtype?: string
+  is_error?: boolean
+  result?: string
+  event?: {
+    type?: string
+    delta?: { type?: string; text?: string }
+  }
+}
+
+/**
+ * 청크를 줄로 자른다. 마지막 미완성 줄은 carry로 돌려 다음 청크에 이어붙인다.
+ *
+ * stdout 청크는 줄 경계와 아무 상관 없이 끊긴다. 그대로 파싱하면 반쪽 JSON에서
+ * 실패해 그 줄의 조각을 통째로 흘린다.
+ */
+export function splitLines(carry: string, chunk: string): { lines: string[]; carry: string } {
+  const parts = (carry + chunk).split('\n')
+  return { carry: parts.pop() ?? '', lines: parts }
+}
+
+/**
+ * stream-json 한 줄에서 본문 조각을 뽑는다. 본문이 아니면 null이다.
+ *
+ * thinking_delta는 모델이 혼자 생각하는 내용이라 요약 본문이 아니다. 그대로 흘리면
+ * 화면에 결과와 무관한 글이 흐른다. 모르는 줄과 깨진 줄도 조용히 버린다.
+ */
+export function textDeltaOf(line: string): string | null {
+  if (!line.trim()) return null
+  let ev: StreamLine
+  try {
+    ev = JSON.parse(line) as StreamLine
+  } catch {
+    return null
+  }
+  if (ev.type !== 'stream_event' || ev.event?.type !== 'content_block_delta') return null
+  const delta = ev.event.delta
+  return delta?.type === 'text_delta' && typeof delta.text === 'string' ? delta.text : null
+}
+
+/** stream-json 한 줄이 최종 결과 봉투면 그것을 준다 */
+export function resultOf(line: string): StreamLine | null {
+  if (!line.trim()) return null
+  try {
+    const ev = JSON.parse(line) as StreamLine
+    return ev.type === 'result' ? ev : null
+  } catch {
+    return null
+  }
 }
 
 const RETRY_DELAYS_MS = [2_000, 8_000]
@@ -53,6 +117,8 @@ export async function runClaude(prompt: string, opts: ClaudeRunOptions): Promise
   let lastError: Error = new Error('claude 실행 실패')
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     try {
+      // 재시도는 처음부터 다시 쓴다. 앞 시도의 조각을 남겨 두면 두 글이 이어붙는다
+      if (attempt > 0) opts.onStream?.({ kind: 'reset' })
       return await runOnce(prompt, opts)
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e))
@@ -67,7 +133,18 @@ export async function runClaude(prompt: string, opts: ClaudeRunOptions): Promise
 }
 
 function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
-  const args = ['-p', '--output-format', 'json', '--no-session-persistence']
+  const streaming = !!opts.onStream
+  // stream-json은 --verbose를 함께 주지 않으면 CLI가 실행을 거부한다
+  const args = streaming
+    ? [
+        '-p',
+        '--output-format',
+        'stream-json',
+        '--include-partial-messages',
+        '--verbose',
+        '--no-session-persistence'
+      ]
+    : ['-p', '--output-format', 'json', '--no-session-persistence']
   if (opts.model !== 'default') args.push('--model', opts.model)
 
   return new Promise((resolve, reject) => {
@@ -91,6 +168,8 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
 
     let stdout = ''
     let stderr = ''
+    /** 스트리밍일 때의 최종 결과 줄. 이것이 없으면 글이 끝까지 오지 않은 것이다 */
+    let resultLine: StreamLine | null = null
     let timedOut = false
     let hardTimer: ReturnType<typeof setTimeout> | null = null
     const timeoutMs = opts.timeoutMs ?? 120_000
@@ -113,8 +192,29 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
     // 한글 응답이 청크 경계에서 쪼개져도 깨지지 않도록 스트림 단위로 디코딩한다
     child.stdout?.setEncoding('utf8')
     child.stderr?.setEncoding('utf8')
-    child.stdout?.on('data', (d: string) => (stdout += d))
     child.stderr?.on('data', (d: string) => (stderr += d))
+
+    if (!streaming) {
+      child.stdout?.on('data', (d: string) => (stdout += d))
+    } else {
+      let carry = ''
+      const handle = (line: string): void => {
+        const done = resultOf(line)
+        if (done) {
+          resultLine = done
+          return
+        }
+        const text = textDeltaOf(line)
+        if (text !== null) opts.onStream?.({ kind: 'delta', text })
+      }
+      child.stdout?.on('data', (d: string) => {
+        const split = splitLines(carry, d)
+        carry = split.carry
+        for (const line of split.lines) handle(line)
+      })
+      // 마지막 줄에 개행이 없을 수 있다. 그러면 result가 carry에 남아 영구히 실패한다
+      child.stdout?.on('end', () => handle(carry))
+    }
 
     child.on('error', (e) => {
       clearTimers()
@@ -131,6 +231,20 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
       }
       if (code !== 0) {
         reject(new Error(`claude 종료 코드 ${code}: ${stderr.slice(0, 500)}`))
+        return
+      }
+      // 스트리밍이든 아니든 최종 결과는 같은 봉투에서 읽는다. 조각은 화면용이고
+      // 저장하는 글은 result다. 조각을 이어붙여 쓰면 놓친 조각이 그대로 구멍이 된다.
+      if (streaming) {
+        if (!resultLine) {
+          reject(new Error(`claude 응답이 끝까지 오지 않았습니다: ${stderr.slice(0, 300)}`))
+          return
+        }
+        if (resultLine.is_error || typeof resultLine.result !== 'string') {
+          reject(new Error(`claude 응답 오류 (${resultLine.subtype ?? 'unknown'})`))
+          return
+        }
+        resolve(resultLine.result)
         return
       }
       try {

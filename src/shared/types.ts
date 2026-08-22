@@ -116,6 +116,13 @@ export interface PeriodPart {
 /** 기간 요약의 두 부분. 서로 다른 데이터를 보고 따로 만든다 */
 export type PeriodPartKind = 'overview' | 'detail'
 
+/** 생성 중인 기간 요약의 글 조각. 어느 부분의 것인지 함께 보낸다 */
+export interface PeriodStreamEvent {
+  part: PeriodPartKind
+  kind: 'reset' | 'delta'
+  text?: string
+}
+
 /** 주간/월간 자유 텍스트 요약. key 예: "2026-W29", "2026-07" */
 export interface PeriodSummary {
   key: string
@@ -172,6 +179,7 @@ export const IPC = {
   dayGetDigest: 'day:getDigest',
   periodGet: 'period:get',
   periodGenerate: 'period:generate',
+  periodStream: 'period:stream',
   backfillCancel: 'backfill:cancel',
   clipboardWrite: 'clipboard:write',
   appSetAutoLaunch: 'app:setAutoLaunch',
@@ -215,6 +223,11 @@ export interface WorklogApi {
   getPeriod(key: string): Promise<PeriodSummary | null>
   /** 주간/월간 요약 생성. 구간의 모든 활동일이 요약돼 있어야 한다 (claude 1회) */
   generatePeriod(req: PeriodRequest, part: PeriodPartKind): Promise<PeriodSummary>
+  /**
+   * 기간 요약이 만들어지는 동안 글 조각을 받는다.
+   * reset은 재시도로 처음부터 다시 쓴다는 뜻이므로 받아둔 글을 버려야 한다.
+   */
+  onPeriodStream(cb: (e: PeriodStreamEvent) => void): () => void
   cancelBackfill(): Promise<void>
   copyToClipboard(text: string): Promise<void>
   setAutoLaunch(enabled: boolean): Promise<void>

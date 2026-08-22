@@ -105,7 +105,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
     longRunning = true
     try {
-      return await ensurePeriodPart(req, part)
+      return await ensurePeriodPart(req, part, (e) =>
+        push(IPC.periodStream, { part, kind: e.kind, text: e.kind === 'delta' ? e.text : undefined })
+      )
     } finally {
       longRunning = false
     }
