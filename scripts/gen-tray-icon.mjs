@@ -1,5 +1,15 @@
-// 트레이용 template PNG(흑색+알파)를 의존성 없이 생성한다.
-// 실행: node scripts/gen-tray-icon.mjs
+// 트레이·앱 아이콘을 의존성 없이 생성한다.
+// 실행: node scripts/gen-tray-icon.mjs  (npm run icons)
+//
+// 도형 정의는 하나뿐이고(문서 실루엣 + 무표정 얼굴) 표현만 셋으로 나뉜다.
+//   template : 외곽선 + 투명 배경, 검정 단색   -> 맥 메뉴바 (OS가 라이트/다크 자동 반전)
+//   solid    : 채운 실루엣 + 얼굴 구멍 + 흰 헤일로 -> 윈도우 트레이
+//   badge    : 검정 원 + 흰 외곽선 문서         -> 앱 아이콘 (양 플랫폼)
+//
+// 윈도우가 별도 표현을 쓰는 이유: setTemplateImage는 맥 전용이라 윈도우에서 no-op이고,
+// 검정 단색 아이콘은 다크 작업표시줄에서 명암비 1.29:1로 사실상 보이지 않는다.
+// 원형 배지를 트레이에 재사용하는 방안은 16px에서 원이 공간을 다 먹어 문서가
+// 흰 점이 되므로 쓰지 않는다. 헤일로 방식은 파일 하나로 양쪽 테마를 커버한다.
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -7,26 +17,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-// 16x16 픽셀 아트: 문서(리스트) 모양. '#'=검정, '.'=투명
-const ART = [
-  '................',
-  '..############..',
-  '..#..........#..',
-  '..#..........#..',
-  '..#..######..#..',
-  '..#..........#..',
-  '..#..######..#..',
-  '..#..........#..',
-  '..#..######..#..',
-  '..#..........#..',
-  '..#......##..#..',
-  '..#..........#..',
-  '..############..',
-  '................',
-  '................',
-  '................'
-]
-
+/* ---------------- PNG 인코더 ---------------- */
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256)
   for (let n = 0; n < 256; n++) {
@@ -78,64 +69,128 @@ function encodePng(size, pixelAt) {
   ])
 }
 
-// 맥 트레이용: 검정+알파 template 이미지 (메뉴바가 라이트/다크에 맞춰 자동 반전한다)
-function makeTrayPng(art, scale) {
-  const size = art.length * scale
+/* ---------------- 도형: 문서 + 무표정 얼굴 ---------------- */
+/**
+ * 비율은 16px에서 픽셀이 깨지지 않도록 맞춰져 있다. 특히 CUT(접힌 모서리 크기)을
+ * 키우면 대각선이 눈 높이까지 내려와 오른쪽 눈이 테두리와 한 덩어리로 붙는다.
+ */
+const INSET_X = 0.17 // 문서 좌우 여백 (박스 기준)
+const INSET_Y = 0.06 // 문서 상하 여백
+const CUT = 0.28 // 우상단 접힌 모서리 — 사각형을 '종이'로 읽히게 하는 요소
+const STROKE = 20 // 선 두께 = box / STROKE
+const EYE = 7 // 눈 크기 = box / EYE
+const EYE_Y = 0.4 // 눈 높이 (문서 높이 기준)
+const EYE_GAP = 0.13 // 두 눈 간격 (박스 기준)
+const MOUTH_W = 0.28
+const MOUTH_H = 18 // 입 두께 = box / MOUTH_H
+const MOUTH_Y = 0.62
+
+function docShape(originX, originY, box) {
+  const sw = Math.max(1, Math.round(box / STROKE))
+  const left = originX + Math.round(box * INSET_X)
+  const right = originX + box - 1 - Math.round(box * INSET_X)
+  const top = originY + Math.round(box * INSET_Y)
+  const bot = originY + box - 1 - Math.round(box * INSET_Y)
+  const cut = Math.round((right - left) * CUT)
+
+  const inside = (x, y) => {
+    if (x < left || x > right || y < top || y > bot) return false
+    if (cut > 0 && x - left > right - left - cut && y - top < cut) {
+      return x - (right - cut) <= y - top // 접힌 모서리의 대각선 아래쪽만 남긴다
+    }
+    return true
+  }
+
+  const isEdge = (x, y) => {
+    if (!inside(x, y)) return false
+    for (let dy = -sw; dy <= sw; dy++) {
+      for (let dx = -sw; dx <= sw; dx++) if (!inside(x + dx, y + dy)) return true
+    }
+    return false
+  }
+
+  const eye = Math.max(1, Math.round(box / EYE))
+  const eyeY = top + Math.round((bot - top) * EYE_Y)
+  const gap = Math.max(1, Math.round(box * EYE_GAP))
+  const cx = Math.round((left + right) / 2)
+  const eyeL = Math.round(cx - gap / 2 - eye)
+  const eyeR = Math.round(cx + gap / 2)
+  const mouthW = Math.max(2, Math.round(box * MOUTH_W))
+  const mouthH = Math.max(1, Math.round(box / MOUTH_H))
+  const mouthY = top + Math.round((bot - top) * MOUTH_Y)
+  // floor로 잡아야 좁은 내부 폭에서 좌우 여백이 대칭이 된다
+  const mouthX = cx - Math.floor(mouthW / 2)
+
+  const inFace = (x, y) => {
+    if (
+      y >= eyeY &&
+      y < eyeY + eye &&
+      ((x >= eyeL && x < eyeL + eye) || (x >= eyeR && x < eyeR + eye))
+    ) {
+      return true
+    }
+    return y >= mouthY && y < mouthY + mouthH && x >= mouthX && x < mouthX + mouthW
+  }
+
+  return { inside, isEdge, inFace }
+}
+
+const TRANSPARENT = [0, 0, 0, 0]
+const BLACK = [17, 17, 17, 255]
+const WHITE = [255, 255, 255, 255]
+
+/** 맥 메뉴바용 template — 검정 외곽선 + 얼굴, 배경 투명 */
+function makeTemplatePng(size) {
+  const s = docShape(0, 0, size)
+  return encodePng(size, (x, y) => (s.isEdge(x, y) || s.inFace(x, y) ? BLACK : TRANSPARENT))
+}
+
+/**
+ * 윈도우 트레이용 — 채운 검정 실루엣 + 흰 얼굴 + 흰 헤일로.
+ * 라이트 작업표시줄에서는 검정 본체가, 다크에서는 흰 헤일로가 형태를 잡는다.
+ */
+function makeTrayPng(size) {
+  const halo = Math.max(1, Math.round(size / 16))
+  const s = docShape(halo, halo, size - halo * 2)
+  const nearInside = (x, y) => {
+    for (let dy = -halo; dy <= halo; dy++) {
+      for (let dx = -halo; dx <= halo; dx++) if (s.inside(x + dx, y + dy)) return true
+    }
+    return false
+  }
   return encodePng(size, (x, y) => {
-    const on = art[Math.floor(y / scale)][Math.floor(x / scale)] === '#'
-    return [0, 0, 0, on ? 255 : 0]
+    if (s.inside(x, y)) return s.inFace(x, y) ? WHITE : BLACK
+    return nearInside(x, y) ? WHITE : TRANSPARENT
   })
 }
 
-// 윈도우 트레이용: 라운드 파랑 타일 + 흰 글리프.
-// 윈도우는 template 이미지를 지원하지 않아(setTemplateImage가 no-op) 단색 검정 아이콘은
-// 다크 작업표시줄에서 명암비 1.29:1로 사실상 안 보인다. 관례대로 브랜드 컬러를 쓴다.
-// 정수 배율(16/32/48)만 만든다 — Electron은 @1.75x 같은 접미사를 인식하지 않는다.
-function makeWinTrayPng(scale) {
-  const size = ART.length * scale
-  const radius = Math.max(2, Math.round(size * 0.2))
-  const bg = [79, 110, 247] // #4f6ef7 — 라이트 3.63:1, 다크 4.04:1 (둘 다 3:1 통과)
+/** 앱 아이콘 — 검정 원 + 흰 외곽선 문서 (todo-alarm 과 같은 틀) */
+function makeAppIconPng(size) {
+  const box = Math.round(size * 0.54)
+  const off = Math.round((size - box) / 2)
+  const s = docShape(off, off, box)
+  const r = size / 2 - 0.5
   return encodePng(size, (x, y) => {
-    const cx = Math.min(Math.max(x, radius), size - 1 - radius)
-    const cy = Math.min(Math.max(y, radius), size - 1 - radius)
-    if ((x - cx) ** 2 + (y - cy) ** 2 > radius ** 2) return [0, 0, 0, 0]
-    const on = ART[Math.floor(y / scale)][Math.floor(x / scale)] === '#'
-    return on ? [255, 255, 255, 255] : [...bg, 255]
+    const dx = x - size / 2 + 0.5
+    const dy = y - size / 2 + 0.5
+    if (dx * dx + dy * dy > r * r) return TRANSPARENT
+    return s.isEdge(x, y) || s.inFace(x, y) ? WHITE : BLACK
   })
 }
 
-// 앱 아이콘용(512px): 라운드 사각 파랑 배경 + 흰색 문서 아트
-function makeAppIconPng() {
-  const size = 512
-  const margin = Math.round(size * 0.09)
-  const radius = Math.round(size * 0.18)
-  const bg = [79, 110, 247] // #4f6ef7
-  const artScale = (size - margin * 4) / ART.length
-  const artOffset = margin * 2
-  return encodePng(size, (x, y) => {
-    const inX = x >= margin && x < size - margin
-    const inY = y >= margin && y < size - margin
-    if (!inX || !inY) return [0, 0, 0, 0]
-    // 라운드 코너: 코너 원 밖이면 투명
-    const cx = Math.min(Math.max(x, margin + radius), size - margin - radius)
-    const cy = Math.min(Math.max(y, margin + radius), size - margin - radius)
-    if ((x - cx) ** 2 + (y - cy) ** 2 > radius ** 2) return [0, 0, 0, 0]
-    const ax = Math.floor((x - artOffset) / artScale)
-    const ay = Math.floor((y - artOffset) / artScale)
-    if (ART[ay]?.[ax] === '#') return [255, 255, 255, 255]
-    return [...bg, 255]
-  })
-}
-
+/* ---------------- 출력 ---------------- */
+const out = (name) => join(ROOT, 'resources', name)
 mkdirSync(join(ROOT, 'resources'), { recursive: true })
-// 맥 트레이
-writeFileSync(join(ROOT, 'resources', 'iconTemplate.png'), makeTrayPng(ART, 1))
-writeFileSync(join(ROOT, 'resources', 'iconTemplate@2x.png'), makeTrayPng(ART, 2))
-// 윈도우 트레이 (Electron이 @2x/@3x를 자동 수집한다)
-writeFileSync(join(ROOT, 'resources', 'trayIcon.png'), makeWinTrayPng(1))
-writeFileSync(join(ROOT, 'resources', 'trayIcon@2x.png'), makeWinTrayPng(2))
-writeFileSync(join(ROOT, 'resources', 'trayIcon@3x.png'), makeWinTrayPng(3))
-// 앱 아이콘 — 512px 고정. electron-builder가 이 PNG에서 .ico를 자동 생성하며
-// 256px 미만으로 줄이면 ERR_ICON_TOO_SMALL로 윈도우 빌드가 실패한다. 크기를 바꾸지 말 것.
-writeFileSync(join(ROOT, 'resources', 'icon.png'), makeAppIconPng())
+
+// 맥 메뉴바 (Electron이 @2x를 자동 수집한다)
+writeFileSync(out('iconTemplate.png'), makeTemplatePng(16))
+writeFileSync(out('iconTemplate@2x.png'), makeTemplatePng(32))
+// 윈도우 트레이 — 정수 배율만 만든다 (Electron은 @1.75x 같은 접미사를 인식하지 않는다)
+writeFileSync(out('trayIcon.png'), makeTrayPng(16))
+writeFileSync(out('trayIcon@2x.png'), makeTrayPng(32))
+writeFileSync(out('trayIcon@3x.png'), makeTrayPng(48))
+// 앱 아이콘 — 512px 고정. electron-builder가 이 PNG에서 .ico/.icns를 만들며
+// 256px 미만으로 줄이면 ERR_ICON_TOO_SMALL로 윈도우 빌드가 즉시 실패한다.
+writeFileSync(out('icon.png'), makeAppIconPng(512))
+
 console.log('resources/ 아이콘 생성 완료 (mac template 2종, win tray 3종, app icon 1종)')
