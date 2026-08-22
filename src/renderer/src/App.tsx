@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { BackfillProgress } from '@shared/types'
+import type { BackfillProgress, PipelineError } from '@shared/types'
 import StatusBar from './StatusBar'
 import DailyView from './views/DailyView'
 import MonthView from './views/MonthView'
@@ -21,11 +21,16 @@ export default function App(): ReactNode {
   // 설정을 저장하면 상태바가 claude 연결/모델을 다시 확인한다
   const [claudeNonce, setClaudeNonce] = useState(0)
   const [pinned, setPinned] = useState(false)
+  const [pipelineError, setPipelineError] = useState<PipelineError | null>(null)
 
   useEffect(
     () => window.api.onBackfillProgress((p) => setProgress(p.phase === 'idle' ? null : p)),
     []
   )
+
+  // main이 보내는 파이프라인 오류(자동 요약 실패, 알림 표시 불가 등)를 표시한다.
+  // 수신자가 없으면 main의 '조용히 넘기지 않는다'가 실제로는 아무 데도 보이지 않는다.
+  useEffect(() => window.api.onPipelineError(setPipelineError), [])
 
   // 핀 상태는 main이 갖고 있다 (blur 처리 주체가 main이기 때문). 초기값을 읽어 표시를 맞춘다.
   useEffect(() => {
@@ -63,6 +68,16 @@ export default function App(): ReactNode {
           <PinIcon />
         </button>
       </nav>
+      {pipelineError && (
+        <div className="progress-wrap">
+          <div className="row spread">
+            <span className="error grow">{pipelineError.message}</span>
+            <button type="button" className="btn" onClick={() => setPipelineError(null)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
       {progress && <ProgressBanner p={progress} />}
       <main className="content">
         {tab === 'daily' && <DailyView />}

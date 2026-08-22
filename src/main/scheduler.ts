@@ -23,6 +23,16 @@ let onError: ((e: PipelineError) => void) | null = null
 
 /** 시계 점프·타이머 지연·놓친 발화를 회수하는 주기 점검 간격 */
 const CATCHUP_INTERVAL_MS = 15 * 60_000
+/**
+ * catch-up이 fire()를 다시 시도하기까지의 최소 간격.
+ * fire()는 실패해도 lastAutoRunDate를 남기지 않으므로, 이 제한이 없으면
+ * 실패한 자동 요약을 자정까지 15분마다 무한 재시도한다.
+ */
+const CATCHUP_MIN_GAP_MS = 60 * 60_000
+let lastCatchUpFireMs = 0
+
+/** dailyTime이 비었거나 형식이 깨진 경우의 대체값 (DEFAULT_SETTINGS.dailyTime과 같다) */
+const FALLBACK_MINUTES = 18 * 60
 
 export function initScheduler(
   notify: (s: DaySummary) => void,
@@ -78,14 +88,26 @@ async function catchUpThenReschedule(): Promise<void> {
   const s = await getSettings()
   if (s.dailyAuto !== 'off' && timePassedToday(s.dailyTime)) {
     const state = await readJson<SchedulerState>(schedulerStatePath())
-    if (state?.lastAutoRunDate !== todayKst()) await fire()
+    if (
+      state?.lastAutoRunDate !== todayKst() &&
+      Date.now() - lastCatchUpFireMs >= CATCHUP_MIN_GAP_MS
+    ) {
+      lastCatchUpFireMs = Date.now()
+      await fire()
+    }
   }
   await reschedule()
 }
 
 function minutesOf(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number)
-  return h * 60 + m
+  // 빈 문자열이면 NaN이 되어 nextFireMs가 NaN을 반환하고, setTimeout(NaN)이 즉시
+  // 발화해 fire()→reschedule()이 무한 재예약 루프로 돈다
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
+  if (!m) return FALLBACK_MINUTES
+  const h = Number(m[1])
+  const min = Number(m[2])
+  if (h > 23 || min > 59) return FALLBACK_MINUTES
+  return h * 60 + min
 }
 
 function timePassedToday(hhmm: string): boolean {
