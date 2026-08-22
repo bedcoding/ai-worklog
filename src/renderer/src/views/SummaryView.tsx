@@ -3,10 +3,10 @@ import { kstDateOf, kstDateTimeKo, shortDateKo } from '@shared/dates'
 import { renderDigestText } from '@shared/digest-text'
 import { rangeStateOf } from '@shared/range-state'
 import { cursorOf, keyOf, labelOf, rangeOf, shift, withSpan, type Cursor, type Span } from '@shared/span'
-import type { DayDigest, DaySummary, PeriodSummary, RangeStatus } from '@shared/types'
+import type { BackfillProgress, DayDigest, DaySummary, PeriodSummary, RangeStatus } from '@shared/types'
 import { CopyButton, Spinner, Tip, errMsg, modelLabel } from '../common'
 
-export default function SummaryView(): ReactNode {
+export default function SummaryView({ progress }: { progress: BackfillProgress | null }): ReactNode {
   // 자정을 넘겨도 "오늘"이 어제로 굳지 않도록 창이 열릴 때마다 재평가한다
   const [today, setToday] = useState(() => kstDateOf(Date.now()))
   const [cursor, setCursor] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
@@ -32,10 +32,11 @@ export default function SummaryView(): ReactNode {
   const { start, end } = rangeOf(cursor)
   const periodKey = keyOf(cursor)
 
-  const load = useCallback((): void => {
+  /** @param quiet 스피너를 띄우지 않는다. 이미 목록이 있는데 다시 읽을 때 쓴다 */
+  const load = useCallback((quiet = false): void => {
     const key = periodKey
     const id = ++reqRef.current
-    setLoading(true)
+    if (!quiet) setLoading(true)
     setError(null)
     void window.api.getPeriod(periodKey).then((p) => {
       if (id === reqRef.current) setPeriod(p)
@@ -58,6 +59,14 @@ export default function SummaryView(): ReactNode {
 
   useEffect(load, [load])
   useEffect(() => window.api.onDayUpdated(() => load()), [load])
+
+  // 전체 정리 중에 한 날짜가 끝나면 목록을 다시 읽는다. 끝난 행이 계속 '요약 생성'으로
+  // 남아 있으면 불이 켜진 한 줄 말고는 아무 일도 없는 것처럼 보인다.
+  // 조용히 읽는다. 스피너를 띄우면 날짜마다 목록 위에서 한 번씩 번쩍인다.
+  const doneCount = backfilling ? (progress?.done ?? 0) : -1
+  useEffect(() => {
+    if (doneCount > 0) load(true)
+  }, [doneCount, load])
 
   useEffect(() => {
     const refreshToday = (): void => setToday(kstDateOf(Date.now()))
@@ -133,9 +142,18 @@ export default function SummaryView(): ReactNode {
   const days = settled ? [...(status?.activeDays ?? [])].sort().reverse() : []
   const todayInRange = today >= start && today <= end
 
-  // 상태마다 다르게 말한다. '완료'는 실제로 정리를 끝냈을 때만 쓴다
+  // 지금 만들고 있는 날짜. 하루만 만들 때도, 전체 정리로 여러 날을 훑을 때도
+  // 그 날짜 행에 불이 켜져야 한다. 어느 쪽이 시작했는지는 화면에서 중요하지 않다.
+  const workingDate = busyDate ?? progress?.currentDate ?? null
+
+  // 누른 버튼이 진행 상황을 직접 말한다. 위쪽 막대에만 있으면 방금 누른 자리와
+  // 상태가 뜨는 자리가 멀다. 줄을 새로 만들지 않고 라벨에 붙여 높이가 흔들리지 않게 한다.
+  // scan 단계에서는 아직 총 개수를 모른다.
+  const scanned = backfilling && progress?.phase === 'summarize' && progress.total > 0
   const backfillLabel = backfilling
-    ? '전체 정리 중…'
+    ? scanned && progress
+      ? `전체 정리 중… ${progress.done}/${progress.total}`
+      : '전체 정리 중…'
     : state.kind === 'loading'
       ? '전체 정리하기'
       : state.kind === 'empty'
@@ -224,7 +242,7 @@ export default function SummaryView(): ReactNode {
                 <span className="grow muted ellipsis">
                   {s?.empty ? '활동 없음' : (s?.headline ?? s?.fallbackText?.slice(0, 40) ?? '')}
                 </span>
-                {busyDate === date ? (
+                {workingDate === date ? (
                   // 요약이 이미 있는 날짜를 다시 만들 때도 진행이 보여야 한다.
                   // 예전에는 그 행이 'AI 요약됨'으로 남아, 다른 날짜가 왜 다 잠겼는지 알 수 없었다.
                   <span className="badge busy">생성 중…</span>
@@ -256,7 +274,7 @@ export default function SummaryView(): ReactNode {
                 <DayDetail
                   date={date}
                   summary={s ?? null}
-                  busy={busyDate === date}
+                  busy={workingDate === date}
                   anyBusy={busy}
                   onGenerate={(force) => generateDay(date, force)}
                   digest={digests.get(date) ?? null}
@@ -282,8 +300,12 @@ export default function SummaryView(): ReactNode {
               onClick={compose}
             >
               {composing ? '만드는 중…' : period ? '다시 만들기' : '만들기'}
+              {/* 이 카드는 항상 맨 아래다. 아래로 펼치면 스크롤 영역이 말풍선만큼
+                  늘어나 없던 스크롤바가 생기고, 그 폭에 목록 글자까지 밀린다.
+                  위로 펼치면 이미 있는 내용을 덮으므로 영역이 늘지 않는다. */}
               <Tip
                 toLeft
+                up
                 text={'이미 만들어 둔 날짜별 요약을 묶습니다.\nclaude를 1번만 부릅니다.'}
               />
             </button>
