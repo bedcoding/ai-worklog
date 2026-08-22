@@ -72,7 +72,7 @@ export interface DigestOptions {
 
 /**
  * 날짜의 다이제스트를 확보한다.
- * 요약 생성 경로에서는 하루가 끝난 뒤 만들어진 캐시만 재사용한다 — 자동 실행이
+ * 요약 생성 경로에서는 하루가 끝난 뒤 만들어진 캐시만 재사용한다. 자동 실행이
  * 18시에 만든 오늘치 다이제스트가 다음날 확정본으로 굳어 이후 활동이 누락되는 것을 막는다.
  */
 export async function ensureDayDigest(
@@ -97,7 +97,7 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
 
 /**
  * 그 달의 활동일과, 그중 요약이 있는 날짜.
- * 오늘 이후는 세지 않는다 — 아직 오지 않은 날을 "활동 없음"으로 보이면 안 된다.
+ * 오늘 이후는 세지 않는다. 아직 오지 않은 날을 "활동 없음"으로 보이면 안 된다.
  */
 export async function getMonthStatus(ym: string): Promise<MonthStatus> {
   const today = todayKst()
@@ -207,10 +207,10 @@ export function renderDailyLines(summaries: DaySummary[]): string {
   for (const s of summaries) {
     if (s.empty) continue
     if (s.fallbackText) {
-      lines.push(`${shortDateKo(s.date)} — ${s.fallbackText.replace(/\s+/g, ' ').slice(0, 300)}`)
+      lines.push(`${shortDateKo(s.date)}: ${s.fallbackText.replace(/\s+/g, ' ').slice(0, 300)}`)
       continue
     }
-    lines.push(`${shortDateKo(s.date)} — ${s.headline ?? ''}`)
+    lines.push(`${shortDateKo(s.date)}: ${s.headline ?? ''}`)
     for (const item of s.items ?? []) {
       lines.push(`  - [${item.project}] ${item.work}`)
     }
@@ -260,7 +260,7 @@ export async function ensurePeriodSummary(
       if (digest) {
         summaries.push(await ensureDaySummary(date, { preCollected: digest }))
       } else {
-        // 원본 로그가 이미 정리된 날짜 — 남아 있는 요약 캐시를 그대로 쓴다
+        // 원본 로그가 이미 정리된 날짜. 남아 있는 요약 캐시를 그대로 쓴다
         const cached = await getCachedDaySummary(date)
         if (cached) summaries.push(cached)
       }

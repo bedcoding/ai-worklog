@@ -8,7 +8,7 @@ export default function WeekView(): ReactNode {
   const [period, setPeriod] = useState<PeriodSummary | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // 아직 요약되지 않은 활동일 수 — '일일 조합'이 claude를 몇 번 부를지 결정한다
+  // 아직 요약되지 않은 활동일 수. '일일 조합'이 claude를 몇 번 부를지 결정한다
   const [pending, setPending] = useState<number | null>(null)
   const { start, end } = weekRange(key)
 
@@ -88,8 +88,8 @@ export default function WeekView(): ReactNode {
           {pending === null
             ? ''
             : pending > 0
-              ? ` — 밀린 ${pending}일을 먼저 만들어 claude를 ${pending + 1}번 부릅니다`
-              : ' — 모두 요약돼 있어 claude를 1번 부릅니다'}
+              ? `. 밀린 ${pending}일을 먼저 만들어 claude를 ${pending + 1}번 부릅니다`
+              : '. 모두 요약돼 있어 claude를 1번 부릅니다'}
           .
         </div>
         <div className="muted">

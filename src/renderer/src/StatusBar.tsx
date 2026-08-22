@@ -6,7 +6,7 @@ import { errMsg, modelLabel, shortVersion } from './common'
  * claude 가 연결됐는지와 어떤 모델로 요약하는지를 항상 보이게 한다.
  * 요약이 "어디로 나가는지" 사용자가 확인할 수 있어야 하기 때문.
  *
- * 실행 파일 경로는 여기 두지 않는다 — 이 폭에서는 꼬리만 남고,
+ * 실행 파일 경로는 여기 두지 않는다. 이 폭에서는 꼬리만 남고,
  * 그 꼬리(claude-code/bin/claude.exe)는 어느 설치에서나 같아 식별에 쓸모가 없다.
  * 전체 경로는 설정 탭의 '실제 실행되는 파일'에서 본다.
  */
@@ -26,7 +26,7 @@ export default function StatusBar({
     let alive = true
     setChecking(true)
     setError(null)
-    // 설정을 읽지 못할 수 있다 — 모델 표기는 기본값으로 두고 rejection을 삼킨다
+    // 설정을 읽지 못할 수 있다. 모델 표기는 기본값으로 두고 rejection을 삼킨다
     window.api
       .getSettings()
       .then((s) => alive && setModel(s.model))
@@ -53,7 +53,7 @@ export default function StatusBar({
   if (error) {
     return (
       <button type="button" className="statusbar" onClick={onOpenSettings}>
-        <span className="error">claude 연결 안 됨 — 클릭해 경로를 지정하세요</span>
+        <span className="error">claude 연결 안 됨. 클릭해 경로를 지정하세요</span>
       </button>
     )
   }

@@ -39,7 +39,7 @@ export function anchorOf(tray: Rect, cursor: Point): Point {
   }
 }
 
-/** 작업표시줄(맥은 메뉴바)이 붙은 변 — 트레이가 작업영역 밖 어느 쪽에 있는지로 판정 */
+/** 작업표시줄(맥은 메뉴바)이 붙은 변. 트레이가 작업영역 밖 어느 쪽에 있는지로 판정 */
 function edgeOf(tray: Rect, wa: Rect, anchor: Point): 'top' | 'bottom' | 'left' | 'right' {
   if (!hasTray(tray)) return 'bottom'
   if (tray.y + tray.height <= wa.y) return 'top' // 맥 메뉴바 / 윈도우 상단 배치
@@ -52,7 +52,7 @@ function edgeOf(tray: Rect, wa: Rect, anchor: Point): 'top' | 'bottom' | 'left' 
 
 /**
  * 작업영역 안에 완전히 들어오는 창 사각형을 계산한다.
- * 크기 클램프가 위치 클램프보다 먼저 와야 한다 — 작업영역보다 창이 큰 모니터에서
+ * 크기 클램프가 위치 클램프보다 먼저 와야 한다. 작업영역보다 창이 큰 모니터에서
  * 위치만 클램프하면 하한이 상한을 넘어 다시 화면을 벗어난다.
  */
 export function popupBounds(tray: Rect, workArea: Rect, cursor: Point): Rect {
@@ -60,7 +60,7 @@ export function popupBounds(tray: Rect, workArea: Rect, cursor: Point): Rect {
   const wa = workArea
 
   // 1) 작업영역보다 창이 크면 먼저 줄인다.
-  //    하한 1px — 작업영역이 GAP*2보다 좁으면 음수가 되어 setBounds에 잘못된 사각형이 간다.
+  //    하한 1px. 작업영역이 GAP*2보다 좁으면 음수가 되어 setBounds에 잘못된 사각형이 간다.
   const width = Math.max(1, Math.min(POPUP_WIDTH, wa.width - GAP * 2))
   const height = Math.max(1, Math.min(POPUP_HEIGHT, wa.height - GAP * 2))
 

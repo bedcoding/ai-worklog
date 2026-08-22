@@ -166,7 +166,7 @@ export interface PeriodRequest {
 
 /** preload가 contextBridge로 노출하고 렌더러가 사용하는 API 표면 */
 export interface WorklogApi {
-  /** 'win32' | 'darwin' | ... — 플랫폼별 안내 문구 분기에 쓴다 */
+  /** 'win32' | 'darwin' 등. 플랫폼별 안내 문구 분기에 쓴다 */
   readonly platform: string
   getSettings(): Promise<Settings>
   setSettings(patch: Partial<Settings>): Promise<Settings>
@@ -178,7 +178,7 @@ export interface WorklogApi {
   /** 특정 날짜 요약 생성 (force면 캐시 무시) */
   generateDay(date: string, force?: boolean): Promise<DaySummary>
   /**
-   * 원본 추출 내역 — AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0).
+   * 원본 추출 내역. AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0).
    * 기본은 캐시 우선이며, force=true면 원본 로그를 다시 스캔한다.
    */
   getDayDigest(date: string, force?: boolean): Promise<DayDigest>
@@ -189,7 +189,7 @@ export interface WorklogApi {
   cancelBackfill(): Promise<void>
   copyToClipboard(text: string): Promise<void>
   setAutoLaunch(enabled: boolean): Promise<void>
-  /** 창 고정 여부 — 고정 중에는 포커스를 잃어도 창이 닫히지 않는다 */
+  /** 창 고정 여부. 고정 중에는 포커스를 잃어도 창이 닫히지 않는다 */
   getWindowPinned(): Promise<boolean>
   setWindowPinned(pinned: boolean): Promise<boolean>
   onBackfillProgress(cb: (p: BackfillProgress) => void): () => void

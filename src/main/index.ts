@@ -12,7 +12,7 @@ import { initScheduler } from './scheduler'
 const IS_MAC = process.platform === 'darwin'
 const IS_WIN = process.platform === 'win32'
 
-/** electron-builder.yml 의 appId와 반드시 같아야 한다 — 윈도우 토스트 알림 귀속에 쓰인다 */
+/** electron-builder.yml 의 appId와 반드시 같아야 한다. 윈도우 토스트 알림 귀속에 쓰인다 */
 const APP_ID = 'dev.bedcoding.ai-worklog'
 
 // 맥은 메뉴바가 라이트/다크에 맞춰 반전시키는 단색 template 이미지를 쓰고,
@@ -27,7 +27,7 @@ let lastHideMs = 0
 
 // dev 전용: 기동 즉시 창을 띄우고 고정해 둔다 (트레이 상주 앱은 창을 띄우려면 아이콘을
 // 찾아야 하는데, 윈도우 11은 새 트레이 아이콘을 오버플로에 숨기므로 디버깅이 번거롭다).
-// 고정은 사용자용 핀 기능과 같은 경로를 쓴다 — dev 전용 우회로를 따로 두지 않는다.
+// 고정은 사용자용 핀 기능과 같은 경로를 쓴다. dev 전용 우회로를 따로 두지 않는다.
 const showOnStart =
   !!process.env['ELECTRON_RENDERER_URL'] && process.env['WORKLOG_SHOW_ON_START'] === '1'
 
@@ -106,7 +106,7 @@ function revealWindow(): void {
   win.setAlwaysOnTop(true)
   win.show()
   win.focus()
-  // 핀이 켜져 있으면 항상 위를 유지해야 한다 — 무조건 false로 되돌리면 핀이 무력화된다
+  // 핀이 켜져 있으면 항상 위를 유지해야 한다. 무조건 false로 되돌리면 핀이 무력화된다
   win.setAlwaysOnTop(isWindowPinned())
 }
 
@@ -125,7 +125,7 @@ void app.whenReady().then(() => {
   const icon = nativeImage.createFromPath(trayIconAsset)
   if (IS_MAC) icon.setTemplateImage(true) // 메뉴바 라이트/다크 자동 대응 (맥 전용)
   tray = new Tray(icon)
-  tray.setToolTip('WorkLog — Claude Code 업무 기록')
+  tray.setToolTip('WorkLog\nClaude Code 업무 기록')
   tray.on('click', toggleWindow)
   const contextMenu = Menu.buildFromTemplate([
     { label: '열기', click: toggleWindow },
@@ -147,7 +147,7 @@ void app.whenReady().then(() => {
   }
 
   if (showOnStart) {
-    // 핀을 켜 둔다 — 렌더러도 같은 상태를 읽으므로 핀 버튼이 켜진 것으로 표시된다
+    // 핀을 켜 둔다. 렌더러도 같은 상태를 읽으므로 핀 버튼이 켜진 것으로 표시된다
     setWindowPinned(win, true)
     toggleWindow()
   }
@@ -170,6 +170,6 @@ app.on('before-quit', () => {
 })
 
 app.on('window-all-closed', () => {
-  // 트레이 상주 앱 — 창이 닫혀도 종료하지 않는다.
+  // 트레이 상주 앱. 창이 닫혀도 종료하지 않는다.
   // 윈도우에서는 이 빈 핸들러가 필수다 (없으면 창을 닫는 순간 앱이 종료된다).
 })
