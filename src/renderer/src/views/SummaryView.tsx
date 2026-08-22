@@ -197,15 +197,10 @@ export default function SummaryView(): ReactNode {
           onClick={runBackfill}
         >
           {backfillLabel}
-          {/* 라벨이 이미 '밀린 N일 전체 정리하기'라고 말한다. 말풍선에는 라벨이
-              말하지 않는 것만 둔다. 긴 줄부터 놓아 오른쪽 끝이 움푹 들어가지 않게 한다.
-              나머지 상태는 라벨만으로 충분하므로 말풍선을 띄우지 않는다. */}
-          {state.kind === 'pending' && (
-            <Tip
-              toLeft
-              text={`진행 중에 위쪽 막대에서 중단할 수 있습니다.\nclaude를 ${state.count}번 부릅니다.`}
-            />
-          )}
+          {/* 말풍선에는 라벨이 말하지 않는 것만 둔다. 남은 날짜 수는 이미 라벨에 있고,
+              중단은 누른 뒤에 위쪽 막대에서 알려 준다. 누르기 전에 알아야 할 것은
+              비용 하나다. 나머지 상태는 라벨만으로 충분해 말풍선을 띄우지 않는다. */}
+          {state.kind === 'pending' && <Tip toLeft text={`claude를 ${state.count}번 부릅니다.`} />}
         </button>
         {error && <div className="error">{error}</div>}
       </div>
