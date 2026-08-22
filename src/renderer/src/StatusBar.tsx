@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { ClaudeInfo, ModelChoice } from '@shared/types'
-import { errMsg, modelLabel } from './common'
+import { errMsg, modelLabel, shortVersion } from './common'
 
 /**
  * 어떤 claude 실행 파일이 어떤 모델로 연결돼 있는지 항상 보이게 한다.
@@ -41,7 +41,7 @@ export default function StatusBar({
     }
   }, [nonce])
 
-  const version = info?.version.replace(/\s*\(Claude Code\)\s*/, '') ?? ''
+  const version = info ? shortVersion(info.version) : ''
 
   return (
     <button type="button" className="statusbar" onClick={onOpenSettings} title={info?.path ?? ''}>
