@@ -186,15 +186,15 @@ export default function SummaryView(): ReactNode {
             : pending === 0
               ? '전체 정리 완료'
               : `밀린 ${pending}일 전체 정리하기`}
-          <Tip
-            toLeft
-            text={
-              pending === 0
-                ? '이 구간은 모두 정리돼 있습니다.'
-                : // 짧은 줄을 가운데 두면 오른쪽 끝이 움푹 들어가 보인다. 긴 줄부터 놓는다.
-                  `요약이 없는 ${pending}일을 하나씩 차례로 만듭니다.\n진행 중에 위쪽 막대에서 중단할 수 있습니다.\nclaude를 ${pending}번 부릅니다.`
-            }
-          />
+          {/* 라벨이 이미 '밀린 N일 전체 정리하기'라고 말한다. 말풍선에는 라벨이
+              말하지 않는 것만 둔다. 긴 줄부터 놓아 오른쪽 끝이 움푹 들어가지 않게 한다.
+              정리가 끝난 상태는 라벨만으로 충분하므로 말풍선을 띄우지 않는다. */}
+          {pending > 0 && (
+            <Tip
+              toLeft
+              text={`진행 중에 위쪽 막대에서 중단할 수 있습니다.\nclaude를 ${pending}번 부릅니다.`}
+            />
+          )}
         </button>
         {error && <div className="error">{error}</div>}
       </div>
