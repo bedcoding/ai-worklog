@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { kstDateOf, kstDateTimeKo, shortDateKo } from '@shared/dates'
 import { renderDigestText } from '@shared/digest-text'
+import { rangeStateOf } from '@shared/range-state'
 import { cursorOf, keyOf, labelOf, rangeOf, shift, withSpan, type Cursor, type Span } from '@shared/span'
 import type { DayDigest, DaySummary, PeriodSummary, RangeStatus } from '@shared/types'
 import { CopyButton, Spinner, Tip, errMsg, modelLabel } from '../common'
@@ -123,16 +124,25 @@ export default function SummaryView(): ReactNode {
       .finally(() => setComposing(false))
   }
 
-  // 캐시가 없는 활동일 수. 이 숫자가 곧 '전체 정리하기'의 claude 호출 횟수다.
-  // 다른 구간의 응답은 쓰지 않는다. 숫자가 라벨과 맞지 않으면 버튼이 거짓 약속을 한다.
+  // 아직 도착하지 않은 응답과 다른 구간의 응답은 똑같이 '모른다'로 취급한다.
+  // 지난주 개수가 이번 달 라벨 아래 남으면 화면이 거짓말을 한다.
   const settled = loadedKey === periodKey
-  const done = new Set(settled ? (status?.summarizedDays ?? []) : [])
-  const active = settled ? (status?.activeDays ?? []) : []
-  const pending = active.filter((d) => !done.has(d)).length
+  const state = rangeStateOf(settled ? status : null)
   const busy = busyDate !== null || backfilling || composing
   const spanWord = cursor.span === 'week' ? '주간' : '월간'
-  const days = [...active].sort().reverse()
+  const days = settled ? [...(status?.activeDays ?? [])].sort().reverse() : []
   const todayInRange = today >= start && today <= end
+
+  // 상태마다 다르게 말한다. '완료'는 실제로 정리를 끝냈을 때만 쓴다
+  const backfillLabel = backfilling
+    ? '전체 정리 중…'
+    : state.kind === 'loading'
+      ? '전체 정리하기'
+      : state.kind === 'empty'
+        ? '정리할 기록 없음'
+        : state.kind === 'ready'
+          ? '전체 정리 완료'
+          : `밀린 ${state.count}일 전체 정리하기`
 
   const setSpan = (span: Span): void => setCursor(withSpan(cursor, span))
 
@@ -180,19 +190,20 @@ export default function SummaryView(): ReactNode {
         )}
         {/* 날짜 수만큼 claude를 부르는 유일한 버튼이다. 라벨에는 남은 날짜 수만,
             호출 횟수는 말풍선에 둔다. 둘 다 라벨에 넣으면 괄호가 붙어 지저분하다. */}
-        <button type="button" className="btn tip-host" disabled={busy || pending === 0} onClick={runBackfill}>
-          {backfilling
-            ? '전체 정리 중…'
-            : pending === 0
-              ? '전체 정리 완료'
-              : `밀린 ${pending}일 전체 정리하기`}
+        <button
+          type="button"
+          className="btn tip-host"
+          disabled={busy || state.kind !== 'pending'}
+          onClick={runBackfill}
+        >
+          {backfillLabel}
           {/* 라벨이 이미 '밀린 N일 전체 정리하기'라고 말한다. 말풍선에는 라벨이
               말하지 않는 것만 둔다. 긴 줄부터 놓아 오른쪽 끝이 움푹 들어가지 않게 한다.
-              정리가 끝난 상태는 라벨만으로 충분하므로 말풍선을 띄우지 않는다. */}
-          {pending > 0 && (
+              나머지 상태는 라벨만으로 충분하므로 말풍선을 띄우지 않는다. */}
+          {state.kind === 'pending' && (
             <Tip
               toLeft
-              text={`진행 중에 위쪽 막대에서 중단할 수 있습니다.\nclaude를 ${pending}번 부릅니다.`}
+              text={`진행 중에 위쪽 막대에서 중단할 수 있습니다.\nclaude를 ${state.count}번 부릅니다.`}
             />
           )}
         </button>
@@ -272,7 +283,7 @@ export default function SummaryView(): ReactNode {
             <button
               type="button"
               className="btn steady tip-host"
-              disabled={busy || pending > 0 || active.length === 0}
+              disabled={busy || state.kind !== 'ready'}
               onClick={compose}
             >
               {composing ? '만드는 중…' : period ? '다시 만들기' : '만들기'}
@@ -283,11 +294,13 @@ export default function SummaryView(): ReactNode {
             </button>
           </div>
         </div>
-        {pending > 0 ? (
+        {/* loading일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중…'이 그
+            상태를 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다. */}
+        {state.kind === 'pending' ? (
           <div className="muted">
             날짜별 요약이 모두 있어야 만들 수 있습니다. 위에서 전체 정리를 먼저 끝내세요.
           </div>
-        ) : active.length === 0 ? (
+        ) : state.kind === 'empty' ? (
           <div className="muted">이 기간에는 묶을 기록이 없습니다.</div>
         ) : null}
         {period && (
