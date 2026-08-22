@@ -80,7 +80,9 @@ export default function App(): ReactNode {
       )}
       {progress && <ProgressBanner p={progress} />}
       <main className="content">
-        {tab === 'summary' && <SummaryView />}
+        {/* 진행 상황은 여기서 한 번만 받아 아래로 내린다. 목록이 어느 날짜를
+            만들고 있는지 표시해야 하므로 배너만 알고 있으면 부족하다. */}
+        {tab === 'summary' && <SummaryView progress={progress} />}
         {/* 설정은 언마운트하지 않는다. 저장 전 탭을 옮겨도 입력이 남아 있어야 한다 */}
         <div
           style={{
@@ -116,7 +118,9 @@ function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
     ? `${p.currentDate ?? '지금 날짜'}까지 만들고 중단합니다`
     : p.phase === 'scan'
       ? '기록 스캔 중…'
-      : `일별 요약 생성 중 ${p.done}/${p.total}${p.currentDate ? ` (${p.currentDate})` : ''}`
+      // 날짜는 붙이지 않는다. 목록에서 그 날짜 행이 직접 불을 켜므로,
+      // 여기에 ISO 날짜를 괄호로 또 적으면 날짜가 있어야 할 자리에서 멀어진다.
+      : `일별 요약 생성 중 ${p.done}/${p.total}`
   const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined
   return (
     <div className="progress-wrap">
