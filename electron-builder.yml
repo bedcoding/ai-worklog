@@ -35,7 +35,12 @@ win:
       arch: [x64]
 nsis:
   oneClick: false # 마법사형 설치 (기본 true = 원클릭)
-  perMachine: false # %LOCALAPPDATA%\Programs\WorkLog, UAC 불필요
+  # perMachine: false + oneClick: false 조합에서는 '설치 대상(현재 사용자 / 모든 사용자)'
+  # 선택 페이지가 표시된다. 기본 선택은 현재 사용자(%LOCALAPPDATA%\Programs\WorkLog, UAC 없음)이고,
+  # 사용자가 '모든 사용자'를 고르면 UAC 승격 후 %PROGRAMFILES%에 설치된다.
+  # 이 페이지는 allowElevation으로 없앨 수 없다 — 템플릿이 perMachine: true(INSTALL_MODE_PER_ALL_USERS)
+  # 일 때만 건너뛴다(app-builder-lib/templates/nsis/assistedInstaller.nsh).
+  perMachine: false
   allowToChangeInstallationDirectory: true
   # 트레이 상주 앱의 최대 약점(아이콘을 잃어버리면 켤 수 없다)을 바로가기로 보완한다
   createDesktopShortcut: true
