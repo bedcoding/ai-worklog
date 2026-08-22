@@ -72,7 +72,10 @@ nav.tabs button.pin {
   align-items: center;
   justify-content: center;
   color: var(--muted);
-  /* 관례: 기울어진 압정 = 고정 안 됨, 똑바로 선 압정 = 고정됨 */
+}
+/* 관례: 기울어진 압정 = 고정 안 됨, 똑바로 선 압정 = 고정됨.
+   회전은 아이콘에만 건다 — 버튼에 걸면 안에 붙는 말풍선까지 같이 기울어진다. */
+nav.tabs button.pin svg {
   transform: rotate(40deg);
 }
 nav.tabs button.pin:hover {
@@ -80,6 +83,8 @@ nav.tabs button.pin:hover {
 }
 nav.tabs button.pin.pinned {
   color: var(--accent);
+}
+nav.tabs button.pin.pinned svg {
   transform: none;
 }
 main.content {
@@ -389,7 +394,6 @@ button.statusbar .path {
 }
 /* 설명을 호버로 넘기되, 설명이 있다는 표식은 남긴다 */
 .hint {
-  position: relative;
   color: var(--muted);
   font-weight: 400;
   cursor: help;
@@ -399,17 +403,21 @@ button.statusbar .path {
   color: var(--accent);
   outline: none;
 }
+/* 말풍선을 붙일 대상. 자기 자신을 기준으로 위치를 잡게 한다 */
+.tip-host {
+  position: relative;
+}
 /* 네이티브 title 툴팁은 뜨기까지 약 1초 걸리고 그 지연을 페이지에서 바꿀 수 없다.
    직접 그려서 즉시 띄운다. transition·animation 을 걸지 않는 것이 핵심 —
    지연이 0이어야 한다. */
-.hint-bubble {
+.tip {
   display: none;
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   z-index: 10;
   width: max-content;
-  /* 창 폭이 432px로 고정이다. 270이면 어느 ⓘ 위치에서도 창을 넘지 않고,
+  /* 창 폭이 432px로 고정이다. 270이면 어느 위치에서도 창을 넘지 않고,
      한 문장이 한 줄에 들어가 문장 중간에서 접히지 않는다 */
   max-width: 270px;
   padding: 7px 9px;
@@ -423,18 +431,25 @@ button.statusbar .path {
   line-height: 1.55;
   /* 문장마다 넣은 줄바꿈을 살리고, 그보다 긴 줄은 알아서 접히게 둔다 */
   white-space: pre-line;
+  /* 공백 없는 긴 경로도 상자 안에서 접히게 한다 */
+  overflow-wrap: anywhere;
   text-align: left;
   -webkit-user-select: text;
   user-select: text;
   cursor: text;
 }
-/* 오른쪽 끝의 ⓘ 는 왼쪽으로 펼친다 */
-.hint-bubble.to-left {
+/* 오른쪽 끝에 붙는 대상은 왼쪽으로 펼친다 */
+.tip.to-left {
   left: auto;
   right: 0;
 }
-.hint:hover > .hint-bubble,
-.hint:focus-visible > .hint-bubble {
+/* 창 아래쪽에 붙는 대상은 위로 펼친다 (아래로 열면 창 밖이라 잘린다) */
+.tip.up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.tip-host:hover > .tip,
+.tip-host:focus-visible > .tip {
   display: block;
 }
 

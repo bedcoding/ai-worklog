@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Settings } from '@shared/types'
-import { Spinner, errMsg, shortVersion } from '../common'
+import { Spinner, Tip, errMsg, shortVersion } from '../common'
 
 /**
  * 설명을 상시 노출하지 않고 호버로 넘긴다 — 좁은 창에서 설명 줄이 화면을 크게 먹는다.
@@ -15,9 +15,9 @@ import { Spinner, errMsg, shortVersion } from '../common'
 function Hint({ text, toLeft }: { text: string; toLeft?: boolean }): ReactNode {
   return (
     // tabIndex 로 키보드에서도 열 수 있게 한다
-    <span className="hint" tabIndex={0} role="note" aria-label={text}>
+    <span className="hint tip-host" tabIndex={0} role="note" aria-label={text}>
       ⓘ
-      <span className={toLeft ? 'hint-bubble to-left' : 'hint-bubble'}>{text}</span>
+      <Tip text={text} toLeft={toLeft} />
     </span>
   )
 }
@@ -160,8 +160,11 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         </div>
         {/* 경로는 길어서 버튼 옆에 두면 세 줄로 접힌다. 한 줄로 두고 앞을 잘라 파일명이 보이게 한다 */}
         {claude.kind === 'ok' && (
-          <div className="muted ellipsis path-tail" title={claude.path}>
-            {claude.path}
+          // 말풍선을 .ellipsis 안에 두면 그쪽 overflow: hidden 에 잘린다.
+          // .path-tail 의 direction: rtl 도 말풍선까지 뒤집으므로 형제로 뺀다.
+          <div className="tip-host" tabIndex={0}>
+            <div className="muted ellipsis path-tail">{claude.path}</div>
+            <Tip text={claude.path} />
           </div>
         )}
         <label>

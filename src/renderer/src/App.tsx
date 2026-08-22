@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { BackfillProgress, PipelineError } from '@shared/types'
 import StatusBar from './StatusBar'
+import { Tip } from './common'
 import DailyView from './views/DailyView'
 import MonthView from './views/MonthView'
 import SettingsView from './views/SettingsView'
@@ -56,16 +57,19 @@ export default function App(): ReactNode {
         ))}
         <button
           type="button"
-          className={pinned ? 'pin pinned' : 'pin'}
+          className={pinned ? 'pin pinned tip-host' : 'pin tip-host'}
           aria-pressed={pinned}
-          title={
-            pinned
-              ? '창 고정 해제 — 다른 곳을 클릭하면 창이 닫힙니다'
-              : '창 고정 — 다른 곳을 클릭해도 창이 닫히지 않습니다'
-          }
           onClick={() => void window.api.setWindowPinned(!pinned).then(setPinned)}
         >
           <PinIcon />
+          <Tip
+            toLeft
+            text={
+              pinned
+                ? '창 고정 해제\n다른 곳을 클릭하면 창이 닫힙니다'
+                : '창 고정\n다른 곳을 클릭해도 창이 닫히지 않습니다'
+            }
+          />
         </button>
       </nav>
       {pipelineError && (
@@ -126,15 +130,15 @@ function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
         <span className="muted">{phaseLabel}</span>
         <button
           type="button"
-          className="btn"
+          className="btn tip-host"
           disabled={stopping}
-          title="지금 만들고 있는 날짜는 끝내고, 다음 날짜부터 중단합니다"
           onClick={() => {
             setStopping(true)
             void window.api.cancelBackfill()
           }}
         >
           {stopping ? '중단 중…' : '중단'}
+          <Tip toLeft text={'지금 만들고 있는 날짜는 끝내고\n다음 날짜부터 중단합니다'} />
         </button>
       </div>
       <div className="progress-track">
