@@ -109,7 +109,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
         push(IPC.periodStream, {
           part,
           kind: e.kind,
-          text: e.kind === 'reset' ? undefined : e.text
+          text: e.kind === 'thinking' || e.kind === 'delta' ? e.text : undefined,
+          count: e.kind === 'tokens' ? e.count : undefined
         })
       )
     } finally {

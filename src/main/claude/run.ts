@@ -13,6 +13,8 @@ export type StreamEvent =
    * 본문 첫 글자까지 수십 초 걸릴 수 있어, 그 사이 유일하게 움직이는 신호다.
    */
   | { kind: 'thinking'; text: string }
+  /** 생각 토큰 누계. 생각 글자가 나오기 전에도 이 숫자는 오른다 */
+  | { kind: 'tokens'; count: number }
   | { kind: 'delta'; text: string }
 
 export interface ClaudeRunOptions {
@@ -41,6 +43,8 @@ interface StreamLine {
   subtype?: string
   is_error?: boolean
   result?: string
+  /** system/thinking_tokens 가 실어 보내는 누적 토큰 수 */
+  estimated_tokens?: number
   event?: {
     type?: string
     delta?: { type?: string; text?: string; thinking?: string }
@@ -66,6 +70,11 @@ export type StreamLineKind =
    * 그렇다고 버리면 본문이 나오기까지 수십 초간 화면이 죽은 것처럼 보인다.
    */
   | { kind: 'thinking'; text: string }
+  /**
+   * 생각 토큰 누계. 생각 글자보다 먼저, 더 자주 온다.
+   * 첫 글자가 나오기 전 구간에서 유일하게 움직이는 숫자다.
+   */
+  | { kind: 'tokens'; count: number }
   | { kind: 'result'; envelope: StreamLine }
   | { kind: 'other' }
 
@@ -82,6 +91,9 @@ export function classifyLine(line: string): StreamLineKind {
     return { kind: 'other' }
   }
   if (ev.type === 'result') return { kind: 'result', envelope: ev }
+  if (ev.type === 'system' && ev.subtype === 'thinking_tokens') {
+    return { kind: 'tokens', count: ev.estimated_tokens ?? 0 }
+  }
   if (ev.type !== 'stream_event' || ev.event?.type !== 'content_block_delta') {
     return { kind: 'other' }
   }
@@ -218,6 +230,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
         if (ev.kind === 'result') resultLine = ev.envelope
         else if (ev.kind === 'text') opts.onStream?.({ kind: 'delta', text: ev.text })
         else if (ev.kind === 'thinking') opts.onStream?.({ kind: 'thinking', text: ev.text })
+        else if (ev.kind === 'tokens') opts.onStream?.({ kind: 'tokens', count: ev.count })
       }
       child.stdout?.on('data', (d: string) => {
         const split = splitLines(carry, d)

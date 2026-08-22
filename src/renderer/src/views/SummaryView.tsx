@@ -25,9 +25,11 @@ interface StreamState {
   startedAt: number
   /** 몇 번째 시도인지. 조용히 다시 도는 것이 가장 답답하다 */
   attempt: number
+  /** 생각 토큰 누계. 생각 글자보다 먼저 오지만, 아예 안 오는 프롬프트도 있다 */
+  tokens: number
 }
 
-const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1 }
+const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1, tokens: 0 }
 
 export default function SummaryView({ progress }: { progress: BackfillProgress | null }): ReactNode {
   // 자정을 넘겨도 "오늘"이 어제로 굳지 않도록 창이 열릴 때마다 재평가한다
@@ -98,6 +100,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
             return { ...IDLE_STREAM, startedAt: Date.now(), attempt: prev.attempt + 1 }
           }
           if (e.kind === 'thinking') return { ...prev, thinking: prev.thinking + (e.text ?? '') }
+          if (e.kind === 'tokens') return { ...prev, tokens: e.count ?? prev.tokens }
           return { ...prev, text: prev.text + (e.text ?? '') }
         })
       ),
@@ -457,24 +460,32 @@ function Working({ stream }: { stream: StreamState }): ReactNode {
     if (el) el.scrollTop = el.scrollHeight
   }, [stream.thinking])
 
-  const phase = stream.text
-    ? '쓰고 있습니다'
-    : stream.thinking
-      ? '생각하고 있습니다'
-      : '기록을 읽고 있습니다'
+  // 첫 응답이 오기 전에는 claude 가 무엇을 하는지 알 방법이 없다. '기록을 읽는 중'
+  // 같은 말은 로컬에서 뭔가 하는 것처럼 들려 거짓이다. 보냈고 기다린다고만 말한다.
+  // 실측으로 이 구간이 1분까지 간다. 상한을 함께 적어야 무한정으로 읽히지 않는다.
+  const working = stream.text
+    ? 'claude가 쓰고 있습니다'
+    : stream.thinking || stream.tokens > 0
+      ? 'claude가 생각하고 있습니다'
+      : '요청을 보냈습니다. 첫 응답을 기다립니다'
 
   return (
     <>
       <div className="muted">
-        ⏳ claude가 {phase}… <Elapsed since={stream.startedAt} />
+        ⏳ {working}… <Elapsed since={stream.startedAt} />
+        {/* 생각 토큰은 글자보다 먼저 오지만 아예 안 오는 프롬프트도 있다 */}
+        {stream.tokens > 0 && !stream.text && ` · ${stream.tokens} 토큰`}
         {/* 재시도는 조용히 일어나면 그냥 멈춘 것으로 보인다 */}
         {stream.attempt > 1 && ` · ${stream.attempt}번째 시도`}
       </div>
-      {/* 생각 내용은 요약이 아니다. 상자에 담고 색을 죽여 본문과 갈라 둔다.
+      {/* 생각 내용은 요약이 아니다. 이름을 붙여 두지 않으면 무엇이 결과인지 갈리지 않는다.
           저장하지 않는다. 본문이 시작되면 자리를 비운다. */}
       {!stream.text && stream.thinking && (
-        <div className="thinking" ref={thinkBox}>
-          {stream.thinking}
+        <div className="thinking-box">
+          <span className="thinking-label">생각 과정 (요약에 들어가지 않습니다)</span>
+          <div className="thinking" ref={thinkBox}>
+            {stream.thinking}
+          </div>
         </div>
       )}
       {stream.text && <div className="pre streaming">{stream.text}</div>}
