@@ -5,11 +5,19 @@ import { Spinner, errMsg, shortVersion } from '../common'
 /**
  * 설명을 상시 노출하지 않고 호버로 넘긴다 — 좁은 창에서 설명 줄이 화면을 크게 먹는다.
  * 다만 표식이 없으면 설명이 있다는 것 자체를 알 수 없으므로 ⓘ 는 남긴다.
+ *
+ * title 속성을 쓰지 않는다 — 네이티브 툴팁은 뜨기까지 약 1초 걸리고 그 지연을
+ * 페이지에서 바꿀 수 없다. 직접 그리면 즉시 뜨고 생김새도 앱과 맞춘다.
+ *
+ * @param toLeft 오른쪽 끝에 있는 ⓘ 는 말풍선을 왼쪽으로 펼쳐야 창 밖으로 안 나간다.
+ *   창 폭이 고정(432px)이라 자동 뒤집기 없이 호출부에서 지정한다.
  */
-function Hint({ text }: { text: string }): ReactNode {
+function Hint({ text, toLeft }: { text: string; toLeft?: boolean }): ReactNode {
   return (
-    <span className="hint" title={text} aria-label={text}>
+    // tabIndex 로 키보드에서도 열 수 있게 한다
+    <span className="hint" tabIndex={0} role="note" aria-label={text}>
       ⓘ
+      <span className={toLeft ? 'hint-bubble to-left' : 'hint-bubble'}>{text}</span>
     </span>
   )
 }
@@ -118,14 +126,18 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             onChange={(e) => patch({ autoLaunch: e.target.checked })}
           />
           로그인 시 앱 자동 시작
-          <Hint text="꺼두면 앱을 직접 실행한 동안에만 자동 요약이 동작합니다." />
+          <Hint text={'꺼두면 앱을 직접 실행한 동안에만\n자동 요약이 동작합니다.'} />
         </label>
       </div>
 
       <div className="card">
         <h3>
           Claude CLI{' '}
-          <Hint text="요약은 이 실행 파일을 로컬에서 호출합니다. 구독 쿼터를 사용하며 API 과금은 없습니다." />
+          <Hint
+            text={
+              '요약은 이 실행 파일을 로컬에서 호출합니다.\n구독 쿼터를 사용하며 API 과금은 없습니다.'
+            }
+          />
         </h3>
         <label>
           실행 파일 경로 (비우면 자동 탐지)
@@ -191,7 +203,12 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         <label>
           <span>
             원본 추출 캐시 보관 기간 (개월, 0 = 무제한){' '}
-            <Hint text="오래된 원본 추출 캐시만 자동 삭제합니다. AI 요약 기록은 영구 보관되며, ~/.claude의 Claude Code 원본 로그는 절대 삭제하지 않습니다." />
+            <Hint
+              toLeft
+              text={
+                '오래된 원본 추출 캐시만 자동 삭제합니다.\nAI 요약 기록은 영구 보관됩니다.\n~/.claude 의 Claude Code 원본 로그는\n절대 삭제하지 않습니다.'
+              }
+            />
           </span>
           <input
             type="number"
@@ -206,7 +223,11 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         <div className="row spread">
           <h3>
             프롬프트 템플릿{' '}
-            <Hint text="{date} {weekday} {digest} {label} {data} 자리표시자는 실행 시 치환됩니다. JSON 출력 형식을 없애면 자동 조립 대신 원문이 그대로 표시됩니다." />
+            <Hint
+              text={
+                '{date} {weekday} {digest} {label} {data}\n자리표시자는 실행 시 치환됩니다.\nJSON 출력 형식을 없애면 자동 조립 대신\n원문이 그대로 표시됩니다.'
+              }
+            />
           </h3>
           <button type="button" className="btn" onClick={restorePrompts}>
             기본값 복원
