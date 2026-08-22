@@ -7,8 +7,15 @@ export type DailyAutoMode = 'off' | 'confirm' | 'silent'
 export interface PromptTemplates {
   /** 일일 요약. 플레이스홀더: {date} {weekday} {digest} */
   day: string
-  /** 주간/월간 요약 (일일 조합·원본 공용). 플레이스홀더: {label} {data} */
-  period: string
+  /**
+   * 주간/월간 한 줄 요약. {data}로 일별 헤드라인만 받는다.
+   * 상세 항목을 같이 넘기면 한 줄이 항목 나열로 흐른다. 플레이스홀더: {label} {data}
+   */
+  periodOverview: string
+  /**
+   * 주간/월간 상세 요약. {data}로 일별 항목만 받는다. 플레이스홀더: {label} {data}
+   */
+  periodDetail: string
 }
 
 export interface Settings {
@@ -97,7 +104,10 @@ export interface PeriodSummary {
   /** 시작/끝 날짜 (KST, inclusive) */
   start: string
   end: string
-  text: string
+  /** 한 줄 요약. 일별 헤드라인만 보고 만든다 */
+  overview: string
+  /** 상세 요약. 일별 항목만 보고 만든다 */
+  detail: string
   model: string
   generatedAt: string
   /** 기간이 끝나기 전에 생성되어 end까지만 반영된 요약 (조회 시 계산) */

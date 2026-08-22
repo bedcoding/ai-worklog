@@ -243,21 +243,40 @@ function periodLabelOf(req: PeriodRequest, start: string, end: string): string {
   return `${shortDateKo(start)}~${shortDateKo(end)} 주간`
 }
 
-/** 일별 요약을 사람이 읽는 한 줄들로 조립 (기간 daily 소스가 claude에 넘기는 데이터) */
-export function renderDailyLines(summaries: DaySummary[]): string {
+/**
+ * 한 줄 요약에 넘기는 데이터. 날짜별 헤드라인만 모은다.
+ * 항목까지 같이 넘기면 한 줄이 항목 나열로 흐른다.
+ */
+export function renderHeadlineLines(summaries: DaySummary[]): string {
   const lines: string[] = []
   for (const s of summaries) {
     if (s.empty) continue
-    if (s.fallbackText) {
-      lines.push(`${shortDateKo(s.date)}: ${s.fallbackText.replace(/\s+/g, ' ').slice(0, 300)}`)
-      continue
-    }
-    lines.push(`${shortDateKo(s.date)}: ${s.headline ?? ''}`)
-    for (const item of s.items ?? []) {
-      lines.push(`  - [${item.project}] ${item.work}`)
-    }
+    // JSON 파싱이 실패한 날은 헤드라인이 없다. 원문 앞머리로 대신한다
+    const head = s.headline ?? s.fallbackText?.replace(/\s+/g, ' ').slice(0, 120) ?? ''
+    if (head) lines.push(`${shortDateKo(s.date)}: ${head}`)
   }
   return lines.join('\n')
+}
+
+/**
+ * 상세 요약에 넘기는 데이터. 날짜별 항목만 모은다.
+ * 날짜로 묶어 둔다. 여러 날에 걸친 같은 작업을 하나로 합치려면 날짜가 보여야 한다.
+ */
+export function renderItemLines(summaries: DaySummary[]): string {
+  const blocks: string[] = []
+  for (const s of summaries) {
+    if (s.empty) continue
+    if (s.fallbackText) {
+      blocks.push(`${shortDateKo(s.date)}\n  ${s.fallbackText.replace(/\s+/g, ' ').slice(0, 300)}`)
+      continue
+    }
+    const items = s.items ?? []
+    if (items.length === 0) continue
+    blocks.push(
+      [shortDateKo(s.date), ...items.map((i) => `  - [${i.project}] ${i.work}`)].join('\n')
+    )
+  }
+  return blocks.join('\n')
 }
 
 /**
@@ -265,10 +284,17 @@ export function renderDailyLines(summaries: DaySummary[]): string {
  * stale=true로 표시해 UI가 "N일까지만 반영됨"을 알릴 수 있게 한다.
  */
 export async function getCachedPeriod(key: string): Promise<PeriodSummary | null> {
-  const cached = await readJson<PeriodSummary>(periodPath(key))
+  // 한 줄/상세로 나누기 전 캐시는 text 하나만 갖고 있다. 그 글은 지금의 상세 요약과
+  // 같은 자리이므로 detail로 읽는다. 버리면 이미 만들어 둔 요약이 빈칸으로 보인다.
+  const cached = await readJson<PeriodSummary & { text?: string }>(periodPath(key))
   if (!cached) return null
   const { end } = periodRangeOf({ kind: cached.kind, key })
-  return { ...cached, stale: cached.end < end }
+  return {
+    ...cached,
+    overview: cached.overview ?? '',
+    detail: cached.detail ?? cached.text ?? '',
+    stale: cached.end < end
+  }
 }
 
 /**
@@ -294,19 +320,32 @@ export async function ensurePeriodSummary(req: PeriodRequest): Promise<PeriodSum
     }
     summaries.push(cached)
   }
-  const data = renderDailyLines(summaries)
-
   const settings = await getSettings()
   const label = periodLabelOf(req, start, endClamped)
-  const prompt = renderTemplate(settings.prompts.period, { label, data })
-  const text = await runClaude(prompt, await claudeOpts())
+  const opts = await claudeOpts()
+
+  // 두 번 부른다. 한 줄 요약은 날짜별 헤드라인만, 상세 요약은 날짜별 항목만 본다.
+  // 한 번에 둘을 만들게 하면 한 줄 쪽이 항목을 압축한 문장이 되어 날짜별 헤드라인을
+  // 묶은 것과 달라진다. 순서대로 부른다. 동시에 부르면 claude 두 개가 같이 돈다.
+  const overview = await runClaude(
+    renderTemplate(settings.prompts.periodOverview, {
+      label,
+      data: renderHeadlineLines(summaries)
+    }),
+    opts
+  )
+  const detail = await runClaude(
+    renderTemplate(settings.prompts.periodDetail, { label, data: renderItemLines(summaries) }),
+    opts
+  )
 
   const period: PeriodSummary = {
     key: req.key,
     kind: req.kind,
     start,
     end: endClamped,
-    text: text.trim(),
+    overview: overview.trim(),
+    detail: detail.trim(),
     model: settings.model,
     generatedAt: new Date().toISOString()
   }
