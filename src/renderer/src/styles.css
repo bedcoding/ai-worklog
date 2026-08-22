@@ -176,6 +176,26 @@ button.btn.row-action {
 .badge.busy {
   color: var(--accent);
   border-color: var(--accent);
+  /* 목록을 내려도 어느 날짜가 돌고 있는지 눈에 걸리도록 숨쉬듯 깜빡인다.
+     opacity만 건드려서 레이아웃·페인트를 다시 계산하지 않는다 */
+  animation: badge-breathe 1.3s ease-in-out infinite;
+}
+@keyframes badge-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  /* 0.4까지 내리면 가장 흐린 순간이 잠긴(0.5) 버튼보다 옅어져 도는 중인 표시가
+     더 죽어 보인다. 움직임은 진폭이 작아도 눈에 걸린다 */
+  50% {
+    opacity: 0.62;
+  }
+}
+/* 움직임을 줄이도록 설정한 환경에서는 정적으로 둔다 */
+@media (prefers-reduced-motion: reduce) {
+  .badge.busy {
+    animation: none;
+  }
 }
 /* 왜 다른 날짜가 눌리지 않는지 알려주는 줄. 이게 없으면 화면이 그냥 죽은 것처럼 보인다 */
 .busy-note {
