@@ -97,7 +97,8 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
 
   const testClaude = (): void => {
     setTesting(true)
-    setClaude({ kind: 'idle' })
+    // 이전 결과를 지우지 않는다 — 지우면 ✓ 칩과 '실제 실행되는 파일' 필드가 통째로
+    // 사라졌다 다시 나타나 카드 높이가 출렁인다. 새 결과가 오면 덮어쓰기만 한다.
     window.api
       .testClaude(form.claudePath ?? '')
       .then((i) => setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path }))
@@ -144,7 +145,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           </h3>
           <div className="row">
             {claude.kind === 'ok' && <span className="ok">✓ {claude.version}</span>}
-            <button type="button" className="btn" disabled={testing} onClick={testClaude}>
+            <button type="button" className="btn steady" disabled={testing} onClick={testClaude}>
               {testing ? '확인 중…' : '연결 테스트'}
             </button>
           </div>
