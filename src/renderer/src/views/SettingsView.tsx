@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Settings } from '@shared/types'
-import { kstHHMM } from '@shared/dates'
 import { Spinner, Tip, errMsg, shortVersion } from '../common'
 
 /**
@@ -26,7 +25,7 @@ function Hint({ text, toLeft }: { text: string; toLeft?: boolean }): ReactNode {
 /** 연결 테스트 결과 — 성공 시 버전과 경로를 분리해야 좁은 줄에서 접히지 않는다 */
 type ClaudeState =
   | { kind: 'idle' }
-  | { kind: 'ok'; version: string; path: string; at: number }
+  | { kind: 'ok'; version: string; path: string }
   | { kind: 'error'; message: string }
 
 export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
@@ -60,7 +59,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       .then(
         (i) =>
           alive &&
-          setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path, at: Date.now() })
+          setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path })
       )
       .catch((e: unknown) => alive && setClaude({ kind: 'error', message: errMsg(e) }))
     return () => {
@@ -107,7 +106,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     window.api
       .testClaude(form.claudePath ?? '')
       .then((i) =>
-        setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path, at: Date.now() })
+        setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path })
       )
       .catch((e: unknown) => setClaude({ kind: 'error', message: errMsg(e) }))
       .finally(() => setTesting(false))
@@ -151,14 +150,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             />
           </h3>
           <div className="row">
-            {claude.kind === 'ok' && (
-              <>
-                <span className="ok">✓ {claude.version}</span>
-                {/* 성공했는데 경로·버전이 그대로면 눌러도 화면이 안 바뀐다.
-                    확인한 시각이 있어야 "방금 돌았다"는 것이 보인다. */}
-                <span className="muted">{kstHHMM(claude.at)} 확인</span>
-              </>
-            )}
+            {claude.kind === 'ok' && <span className="ok">✓ {claude.version}</span>}
             <button
               type="button"
               className="btn steady tip-host"
