@@ -211,13 +211,15 @@ async function generateDaySummary(
     weekday: weekdayKo(date),
     digest: renderDigestText(digest)
   })
-  const result = await runClaude(prompt, await claudeOpts())
-  const parsed = extractJson<DayJson>(result)
+  const run = await runClaude(prompt, await claudeOpts())
+  const parsed = extractJson<DayJson>(run.text)
 
   const summary: DaySummary = {
     date,
     digestHash: hash,
     model: settings.model,
+    // 실제로 응답한 모델. 'CLI 기본 모델'이 무엇이었는지 나중에 알 방법이 이것뿐이다
+    modelName: run.model ?? undefined,
     generatedAt: new Date().toISOString(),
     ...(parsed
       ? {
@@ -227,7 +229,7 @@ async function generateDaySummary(
             .map((i) => ({ project: i.project ?? '', work: i.work ?? '' })),
           keywords: parsed.keywords ?? []
         }
-      : { fallbackText: result.trim() })
+      : { fallbackText: run.text.trim() })
   }
   await writeJsonAtomic(daySummaryPath(date), summary)
   return summary
@@ -377,15 +379,16 @@ export async function ensurePeriodPart(
     part === 'overview'
       ? [settings.prompts.periodOverview, renderHeadlineLines(summaries)]
       : [settings.prompts.periodDetail, renderItemLines(summaries)]
-  const text = await runClaude(renderTemplate(tpl, { label, data }), {
+  const run = await runClaude(renderTemplate(tpl, { label, data }), {
     ...(await claudeOpts()),
     onStream
   })
 
   const made: PeriodPart = {
-    text: text.trim(),
+    text: run.text.trim(),
     end: endClamped,
     model: settings.model,
+    modelName: run.model ?? undefined,
     generatedAt: new Date().toISOString()
   }
   // 다른 부분은 그대로 둔다. 제목을 다시 만들 때 내용이 사라지면 안 된다
