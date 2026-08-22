@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { ClaudeInfo, ModelChoice } from '@shared/types'
-import { Tip, errMsg, modelLabel, shortVersion } from './common'
+import { errMsg, modelLabel, shortVersion } from './common'
 
 /**
  * 어떤 claude 실행 파일이 어떤 모델로 연결돼 있는지 항상 보이게 한다.
@@ -43,16 +43,21 @@ export default function StatusBar({
 
   const version = info ? shortVersion(info.version) : ''
 
+  // 연결이 끊겼을 때만 누를 수 있게 둔다. 설정 탭은 위에 항상 보이므로 평상시 클릭은
+  // 같은 곳으로 가는 두 번째 길일 뿐이고, 그 대가로 창 아래를 지나갈 때마다 커서가
+  // 바뀌고 말풍선이 떴다. 오류일 때는 문구 자체가 클릭을 안내하므로 그때만 버튼이다.
+  if (error) {
+    return (
+      <button type="button" className="statusbar" onClick={onOpenSettings}>
+        <span className="error">claude 연결 안 됨 — 클릭해 경로를 지정하세요</span>
+      </button>
+    )
+  }
+
   return (
-    <button type="button" className="statusbar tip-host" onClick={onOpenSettings}>
-      {/* 커서는 누를 수 있다고 하는데 예전 title 은 경로만 보여줘서 왜 누르는지 알 수 없었다.
-          말풍선은 .ellipsis 안이 아니라 버튼의 직접 자식이어야 잘리지 않는다.
-          창 맨 아래라 아래로 열면 화면 밖이므로 위로 펼친다. */}
-      <Tip up text={info ? `클릭하면 설정 탭이 열립니다.\n${info.path}` : '클릭하면 설정 탭이 열립니다.'} />
+    <div className="statusbar">
       {checking ? (
         <span className="muted">claude 연결 확인 중…</span>
-      ) : error ? (
-        <span className="error">claude 연결 안 됨 — 클릭해 경로를 지정하세요</span>
       ) : (
         <>
           <span className="dot ok" />
@@ -62,6 +67,6 @@ export default function StatusBar({
           <span className="muted ellipsis path">{info?.path}</span>
         </>
       )}
-    </button>
+    </div>
   )
 }
