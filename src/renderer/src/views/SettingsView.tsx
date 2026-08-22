@@ -131,14 +131,24 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       </div>
 
       <div className="card">
-        <h3>
-          Claude CLI{' '}
-          <Hint
-            text={
-              '요약은 이 실행 파일을 로컬에서 호출합니다.\n구독 쿼터를 사용하며 API 과금은 없습니다.'
-            }
-          />
-        </h3>
+        {/* 카드 동작 버튼은 머리 오른쪽에 둔다 — 프롬프트 템플릿의 '기본값 복원'과 같은 자리.
+            ✓ 버전은 버튼 옆에 남긴다. 이게 없으면 눌러도 화면이 안 바뀌어 실행됐는지 알 수 없다. */}
+        <div className="row spread">
+          <h3>
+            Claude CLI{' '}
+            <Hint
+              text={
+                '요약은 이 실행 파일을 로컬에서 호출합니다.\n구독 쿼터를 사용하며 API 과금은 없습니다.'
+              }
+            />
+          </h3>
+          <div className="row">
+            {claude.kind === 'ok' && <span className="ok">✓ {claude.version}</span>}
+            <button type="button" className="btn" disabled={testing} onClick={testClaude}>
+              {testing ? '확인 중…' : '연결 테스트'}
+            </button>
+          </div>
+        </div>
         <label>
           실행 파일 경로 (비우면 자동 탐지)
           <input
@@ -151,14 +161,8 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             onChange={(e) => patch({ claudePath: e.target.value.trim() || null })}
           />
         </label>
-        <div className="row">
-          <button type="button" className="btn" disabled={testing} onClick={testClaude}>
-            {testing ? '확인 중…' : '연결 테스트'}
-          </button>
-          {claude.kind === 'ok' && <span className="ok">✓ {claude.version}</span>}
-          {claude.kind === 'error' && <span className="error grow">✗ {claude.message}</span>}
-        </div>
-        {/* 경로는 길어서 버튼 옆에 두면 세 줄로 접힌다. 한 줄로 두고 앞을 잘라 파일명이 보이게 한다 */}
+        {/* 실패 사유는 길어서 머리에 못 넣는다. 원인이 위 입력칸이므로 그 아래에 붙인다 */}
+        {claude.kind === 'error' && <div className="error">✗ {claude.message}</div>}
         {claude.kind === 'ok' && (
           // 입력한 경로와 다를 수 있다 — 윈도우에서는 .cmd/.ps1 셰임이 실제 .exe 로
           // 해석된다. 위아래 필드와 같은 상자를 써서 "이 입력의 결과값"으로 읽히게 한다.
