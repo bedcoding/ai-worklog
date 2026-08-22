@@ -389,9 +389,53 @@ button.statusbar .path {
 }
 /* 설명을 호버로 넘기되, 설명이 있다는 표식은 남긴다 */
 .hint {
+  position: relative;
   color: var(--muted);
   font-weight: 400;
   cursor: help;
+}
+.hint:hover,
+.hint:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+/* 네이티브 title 툴팁은 뜨기까지 약 1초 걸리고 그 지연을 페이지에서 바꿀 수 없다.
+   직접 그려서 즉시 띄운다. transition·animation 을 걸지 않는 것이 핵심 —
+   지연이 0이어야 한다. */
+.hint-bubble {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  width: max-content;
+  /* 창 폭이 432px로 고정이다. 270이면 어느 ⓘ 위치에서도 창을 넘지 않고,
+     한 문장이 한 줄에 들어가 문장 중간에서 접히지 않는다 */
+  max-width: 270px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.55;
+  /* 문장마다 넣은 줄바꿈을 살리고, 그보다 긴 줄은 알아서 접히게 둔다 */
+  white-space: pre-line;
+  text-align: left;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+/* 오른쪽 끝의 ⓘ 는 왼쪽으로 펼친다 */
+.hint-bubble.to-left {
+  left: auto;
+  right: 0;
+}
+.hint:hover > .hint-bubble,
+.hint:focus-visible > .hint-bubble {
+  display: block;
 }
 
 h3 {
