@@ -59,9 +59,10 @@ export function popupBounds(tray: Rect, workArea: Rect, cursor: Point): Rect {
   const anchor = anchorOf(tray, cursor)
   const wa = workArea
 
-  // 1) 작업영역보다 창이 크면 먼저 줄인다
-  const width = Math.min(POPUP_WIDTH, wa.width - GAP * 2)
-  const height = Math.min(POPUP_HEIGHT, wa.height - GAP * 2)
+  // 1) 작업영역보다 창이 크면 먼저 줄인다.
+  //    하한 1px — 작업영역이 GAP*2보다 좁으면 음수가 되어 setBounds에 잘못된 사각형이 간다.
+  const width = Math.max(1, Math.min(POPUP_WIDTH, wa.width - GAP * 2))
+  const height = Math.max(1, Math.min(POPUP_HEIGHT, wa.height - GAP * 2))
 
   // 2) 붙은 변 기준으로 배치
   const edge = edgeOf(tray, wa, anchor)

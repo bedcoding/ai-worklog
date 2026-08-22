@@ -47,7 +47,8 @@ const DAY_MS = 86400_000
  * 'D:\dev\foo'로 로그에 남는다. 그대로 키로 쓰면 이름이 같은 프로젝트가 둘로 갈라져
  * 프로젝트 수·세션 수가 부풀고 digestHash도 흔들린다. 표시용 cwd 원문은 보존한다.
  */
-const cwdKey = (cwd: string): string => (process.platform === 'win32' ? cwd.toLowerCase() : cwd)
+export const cwdKey = (cwd: string, platform: string = process.platform): string =>
+  platform === 'win32' ? cwd.toLowerCase() : cwd
 
 /**
  * ~/.claude/projects/<프로젝트>/*.jsonl 을 스트리밍 파싱해 [startDate, endDate](KST, inclusive)
@@ -64,7 +65,8 @@ export async function collectDigests(
   opts: CollectOptions = {}
 ): Promise<CollectResult> {
   const claudeDir = opts.claudeDir ?? join(homedir(), '.claude')
-  const excludeCwds = new Set((opts.excludeCwds ?? []).map(cwdKey))
+  // map(cwdKey)로 쓰면 배열 인덱스가 platform 인자로 들어가 정규화가 조용히 꺼진다
+  const excludeCwds = new Set((opts.excludeCwds ?? []).map((c) => cwdKey(c)))
   const startMs = kstStartOfDayMs(startDate)
   const endMs = kstStartOfDayMs(endDate) + DAY_MS
 
