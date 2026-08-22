@@ -160,12 +160,17 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         </div>
         {/* 경로는 길어서 버튼 옆에 두면 세 줄로 접힌다. 한 줄로 두고 앞을 잘라 파일명이 보이게 한다 */}
         {claude.kind === 'ok' && (
-          // 말풍선을 .ellipsis 안에 두면 그쪽 overflow: hidden 에 잘린다.
-          // .path-tail 의 direction: rtl 도 말풍선까지 뒤집으므로 형제로 뺀다.
-          <div className="tip-host" tabIndex={0}>
-            <div className="muted ellipsis path-tail">{claude.path}</div>
-            <Tip text={claude.path} />
-          </div>
+          // 입력한 경로와 다를 수 있다 — 윈도우에서는 .cmd/.ps1 셰임이 실제 .exe 로
+          // 해석된다. 위아래 필드와 같은 상자를 써서 "이 입력의 결과값"으로 읽히게 한다.
+          <label>
+            실제 실행되는 파일
+            {/* input 은 잘려도 … 이 붙지 않아 잘린 것인지 알 수 없다. 상자 모양만 빌리고
+                말풍선은 상자 안에 두되 잘리는 쪽(.ellipsis) 밖에 둔다 */}
+            <span className="readonly-box tip-host">
+              <span className="ellipsis path-tail">{claude.path}</span>
+              <Tip text={claude.path} />
+            </span>
+          </label>
         )}
         <label>
           요약 모델
