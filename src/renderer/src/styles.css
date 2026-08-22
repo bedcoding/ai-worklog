@@ -205,10 +205,23 @@ button.btn:disabled {
   border-color: var(--accent);
 }
 ul.items {
-  padding-left: 16px;
+  /* 불릿은 선택·복사에 포함되지 않아 화면과 복사 결과가 어긋난다.
+     대신 걸린 들여쓰기로 항목 경계를 만든다 — [프로젝트] 태그가 왼쪽으로 튀어나오고
+     접힌 줄이 그 아래로 들어간다. */
+  list-style: none;
+  padding-left: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+ul.items li {
+  padding-left: 11px;
+  text-indent: -11px;
+}
+/* 창 전체가 user-select: none 이므로 복사해야 하는 텍스트는 개별로 열어준다 */
+.selectable {
   -webkit-user-select: text;
   user-select: text;
 }
