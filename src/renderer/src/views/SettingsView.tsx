@@ -1,6 +1,24 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Settings } from '@shared/types'
-import { Spinner, errMsg } from '../common'
+import { Spinner, errMsg, shortVersion } from '../common'
+
+/**
+ * 설명을 상시 노출하지 않고 호버로 넘긴다 — 좁은 창에서 설명 줄이 화면을 크게 먹는다.
+ * 다만 표식이 없으면 설명이 있다는 것 자체를 알 수 없으므로 ⓘ 는 남긴다.
+ */
+function Hint({ text }: { text: string }): ReactNode {
+  return (
+    <span className="hint" title={text} aria-label={text}>
+      ⓘ
+    </span>
+  )
+}
+
+/** 연결 테스트 결과 — 성공 시 버전과 경로를 분리해야 좁은 줄에서 접히지 않는다 */
+type ClaudeState =
+  | { kind: 'idle' }
+  | { kind: 'ok'; version: string; path: string }
+  | { kind: 'error'; message: string }
 
 export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
   const [form, setForm] = useState<Settings | null>(null)
@@ -8,7 +26,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
   const [reload, setReload] = useState(0)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [claudeInfo, setClaudeInfo] = useState<string | null>(null)
+  const [claude, setClaude] = useState<ClaudeState>({ kind: 'idle' })
   const [testing, setTesting] = useState(false)
 
   useEffect(() => {
@@ -30,8 +48,8 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     let alive = true
     window.api
       .detectClaude()
-      .then((i) => alive && setClaudeInfo(`✓ ${i.version} — ${i.path}`))
-      .catch((e: unknown) => alive && setClaudeInfo(`✗ ${errMsg(e)}`))
+      .then((i) => alive && setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path }))
+      .catch((e: unknown) => alive && setClaude({ kind: 'error', message: errMsg(e) }))
     return () => {
       alive = false
     }
@@ -71,11 +89,11 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
 
   const testClaude = (): void => {
     setTesting(true)
-    setClaudeInfo(null)
+    setClaude({ kind: 'idle' })
     window.api
       .testClaude(form.claudePath ?? '')
-      .then((info) => setClaudeInfo(`✓ ${info.version} — ${info.path}`))
-      .catch((e: unknown) => setClaudeInfo(`✗ ${errMsg(e)}`))
+      .then((i) => setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path }))
+      .catch((e: unknown) => setClaude({ kind: 'error', message: errMsg(e) }))
       .finally(() => setTesting(false))
   }
 
@@ -100,14 +118,15 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             onChange={(e) => patch({ autoLaunch: e.target.checked })}
           />
           로그인 시 앱 자동 시작
+          <Hint text="꺼두면 앱을 직접 실행한 동안에만 자동 요약이 동작합니다." />
         </label>
-        <div className="muted">
-          꺼두면 앱을 직접 실행한 동안에만 자동 요약이 동작합니다.
-        </div>
       </div>
 
       <div className="card">
-        <h3>Claude CLI</h3>
+        <h3>
+          Claude CLI{' '}
+          <Hint text="요약은 이 실행 파일을 로컬에서 호출합니다. 구독 쿼터를 사용하며 API 과금은 없습니다." />
+        </h3>
         <label>
           실행 파일 경로 (비우면 자동 탐지)
           <input
@@ -124,11 +143,15 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           <button type="button" className="btn" disabled={testing} onClick={testClaude}>
             {testing ? '확인 중…' : '연결 테스트'}
           </button>
-          {claudeInfo && <span className="muted grow">{claudeInfo}</span>}
+          {claude.kind === 'ok' && <span className="ok">✓ {claude.version}</span>}
+          {claude.kind === 'error' && <span className="error grow">✗ {claude.message}</span>}
         </div>
-        <div className="muted">
-          요약은 이 실행 파일을 로컬에서 호출합니다. 구독 쿼터를 사용하며 API 과금은 없습니다.
-        </div>
+        {/* 경로는 길어서 버튼 옆에 두면 세 줄로 접힌다. 한 줄로 두고 앞을 잘라 파일명이 보이게 한다 */}
+        {claude.kind === 'ok' && (
+          <div className="muted ellipsis path-tail" title={claude.path}>
+            {claude.path}
+          </div>
+        )}
         <label>
           요약 모델
           <select
@@ -166,7 +189,10 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           </label>
         </div>
         <label>
-          원본 추출 캐시 보관 기간 (개월, 0 = 무제한)
+          <span>
+            원본 추출 캐시 보관 기간 (개월, 0 = 무제한){' '}
+            <Hint text="오래된 원본 추출 캐시만 자동 삭제합니다. AI 요약 기록은 영구 보관되며, ~/.claude의 Claude Code 원본 로그는 절대 삭제하지 않습니다." />
+          </span>
           <input
             type="number"
             min={0}
@@ -174,22 +200,17 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             onChange={(e) => patch({ retentionMonths: Math.max(0, Number(e.target.value) || 0) })}
           />
         </label>
-        <div className="muted">
-          오래된 원본 추출 캐시만 자동 삭제합니다. AI 요약 기록은 영구 보관되며, ~/.claude의
-          Claude Code 원본 로그는 절대 삭제하지 않습니다.
-        </div>
       </div>
 
       <div className="card">
         <div className="row spread">
-          <h3>프롬프트 템플릿</h3>
+          <h3>
+            프롬프트 템플릿{' '}
+            <Hint text="{date} {weekday} {digest} {label} {data} 자리표시자는 실행 시 치환됩니다. JSON 출력 형식을 없애면 자동 조립 대신 원문이 그대로 표시됩니다." />
+          </h3>
           <button type="button" className="btn" onClick={restorePrompts}>
             기본값 복원
           </button>
-        </div>
-        <div className="muted">
-          {'{date} {weekday} {digest} {label} {data}'} 자리표시자는 실행 시 치환됩니다. JSON 출력
-          형식을 없애면 자동 조립 대신 원문이 그대로 표시됩니다.
         </div>
         <label>
           일일 요약

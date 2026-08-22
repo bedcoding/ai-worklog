@@ -10,6 +10,11 @@ export function modelLabel(model: ModelChoice | string): string {
 }
 
 /** invoke 에러를 사용자 문구로 (Electron이 붙이는 접두어 제거) */
+/** claude --version 는 "2.1.234 (Claude Code)"를 준다 — 좁은 줄에서는 번호만 쓴다 */
+export function shortVersion(v: string): string {
+  return v.replace(/\s*\(Claude Code\)\s*/, '').trim()
+}
+
 export function errMsg(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e)
   return m.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
