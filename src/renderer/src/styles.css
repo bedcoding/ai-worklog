@@ -132,6 +132,12 @@ button.btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
+/* 행 오른쪽에 들어가는 작은 실행 버튼. 알약 배지(.badge)는 상태, 모난 사각형은 동작 —
+   모양으로 갈라야 눌리는 것인지 알 수 있다 */
+button.btn.row-action {
+  padding: 2px 8px;
+  font-size: 11px;
+}
 .muted {
   color: var(--muted);
   font-size: 12px;
@@ -164,20 +170,15 @@ button.btn:disabled {
   color: var(--ok);
   border-color: var(--ok);
 }
-/* 배지 모양을 유지하는 버튼 — 좁은 행에 버튼을 새로 넣지 않고 배지 자리를 쓴다 */
-.badge.action {
-  background: none;
-  font-family: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
-.badge.action:hover:not(:disabled) {
+/* 진행 중 표시 — 요약이 이미 있는 날짜를 다시 만들 때도 이 배지로 바뀐다 */
+.badge.busy {
   color: var(--accent);
   border-color: var(--accent);
 }
-.badge.action:disabled {
-  opacity: 0.45;
-  cursor: default;
+/* 왜 다른 날짜가 눌리지 않는지 알려주는 줄. 이게 없으면 화면이 그냥 죽은 것처럼 보인다 */
+.busy-note {
+  color: var(--accent);
+  font-size: 12px;
 }
 .day-item {
   border-top: 1px solid var(--border);

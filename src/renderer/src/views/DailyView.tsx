@@ -99,6 +99,14 @@ export default function DailyView(): ReactNode {
             {busyDate === today ? '오늘 요약 생성 중…' : '오늘 하루 정리하기'}
           </button>
         )}
+        {/* 요약은 한 번에 하나만 돌리므로 그 동안 모든 버튼이 잠긴다.
+            이유를 적어두지 않으면 클릭이 씹히는 것처럼 보인다.
+            월을 옮겨도 잠금은 그대로이므로 이 줄은 현재 월 조건 밖에 둔다. */}
+        {busyDate && (
+          <div className="busy-note">
+            {shortDateKo(busyDate)} 요약을 만들고 있습니다. 끝나면 다시 누를 수 있습니다.
+          </div>
+        )}
         {error && <div className="error">{error}</div>}
       </div>
 
@@ -121,18 +129,23 @@ export default function DailyView(): ReactNode {
                 <span className="grow muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {s?.empty ? '활동 없음' : (s?.headline ?? s?.fallbackText?.slice(0, 40) ?? '')}
                 </span>
-                {s ? (
+                {busyDate === date ? (
+                  // 요약이 이미 있는 날짜를 다시 만들 때도 진행이 보여야 한다.
+                  // 예전에는 그 행이 'AI 요약됨'으로 남아, 다른 날짜가 왜 다 잠겼는지 알 수 없었다.
+                  <span className="badge busy">생성 중…</span>
+                ) : s ? (
                   <span className={`badge${s.empty ? '' : ' on'}`}>
                     {s.empty ? '없음' : 'AI 요약됨'}
                   </span>
                 ) : (
-                  // 미요약 배지는 그 자리에서 생성을 실행한다.
+                  // 미요약 행에서 그 자리에서 생성을 실행한다.
                   // stopPropagation이 없으면 행 펼치기까지 함께 발동한다.
+                  // 알약 배지가 아니라 .btn 모양을 쓴다 — 상태 표시와 같은 생김새면 눌리는 줄 모른다.
                   // 이미 요약된 날짜는 버튼으로 만들지 않는다 — 실수로 눌러 쿼터를 쓰는 것을 막고,
                   // 강제 재생성은 행을 펼친 뒤 '다시 생성'으로만 하게 둔다.
                   <button
                     type="button"
-                    className="badge action"
+                    className="btn row-action"
                     disabled={busyDate !== null}
                     title={`${shortDateKo(date)} AI 요약 생성`}
                     onClick={(e) => {
@@ -140,7 +153,7 @@ export default function DailyView(): ReactNode {
                       generate(date)
                     }}
                   >
-                    {busyDate === date ? '생성 중…' : '요약 생성'}
+                    요약 생성
                   </button>
                 )}
               </div>
