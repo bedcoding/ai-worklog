@@ -29,6 +29,8 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [busyDate, setBusyDate] = useState<string | null>(null)
   const [backfilling, setBackfilling] = useState(false)
   const [composing, setComposing] = useState<PeriodPartKind | null>(null)
+  // 만들어지는 중인 글. 저장되는 것은 아니고 화면에만 흐른다
+  const [streamText, setStreamText] = useState('')
   const [openDate, setOpenDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음)
@@ -68,6 +70,16 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
 
   useEffect(load, [load])
   useEffect(() => window.api.onDayUpdated(() => load()), [load])
+
+  // 글이 만들어지는 대로 화면에 흘린다. reset은 재시도라 지금까지 받은 것을 버린다.
+  // 조각을 이어붙인 글을 저장하지는 않는다. 저장은 main이 최종 결과로 한다.
+  useEffect(
+    () =>
+      window.api.onPeriodStream((e) =>
+        setStreamText((prev) => (e.kind === 'reset' ? '' : prev + (e.text ?? '')))
+      ),
+    []
+  )
 
   // 전체 정리 중에 한 날짜가 끝나면 목록을 다시 읽는다. 끝난 행이 계속 '요약 생성'으로
   // 남아 있으면 불이 켜진 한 줄 말고는 아무 일도 없는 것처럼 보인다.
@@ -135,12 +147,16 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   // 부분씩 만든다. 마음에 안 드는 쪽만 다시 부르면 claude 호출도 그 한 번이다
   const compose = (part: PeriodPartKind): void => {
     setComposing(part)
+    setStreamText('')
     setError(null)
     window.api
       .generatePeriod({ kind: cursor.span, key: periodKey }, part)
       .then((p) => setPeriod(p))
       .catch((e: unknown) => setError(errMsg(e)))
-      .finally(() => setComposing(null))
+      .finally(() => {
+        setComposing(null)
+        setStreamText('')
+      })
   }
 
   // 아직 도착하지 않은 응답과 다른 구간의 응답은 똑같이 '모른다'로 취급한다.
@@ -317,6 +333,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           part={period?.overview ?? null}
           locked={busy || state.kind !== 'ready'}
           working={composing === 'overview'}
+          streamText={composing === 'overview' ? streamText : ''}
           onMake={() => compose('overview')}
           tip={'날짜별 한 줄 요약만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
         />
@@ -325,6 +342,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           part={period?.detail ?? null}
           locked={busy || state.kind !== 'ready'}
           working={composing === 'detail'}
+          streamText={composing === 'detail' ? streamText : ''}
           onMake={() => compose('detail')}
           tip={'날짜별 상세 항목만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
         />
@@ -345,6 +363,7 @@ function PeriodPartBlock({
   part,
   locked,
   working,
+  streamText,
   onMake,
   tip
 }: {
@@ -354,6 +373,8 @@ function PeriodPartBlock({
   part: PeriodPart | null
   locked: boolean
   working: boolean
+  /** 만들어지는 중인 글. 다 만들어지면 part로 바뀐다 */
+  streamText: string
   onMake: () => void
   tip: string
 }): ReactNode {
@@ -377,17 +398,28 @@ function PeriodPartBlock({
           </button>
         </div>
       </div>
-      {part?.stale && (
+      {part?.stale && !working && (
         <div className="muted">⚠️ {shortDateKo(part.end)}까지만 반영됐습니다. 다시 만드세요.</div>
       )}
-      {part &&
+      {/* 만드는 동안에는 흘러오는 글을 보여준다. 글자만 '만드는 중…'이면 돌고 있는지
+          멈춘 것인지 알 수 없다. 첫 글자가 오기 전에는 아직 아무것도 없으므로,
+          그 사이에만 기다리는 줄을 둔다. */}
+      {working ? (
+        streamText ? (
+          <div className="pre streaming">{streamText}</div>
+        ) : (
+          <Spinner label="claude가 읽고 있습니다…" />
+        )
+      ) : (
+        part &&
         (oneLine ? (
           <strong className="selectable">{part.text}</strong>
         ) : (
           <div className="pre">{part.text}</div>
-        ))}
+        ))
+      )}
       {/* generatedAt이 빈 옛 캐시가 있다. 그대로 넘기면 'NaN:NaN'이 찍힌다 */}
-      {part?.generatedAt && (
+      {!working && part?.generatedAt && (
         <div className="muted">
           {modelLabel(part.model)} · {kstDateTimeKo(part.generatedAt)}
         </div>

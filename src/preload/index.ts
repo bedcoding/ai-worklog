@@ -22,6 +22,7 @@ const api: WorklogApi = {
   getDayDigest: (date, force) => ipcRenderer.invoke(IPC.dayGetDigest, date, force),
   getPeriod: (key) => ipcRenderer.invoke(IPC.periodGet, key),
   generatePeriod: (req, part) => ipcRenderer.invoke(IPC.periodGenerate, req, part),
+  onPeriodStream: subscribe(IPC.periodStream),
   cancelBackfill: () => ipcRenderer.invoke(IPC.backfillCancel),
   copyToClipboard: (text) => ipcRenderer.invoke(IPC.clipboardWrite, text),
   setAutoLaunch: (enabled) => ipcRenderer.invoke(IPC.appSetAutoLaunch, enabled),

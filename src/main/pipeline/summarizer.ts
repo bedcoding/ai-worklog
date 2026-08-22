@@ -7,7 +7,7 @@ import {
   writeJsonAtomic
 } from '../cache'
 import { locateClaude } from '../claude/locate'
-import { extractJson, runClaude, type ClaudeRunOptions } from '../claude/run'
+import { extractJson, runClaude, type ClaudeRunOptions, type StreamEvent } from '../claude/run'
 import { renderTemplate } from '../prompts'
 import { getSettings } from '../settings'
 import {
@@ -349,7 +349,8 @@ export async function getCachedPeriod(key: string): Promise<PeriodSummary | null
  */
 export async function ensurePeriodPart(
   req: PeriodRequest,
-  part: PeriodPartKind
+  part: PeriodPartKind,
+  onStream?: (e: StreamEvent) => void
 ): Promise<PeriodSummary> {
   const { start, end } = periodRangeOf(req)
   const today = todayKst()
@@ -376,7 +377,10 @@ export async function ensurePeriodPart(
     part === 'overview'
       ? [settings.prompts.periodOverview, renderHeadlineLines(summaries)]
       : [settings.prompts.periodDetail, renderItemLines(summaries)]
-  const text = await runClaude(renderTemplate(tpl, { label, data }), await claudeOpts())
+  const text = await runClaude(renderTemplate(tpl, { label, data }), {
+    ...(await claudeOpts()),
+    onStream
+  })
 
   const made: PeriodPart = {
     text: text.trim(),
