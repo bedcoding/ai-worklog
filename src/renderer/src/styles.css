@@ -329,7 +329,8 @@ form.settings label.checkbox {
 }
 form.settings input,
 form.settings select,
-form.settings textarea {
+form.settings textarea,
+form.settings .readonly-box {
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -391,6 +392,12 @@ button.statusbar .path {
 .path-tail {
   direction: rtl;
   text-align: left;
+}
+/* 읽기 전용 값은 입력칸과 같은 상자를 쓰되, 편집 대상이 아님을 글자색으로 구분한다 */
+form.settings .readonly-box,
+form.settings .readonly-box > .ellipsis {
+  display: block;
+  color: var(--muted);
 }
 /* 설명을 호버로 넘기되, 설명이 있다는 표식은 남긴다 */
 .hint {
