@@ -140,9 +140,19 @@ button.btn.primary {
   border-color: var(--accent);
   color: var(--accent-text);
 }
+/* opacity를 쓰지 않는다. opacity는 자손을 묶어 한 겹으로 합성하므로 버튼 안에 있는
+   말풍선까지 같이 반투명해지고, 뒤에 깔린 본문 글자가 말풍선을 뚫고 올라온다.
+   자손에서 opacity: 1로 되돌릴 수도 없다. 그래서 글자색과 테두리색만 직접 흐린다.
+   50% 혼합은 예전 opacity: 0.5 와 같은 색이다 (버튼은 모두 카드 위에 있다). */
 button.btn:disabled {
-  opacity: 0.5;
   cursor: default;
+  color: color-mix(in srgb, var(--text) 50%, var(--card));
+  border-color: color-mix(in srgb, var(--border) 50%, var(--card));
+}
+button.btn.primary:disabled {
+  background: color-mix(in srgb, var(--accent) 50%, var(--card));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--card));
+  color: color-mix(in srgb, var(--accent-text) 50%, var(--card));
 }
 /* 행 오른쪽에 들어가는 작은 실행 버튼. 알약 배지(.badge)는 상태, 모난 사각형은 동작.
    모양으로 갈라야 눌리는 것인지 알 수 있다 */
