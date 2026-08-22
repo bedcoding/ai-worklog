@@ -14,7 +14,7 @@ import { Spinner, Tip, errMsg, shortVersion } from '../common'
  */
 function Hint({ text, toLeft }: { text: string; toLeft?: boolean }): ReactNode {
   return (
-    // tabIndex 로 키보드에서도 열 수 있게 한다
+    // tabIndex로 키보드에서도 열 수 있게 한다
     <span className="hint tip-host" tabIndex={0} role="note" aria-label={text}>
       ⓘ
       <Tip text={text} toLeft={toLeft} />
@@ -163,7 +163,8 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
               <Tip
                 toLeft
                 text={
-                  '위 경로를 실제 실행 파일로 해석해\nclaude --version 을 실행합니다.\n요약도 같은 경로를 쓰므로,\n여기서 되면 요약도 됩니다.'
+                  // 한 줄에 한 문장씩 담는다. 문장 중간에서 끊기면 읽다가 걸린다.
+                  '위 경로를 실제 실행 파일로 해석합니다.\n그 파일로 claude --version을 실행합니다.\n여기서 되면 요약도 됩니다.'
                 }
               />
             </button>
@@ -184,11 +185,11 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         {/* 실패 사유는 길어서 머리에 못 넣는다. 원인이 위 입력칸이므로 그 아래에 붙인다 */}
         {claude.kind === 'error' && <div className="error">✗ {claude.message}</div>}
         {claude.kind === 'ok' && (
-          // 입력한 경로와 다를 수 있다. 윈도우에서는 .cmd/.ps1 셰임이 실제 .exe 로
+          // 입력한 경로와 다를 수 있다. 윈도우에서는 .cmd/.ps1 셰임이 실제 .exe로
           // 해석된다. 위아래 필드와 같은 상자를 써서 "이 입력의 결과값"으로 읽히게 한다.
           <label>
             실제 실행되는 파일
-            {/* input 은 잘려도 … 이 붙지 않아 잘린 것인지 알 수 없다. 상자 모양만 빌리고
+            {/* input은 잘려도 …이 붙지 않아 잘린 것인지 알 수 없다. 상자 모양만 빌리고
                 말풍선은 상자 안에 두되 잘리는 쪽(.ellipsis) 밖에 둔다 */}
             <span className="readonly-box tip-host">
               <span className="ellipsis path-tail">{claude.path}</span>
@@ -238,7 +239,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             <Hint
               toLeft
               text={
-                '오래된 원본 추출 캐시만 자동 삭제합니다.\nAI 요약 기록은 영구 보관됩니다.\n~/.claude 의 Claude Code 원본 로그는\n절대 삭제하지 않습니다.'
+                '오래된 원본 추출 캐시만 자동 삭제합니다.\nAI 요약 기록은 영구 보관됩니다.\n~/.claude의 원본 로그는 건드리지 않습니다.'
               }
             />
           </span>
@@ -257,7 +258,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             프롬프트 템플릿{' '}
             <Hint
               text={
-                '{date} {weekday} {digest} {label} {data}\n자리표시자는 실행 시 치환됩니다.\nJSON 출력 형식을 없애면 자동 조립 대신\n원문이 그대로 표시됩니다.'
+                '{date} {weekday} {digest} {label} {data}\n자리표시자는 실행 시 치환됩니다.\nJSON 형식을 없애면 원문이 그대로 나옵니다.'
               }
             />
           </h3>

@@ -77,7 +77,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
     return { status, summaries }
   })
-  // 날짜 수만큼 claude 를 부르는 유일한 경로다. 기간 요약과 취소 플래그를 공유한다.
+  // 날짜 수만큼 claude를 부르는 유일한 경로다. 기간 요약과 취소 플래그를 공유한다.
   ipcMain.handle(IPC.rangeBackfill, async (_e, start: string, end: string) => {
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
     longRunning = true

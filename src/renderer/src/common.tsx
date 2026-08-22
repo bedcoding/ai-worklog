@@ -33,7 +33,7 @@ export function Tip({
   return <span className={cls}>{text}</span>
 }
 
-/** claude --version 는 "2.1.234 (Claude Code)"를 준다. 좁은 줄에서는 번호만 쓴다 */
+/** claude --version 출력은 "2.1.234 (Claude Code)" 형태다. 좁은 줄에서는 번호만 쓴다 */
 export function shortVersion(v: string): string {
   return v.replace(/\s*\(Claude Code\)\s*/, '').trim()
 }

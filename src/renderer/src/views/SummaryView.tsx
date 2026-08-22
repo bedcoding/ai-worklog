@@ -10,7 +10,7 @@ export default function SummaryView(): ReactNode {
   const [today, setToday] = useState(() => kstDateOf(Date.now()))
   const [cursor, setCursor] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
   const [status, setStatus] = useState<RangeStatus | null>(null)
-  // status 가 어느 구간의 것인지. 구간을 옮기는 동안 이전 구간의 날짜와 개수가
+  // status가 어느 구간의 것인지. 구간을 옮기는 동안 이전 구간의 날짜와 개수가
   // 새 라벨 아래 남아 있으면 화면이 거짓말을 한다 (8월 라벨에 지난주 7일).
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [summaries, setSummaries] = useState<Map<string, DaySummary>>(new Map())
@@ -178,7 +178,7 @@ export default function SummaryView(): ReactNode {
             {busyDate === today ? '오늘 요약 생성 중…' : '오늘 하루 정리하기'}
           </button>
         )}
-        {/* 날짜 수만큼 claude 를 부르는 유일한 버튼이다. 라벨에는 남은 날짜 수만,
+        {/* 날짜 수만큼 claude를 부르는 유일한 버튼이다. 라벨에는 남은 날짜 수만,
             호출 횟수는 말풍선에 둔다. 둘 다 라벨에 넣으면 괄호가 붙어 지저분하다. */}
         <button type="button" className="btn tip-host" disabled={busy || pending === 0} onClick={runBackfill}>
           {backfilling
@@ -191,7 +191,8 @@ export default function SummaryView(): ReactNode {
             text={
               pending === 0
                 ? '이 구간은 모두 정리돼 있습니다.'
-                : `요약이 없는 ${pending}일을 하나씩 차례로 만듭니다.\nclaude 를 ${pending}번 부릅니다.\n진행 중에 위쪽 막대에서 중단할 수 있습니다.`
+                : // 짧은 줄을 가운데 두면 오른쪽 끝이 움푹 들어가 보인다. 긴 줄부터 놓는다.
+                  `요약이 없는 ${pending}일을 하나씩 차례로 만듭니다.\n진행 중에 위쪽 막대에서 중단할 수 있습니다.\nclaude를 ${pending}번 부릅니다.`
             }
           />
         </button>
@@ -277,7 +278,7 @@ export default function SummaryView(): ReactNode {
               {composing ? '만드는 중…' : period ? '다시 만들기' : '만들기'}
               <Tip
                 toLeft
-                text={'이미 만들어 둔 날짜별 요약을 묶습니다.\nclaude 를 1번만 부릅니다.'}
+                text={'이미 만들어 둔 날짜별 요약을 묶습니다.\nclaude를 1번만 부릅니다.'}
               />
             </button>
           </div>

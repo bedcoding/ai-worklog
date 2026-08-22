@@ -175,7 +175,7 @@ export async function locateClaude(override?: string | null): Promise<string> {
     }
     const direct = (await isRunnable(override)) ? override : await resolveShim(override)
     if (direct) return direct
-    // 윈도우 한정으로 자동 복구한다. C:\Program Files\nodejs 가 nvm 심볼릭 링크라
+    // 윈도우 한정으로 자동 복구한다. C:\Program Files\nodejs가 nvm 심볼릭 링크라
     // 활성 버전이 바뀌면 저장된 경로가 조용히 무효가 되기 때문이다.
     // 맥에는 이런 무효화 요인이 없어, 사용자가 명시한 경로를 다른 바이너리로
     // 조용히 대체하는 쪽이 오히려 해롭다.
