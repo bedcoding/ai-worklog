@@ -24,6 +24,13 @@ export function kstHHMM(tsMs: number): string {
   return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
 }
 
+/** ISO 문자열 → KST 'YYYY-MM-DD HH:mm' 표기 (표시 전용) */
+export function kstDateTimeKo(iso: string): string {
+  const ms = Date.parse(iso)
+  if (!Number.isFinite(ms)) return ''
+  return `${kstDateOf(ms)} ${kstHHMM(ms)}`
+}
+
 /** KST 날짜 'YYYY-MM-DD'의 0시(epoch ms) */
 export function kstStartOfDayMs(date: string): number {
   return Date.parse(`${date}T00:00:00+09:00`)

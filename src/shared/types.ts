@@ -201,6 +201,8 @@ export const IPC = {
   backfillCancel: 'backfill:cancel',
   clipboardWrite: 'clipboard:write',
   appSetAutoLaunch: 'app:setAutoLaunch',
+  windowPinGet: 'window:pinGet',
+  windowPinSet: 'window:pinSet',
   // main → renderer push
   backfillProgress: 'backfill:progress',
   pipelineError: 'pipeline:error',
@@ -216,6 +218,8 @@ export interface PeriodRequest {
 
 /** preload가 contextBridge로 노출하고 렌더러가 사용하는 API 표면 */
 export interface WorklogApi {
+  /** 'win32' | 'darwin' | ... — 플랫폼별 안내 문구 분기에 쓴다 */
+  readonly platform: string
   getSettings(): Promise<Settings>
   setSettings(patch: Partial<Settings>): Promise<Settings>
   getDefaultPrompts(): Promise<PromptTemplates>
@@ -243,6 +247,9 @@ export interface WorklogApi {
   cancelBackfill(): Promise<void>
   copyToClipboard(text: string): Promise<void>
   setAutoLaunch(enabled: boolean): Promise<void>
+  /** 창 고정 여부 — 고정 중에는 포커스를 잃어도 창이 닫히지 않는다 */
+  getWindowPinned(): Promise<boolean>
+  setWindowPinned(pinned: boolean): Promise<boolean>
   onBackfillProgress(cb: (p: BackfillProgress) => void): () => void
   onPipelineError(cb: (e: PipelineError) => void): () => void
   /** 자동실행 등으로 main이 요약을 갱신했을 때 */

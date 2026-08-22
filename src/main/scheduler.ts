@@ -3,7 +3,7 @@ import { kstHHMM, kstStartOfDayMs } from '@shared/dates'
 import { readJson, schedulerStatePath, writeJsonAtomic } from './cache'
 import { ensureDaySummary, todayKst } from './pipeline/summarizer'
 import { getSettings } from './settings'
-import type { DaySummary } from '@shared/types'
+import type { DaySummary, PipelineError } from '@shared/types'
 
 /**
  * 매일 자동실행 스케줄러.
@@ -19,13 +19,47 @@ interface SchedulerState {
 let timer: ReturnType<typeof setTimeout> | null = null
 let running = false
 let onSummaryDone: ((s: DaySummary) => void) | null = null
+let onError: ((e: PipelineError) => void) | null = null
 
-export function initScheduler(notify: (s: DaySummary) => void): void {
+/** 시계 점프·타이머 지연·놓친 발화를 회수하는 주기 점검 간격 */
+const CATCHUP_INTERVAL_MS = 15 * 60_000
+
+export function initScheduler(
+  notify: (s: DaySummary) => void,
+  reportError: (e: PipelineError) => void
+): void {
   onSummaryDone = notify
+  onError = reportError
+  // 'resume'만으로는 부족하다 — 윈도우 11의 Modern Standby(S0)는 화면만 꺼진 채
+  // 유지되어 resume이 발화하지 않는 기기가 많고, 실사용의 대부분은 '슬립'이 아니라 '화면 잠금'이다.
   powerMonitor.on('resume', () => {
     void catchUpThenReschedule()
   })
+  powerMonitor.on('unlock-screen', () => {
+    void catchUpThenReschedule()
+  })
+  // 최후 수단. catchUpThenReschedule은 lastAutoRunDate로, fire()는 running 플래그로
+  // 멱등하므로 중복 호출이 안전하다.
+  setInterval(() => {
+    void catchUpThenReschedule()
+  }, CATCHUP_INTERVAL_MS)
   void catchUpThenReschedule()
+}
+
+/**
+ * 알림 표시. dailyAuto='silent'에서는 이 알림이 유일한 피드백이므로
+ * 표시 자체가 불가능하거나 실패한 경우를 조용히 넘기지 않고 창으로 알린다.
+ */
+function showNotification(body: string): void {
+  if (!Notification.isSupported()) {
+    onError?.({ scope: 'day', message: body, retryable: false })
+    return
+  }
+  const n = new Notification({ title: 'WorkLog', body })
+  n.on('failed', (_e, err) => {
+    onError?.({ scope: 'day', message: `알림 표시 실패: ${err}`, retryable: false })
+  })
+  n.show()
 }
 
 export async function reschedule(): Promise<void> {
@@ -97,18 +131,14 @@ async function fire(): Promise<void> {
 
     const summary = await ensureDaySummary(today)
     await writeJsonAtomic(schedulerStatePath(), { lastAutoRunDate: today })
-    new Notification({
-      title: 'WorkLog',
-      body: summary.empty
+    showNotification(
+      summary.empty
         ? '오늘은 Claude Code 활동 기록이 없습니다'
         : `오늘 업무 요약 완료 — ${summary.headline ?? '일일보기 탭에서 확인하세요'}`
-    }).show()
+    )
     onSummaryDone?.(summary)
   } catch (e) {
-    new Notification({
-      title: 'WorkLog',
-      body: `자동 요약 실패: ${e instanceof Error ? e.message : String(e)}`
-    }).show()
+    showNotification(`자동 요약 실패: ${e instanceof Error ? e.message : String(e)}`)
   } finally {
     running = false
   }

@@ -10,6 +10,7 @@ function subscribe<T>(channel: string) {
 }
 
 const api: WorklogApi = {
+  platform: process.platform,
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   setSettings: (patch) => ipcRenderer.invoke(IPC.settingsSet, patch),
   getDefaultPrompts: () => ipcRenderer.invoke(IPC.promptsDefaults),
@@ -27,6 +28,8 @@ const api: WorklogApi = {
   cancelBackfill: () => ipcRenderer.invoke(IPC.backfillCancel),
   copyToClipboard: (text) => ipcRenderer.invoke(IPC.clipboardWrite, text),
   setAutoLaunch: (enabled) => ipcRenderer.invoke(IPC.appSetAutoLaunch, enabled),
+  getWindowPinned: () => ipcRenderer.invoke(IPC.windowPinGet),
+  setWindowPinned: (pinned) => ipcRenderer.invoke(IPC.windowPinSet, pinned),
   onBackfillProgress: subscribe(IPC.backfillProgress),
   onPipelineError: subscribe(IPC.pipelineError),
   onDayUpdated: subscribe(IPC.dayUpdated)

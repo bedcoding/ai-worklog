@@ -78,12 +78,29 @@ function encodePng(size, pixelAt) {
   ])
 }
 
-// 트레이용: 검정+알파 template 이미지
+// 맥 트레이용: 검정+알파 template 이미지 (메뉴바가 라이트/다크에 맞춰 자동 반전한다)
 function makeTrayPng(art, scale) {
   const size = art.length * scale
   return encodePng(size, (x, y) => {
     const on = art[Math.floor(y / scale)][Math.floor(x / scale)] === '#'
     return [0, 0, 0, on ? 255 : 0]
+  })
+}
+
+// 윈도우 트레이용: 라운드 파랑 타일 + 흰 글리프.
+// 윈도우는 template 이미지를 지원하지 않아(setTemplateImage가 no-op) 단색 검정 아이콘은
+// 다크 작업표시줄에서 명암비 1.29:1로 사실상 안 보인다. 관례대로 브랜드 컬러를 쓴다.
+// 정수 배율(16/32/48)만 만든다 — Electron은 @1.75x 같은 접미사를 인식하지 않는다.
+function makeWinTrayPng(scale) {
+  const size = ART.length * scale
+  const radius = Math.max(2, Math.round(size * 0.2))
+  const bg = [79, 110, 247] // #4f6ef7 — 라이트 3.63:1, 다크 4.04:1 (둘 다 3:1 통과)
+  return encodePng(size, (x, y) => {
+    const cx = Math.min(Math.max(x, radius), size - 1 - radius)
+    const cy = Math.min(Math.max(y, radius), size - 1 - radius)
+    if ((x - cx) ** 2 + (y - cy) ** 2 > radius ** 2) return [0, 0, 0, 0]
+    const on = ART[Math.floor(y / scale)][Math.floor(x / scale)] === '#'
+    return on ? [255, 255, 255, 255] : [...bg, 255]
   })
 }
 
@@ -111,7 +128,14 @@ function makeAppIconPng() {
 }
 
 mkdirSync(join(ROOT, 'resources'), { recursive: true })
+// 맥 트레이
 writeFileSync(join(ROOT, 'resources', 'iconTemplate.png'), makeTrayPng(ART, 1))
 writeFileSync(join(ROOT, 'resources', 'iconTemplate@2x.png'), makeTrayPng(ART, 2))
+// 윈도우 트레이 (Electron이 @2x/@3x를 자동 수집한다)
+writeFileSync(join(ROOT, 'resources', 'trayIcon.png'), makeWinTrayPng(1))
+writeFileSync(join(ROOT, 'resources', 'trayIcon@2x.png'), makeWinTrayPng(2))
+writeFileSync(join(ROOT, 'resources', 'trayIcon@3x.png'), makeWinTrayPng(3))
+// 앱 아이콘 — 512px 고정. electron-builder가 이 PNG에서 .ico를 자동 생성하며
+// 256px 미만으로 줄이면 ERR_ICON_TOO_SMALL로 윈도우 빌드가 실패한다. 크기를 바꾸지 말 것.
 writeFileSync(join(ROOT, 'resources', 'icon.png'), makeAppIconPng())
-console.log('resources/iconTemplate.png, iconTemplate@2x.png, icon.png 생성 완료')
+console.log('resources/ 아이콘 생성 완료 (mac template 2종, win tray 3종, app icon 1종)')
