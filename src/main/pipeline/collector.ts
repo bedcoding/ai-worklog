@@ -42,8 +42,17 @@ interface LogRecord {
 const DAY_MS = 86400_000
 
 /**
- * ~/.claude/projects/**\/*.jsonl 을 스트리밍 파싱해 [startDate, endDate](KST, inclusive)
+ * 프로젝트 그룹 키.
+ * 윈도우는 spawn cwd의 케이싱을 정규화하지 않아 같은 디렉토리가 'd:\dev\foo'와
+ * 'D:\dev\foo'로 로그에 남는다. 그대로 키로 쓰면 이름이 같은 프로젝트가 둘로 갈라져
+ * 프로젝트 수·세션 수가 부풀고 digestHash도 흔들린다. 표시용 cwd 원문은 보존한다.
+ */
+const cwdKey = (cwd: string): string => (process.platform === 'win32' ? cwd.toLowerCase() : cwd)
+
+/**
+ * ~/.claude/projects/<프로젝트>/*.jsonl 을 스트리밍 파싱해 [startDate, endDate](KST, inclusive)
  * 범위의 일별 다이제스트를 만든다.
+ * 스캔 깊이는 정확히 2단계다 — 그 아래(서브에이전트 워크플로 로그 등)는 보지 않는다.
  *
  * 성능: 로그 파일은 append-only이므로 mtime이 범위 시작 이전인 파일에는
  * 범위 내 레코드가 있을 수 없다 → mtime 필터만으로 대부분의 파일을 건너뛴다.
@@ -55,7 +64,7 @@ export async function collectDigests(
   opts: CollectOptions = {}
 ): Promise<CollectResult> {
   const claudeDir = opts.claudeDir ?? join(homedir(), '.claude')
-  const excludeCwds = new Set(opts.excludeCwds ?? [])
+  const excludeCwds = new Set((opts.excludeCwds ?? []).map(cwdKey))
   const startMs = kstStartOfDayMs(startDate)
   const endMs = kstStartOfDayMs(endDate) + DAY_MS
 
@@ -85,7 +94,8 @@ export async function collectDigests(
       const tsMs = rec.timestamp ? Date.parse(rec.timestamp) : NaN
       if (!Number.isFinite(tsMs) || tsMs < startMs || tsMs >= endMs) continue
       const cwd = rec.cwd ?? '(알 수 없음)'
-      if (excludeCwds.has(cwd)) continue
+      const key = cwdKey(cwd)
+      if (excludeCwds.has(key)) continue
 
       const date = kstDateOf(tsMs)
       let day = days.get(date)
@@ -93,10 +103,10 @@ export async function collectDigests(
         day = { date, projects: new Map() }
         days.set(date, day)
       }
-      let proj = day.projects.get(cwd)
+      let proj = day.projects.get(key)
       if (!proj) {
         proj = newProjectAcc(cwd)
-        day.projects.set(cwd, proj)
+        day.projects.set(key, proj)
       }
       if (rec.gitBranch) proj.branches.add(rec.gitBranch)
       if (rec.sessionId) proj.sessions.add(rec.sessionId)

@@ -46,9 +46,21 @@ export function newProjectAcc(cwd: string): ProjectAcc {
   }
 }
 
+/**
+ * cwd에서 프로젝트명(마지막 경로 조각)을 뽑는다.
+ * 구분자 무관으로 분리해야 한다 — 윈도우 로그의 cwd는 'D:\dev\proj' 형태이고,
+ * '/'로만 자르면 경로 전체가 프로젝트명이 되어 AI 요약과 사내 제출 증빙까지
+ * 로컬 디렉토리 구조가 흘러간다.
+ * path.basename()은 호스트 OS 규칙만 따르므로(맥에서 빌드한 코드가 윈도우 로그를
+ * 읽는 교차 케이스에서 실패) 쓰지 않는다.
+ */
 function basenameOf(cwd: string): string {
-  const parts = cwd.split('/').filter(Boolean)
-  return parts[parts.length - 1] ?? cwd
+  const parts = cwd.split(/[\\/]/).filter(Boolean)
+  const last = parts[parts.length - 1]
+  if (!last) return cwd
+  // 드라이브 루트만 있는 cwd('D:\')는 'D:'가 되므로 원문을 쓴다
+  if (parts.length === 1 && /^[A-Za-z]:$/.test(last)) return cwd
+  return last
 }
 
 export function buildDigest(acc: DayAcc, skippedLines: number): DayDigest {
