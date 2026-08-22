@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resultOf, splitLines, textDeltaOf } from '../src/main/claude/run'
+import { classifyLine, splitLines } from '../src/main/claude/run'
 
 // 실제 claude 2.1.234 가 --output-format stream-json --include-partial-messages 로
 // 내보낸 줄을 그대로 옮겼다. 내 짐작이 아니라 CLI 가 실제로 주는 모양이어야 한다.
@@ -11,38 +11,32 @@ const SYSTEM = '{"type":"system","subtype":"thinking_tokens","session_id":"300c4
 const RESULT =
   '{"type":"result","subtype":"success","is_error":false,"duration_api_ms":5695,"result":"안녕하세요","session_id":"300c4c96"}'
 
-describe('textDeltaOf', () => {
+describe('classifyLine', () => {
   it('본문 조각을 뽑는다', () => {
-    expect(textDeltaOf(DELTA)).toBe('안녕하세요. "')
+    expect(classifyLine(DELTA)).toEqual({ kind: 'text', text: '안녕하세요. "' })
   })
 
-  it('thinking_delta 는 본문이 아니다', () => {
-    // 모델이 혼자 생각하는 내용이다. 흘리면 화면에 결과와 무관한 글이 흐른다
-    expect(textDeltaOf(THINKING)).toBeNull()
+  it('생각 조각을 본문과 다른 종류로 가른다', () => {
+    // 같은 종류로 주면 생각 내용이 요약 본문 자리에 섞여 들어간다
+    expect(classifyLine(THINKING)).toEqual({ kind: 'thinking', text: '사용자가 인사를' })
   })
 
-  it('system·result·빈 줄은 본문이 아니다', () => {
-    expect(textDeltaOf(SYSTEM)).toBeNull()
-    expect(textDeltaOf(RESULT)).toBeNull()
-    expect(textDeltaOf('')).toBeNull()
-    expect(textDeltaOf('   ')).toBeNull()
-  })
-
-  it('깨진 줄은 조용히 버린다', () => {
-    // 청크 경계에서 잘린 줄이 여기까지 오면 던지지 말고 넘겨야 한다
-    expect(textDeltaOf('{"type":"stream_event","event":{"type":"cont')).toBeNull()
-  })
-})
-
-describe('resultOf', () => {
   it('최종 봉투를 알아본다', () => {
-    expect(resultOf(RESULT)?.result).toBe('안녕하세요')
+    const r = classifyLine(RESULT)
+    expect(r.kind).toBe('result')
+    expect(r.kind === 'result' && r.envelope.result).toBe('안녕하세요')
   })
 
-  it('다른 줄은 null 이다', () => {
-    expect(resultOf(DELTA)).toBeNull()
-    expect(resultOf(SYSTEM)).toBeNull()
-    expect(resultOf('{깨짐')).toBeNull()
+  it('system·빈 줄은 other 다', () => {
+    expect(classifyLine(SYSTEM).kind).toBe('other')
+    expect(classifyLine('').kind).toBe('other')
+    expect(classifyLine('   ').kind).toBe('other')
+  })
+
+  it('깨진 줄은 던지지 않고 other 다', () => {
+    // 청크 경계에서 잘린 줄이 여기까지 오면 예외 없이 넘겨야 한다
+    expect(classifyLine('{"type":"stream_event","event":{"type":"cont').kind).toBe('other')
+    expect(classifyLine('{깨짐').kind).toBe('other')
   })
 })
 
@@ -86,8 +80,8 @@ describe('splitLines', () => {
       const r = splitLines(carry, chunk)
       carry = r.carry
       for (const line of r.lines) {
-        const t = textDeltaOf(line)
-        if (t !== null) texts.push(t)
+        const ev = classifyLine(line)
+        if (ev.kind === 'text') texts.push(ev.text)
       }
     }
     expect(texts).toEqual(['안녕하세요. "'])

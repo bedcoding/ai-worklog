@@ -13,7 +13,21 @@ import type {
   PeriodSummary,
   RangeStatus
 } from '@shared/types'
-import { CopyButton, Spinner, Tip, errMsg, modelLabel } from '../common'
+import { CopyButton, Elapsed, Spinner, Tip, errMsg, modelLabel } from '../common'
+
+/** 생성 중에만 쓰는 화면 상태. 저장되지 않는다 */
+interface StreamState {
+  /** 요약 본문 조각을 이어붙인 것 */
+  text: string
+  /** 모델이 생각한 내용. 본문과 절대 같은 자리에 두지 않는다 */
+  thinking: string
+  /** 0이면 만들고 있지 않다 */
+  startedAt: number
+  /** 몇 번째 시도인지. 조용히 다시 도는 것이 가장 답답하다 */
+  attempt: number
+}
+
+const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1 }
 
 export default function SummaryView({ progress }: { progress: BackfillProgress | null }): ReactNode {
   // 자정을 넘겨도 "오늘"이 어제로 굳지 않도록 창이 열릴 때마다 재평가한다
@@ -29,8 +43,9 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [busyDate, setBusyDate] = useState<string | null>(null)
   const [backfilling, setBackfilling] = useState(false)
   const [composing, setComposing] = useState<PeriodPartKind | null>(null)
-  // 만들어지는 중인 글. 저장되는 것은 아니고 화면에만 흐른다
-  const [streamText, setStreamText] = useState('')
+  // 만들어지는 중인 상태. 저장되는 것은 아니고 화면에만 흐른다.
+  // startedAt이 있으면 초가 올라간다. 모델이 조용한 구간에도 화면이 살아 있어야 한다.
+  const [stream, setStream] = useState<StreamState>(IDLE_STREAM)
   const [openDate, setOpenDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음)
@@ -76,7 +91,15 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   useEffect(
     () =>
       window.api.onPeriodStream((e) =>
-        setStreamText((prev) => (e.kind === 'reset' ? '' : prev + (e.text ?? '')))
+        setStream((prev) => {
+          // 재시도는 처음부터 다시 쓴다. 앞 시도의 글을 남기면 두 글이 이어붙는다.
+          // 몇 번째 시도인지는 남긴다. 조용히 다시 도는 것이 가장 답답한 경우다.
+          if (e.kind === 'reset') {
+            return { ...IDLE_STREAM, startedAt: Date.now(), attempt: prev.attempt + 1 }
+          }
+          if (e.kind === 'thinking') return { ...prev, thinking: prev.thinking + (e.text ?? '') }
+          return { ...prev, text: prev.text + (e.text ?? '') }
+        })
       ),
     []
   )
@@ -147,7 +170,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   // 부분씩 만든다. 마음에 안 드는 쪽만 다시 부르면 claude 호출도 그 한 번이다
   const compose = (part: PeriodPartKind): void => {
     setComposing(part)
-    setStreamText('')
+    setStream({ ...IDLE_STREAM, startedAt: Date.now() })
     setError(null)
     window.api
       .generatePeriod({ kind: cursor.span, key: periodKey }, part)
@@ -155,7 +178,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       .catch((e: unknown) => setError(errMsg(e)))
       .finally(() => {
         setComposing(null)
-        setStreamText('')
+        setStream(IDLE_STREAM)
       })
   }
 
@@ -333,7 +356,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           part={period?.overview ?? null}
           locked={busy || state.kind !== 'ready'}
           working={composing === 'overview'}
-          streamText={composing === 'overview' ? streamText : ''}
+          stream={stream}
           onMake={() => compose('overview')}
           tip={'날짜별 한 줄 요약만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
         />
@@ -342,7 +365,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           part={period?.detail ?? null}
           locked={busy || state.kind !== 'ready'}
           working={composing === 'detail'}
-          streamText={composing === 'detail' ? streamText : ''}
+          stream={stream}
           onMake={() => compose('detail')}
           tip={'날짜별 상세 항목만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
         />
@@ -363,7 +386,7 @@ function PeriodPartBlock({
   part,
   locked,
   working,
-  streamText,
+  stream,
   onMake,
   tip
 }: {
@@ -373,8 +396,8 @@ function PeriodPartBlock({
   part: PeriodPart | null
   locked: boolean
   working: boolean
-  /** 만들어지는 중인 글. 다 만들어지면 part로 바뀐다 */
-  streamText: string
+  /** 만들어지는 중인 상태. 다 만들어지면 part로 바뀐다 */
+  stream: StreamState
   onMake: () => void
   tip: string
 }): ReactNode {
@@ -401,15 +424,8 @@ function PeriodPartBlock({
       {part?.stale && !working && (
         <div className="muted">⚠️ {shortDateKo(part.end)}까지만 반영됐습니다. 다시 만드세요.</div>
       )}
-      {/* 만드는 동안에는 흘러오는 글을 보여준다. 글자만 '만드는 중…'이면 돌고 있는지
-          멈춘 것인지 알 수 없다. 첫 글자가 오기 전에는 아직 아무것도 없으므로,
-          그 사이에만 기다리는 줄을 둔다. */}
       {working ? (
-        streamText ? (
-          <div className="pre streaming">{streamText}</div>
-        ) : (
-          <Spinner label="claude가 읽고 있습니다…" />
-        )
+        <Working stream={stream} />
       ) : (
         part &&
         (oneLine ? (
@@ -425,6 +441,44 @@ function PeriodPartBlock({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * 만드는 중에 보여주는 것. 본문이 나오기까지 수십 초 걸리므로 그 사이가 비면
+ * 멈춘 것처럼 보인다. 흐른 시간은 모델의 신호와 무관하게 늘 움직인다.
+ */
+function Working({ stream }: { stream: StreamState }): ReactNode {
+  const thinkBox = useRef<HTMLDivElement>(null)
+
+  // 생각이 길어지면 새 글이 상자 밖으로 밀린다. 아래로 붙여 둔다
+  useEffect(() => {
+    const el = thinkBox.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [stream.thinking])
+
+  const phase = stream.text
+    ? '쓰고 있습니다'
+    : stream.thinking
+      ? '생각하고 있습니다'
+      : '기록을 읽고 있습니다'
+
+  return (
+    <>
+      <div className="muted">
+        ⏳ claude가 {phase}… <Elapsed since={stream.startedAt} />
+        {/* 재시도는 조용히 일어나면 그냥 멈춘 것으로 보인다 */}
+        {stream.attempt > 1 && ` · ${stream.attempt}번째 시도`}
+      </div>
+      {/* 생각 내용은 요약이 아니다. 상자에 담고 색을 죽여 본문과 갈라 둔다.
+          저장하지 않는다. 본문이 시작되면 자리를 비운다. */}
+      {!stream.text && stream.thinking && (
+        <div className="thinking" ref={thinkBox}>
+          {stream.thinking}
+        </div>
+      )}
+      {stream.text && <div className="pre streaming">{stream.text}</div>}
+    </>
   )
 }
 

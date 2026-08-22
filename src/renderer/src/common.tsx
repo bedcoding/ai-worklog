@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { ModelChoice } from '@shared/types'
 
 /** 설정의 모델 선택값을 사람이 읽는 이름으로 */
@@ -71,4 +71,18 @@ export function CopyButton({
 
 export function Spinner({ label }: { label: string }): ReactNode {
   return <div className="muted">⏳ {label}</div>
+}
+
+/**
+ * 시작한 뒤 흐른 시간. 초가 올라가는 것만으로 '멈춘 것이 아니다'가 전해진다.
+ * 모델이 아무것도 보내지 않는 구간이 수십 초라, 모델의 신호에 기대면 화면이 죽는다.
+ */
+export function Elapsed({ since }: { since: number }): ReactNode {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    setNow(Date.now())
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [since])
+  return <>{Math.max(0, Math.floor((now - since) / 1000))}초</>
 }
