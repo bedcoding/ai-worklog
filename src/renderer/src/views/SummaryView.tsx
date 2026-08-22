@@ -292,7 +292,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         <div className="row spread">
           <h3>{spanWord} 요약</h3>
           <div className="row">
-            {period && <CopyButton text={period.text} />}
+            {period && <CopyButton text={periodText(period)} />}
             <button
               type="button"
               className="btn steady tip-host"
@@ -306,7 +306,9 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
               <Tip
                 toLeft
                 up
-                text={'이미 만들어 둔 날짜별 요약을 묶습니다.\nclaude를 1번만 부릅니다.'}
+                text={
+                  '이미 만들어 둔 날짜별 요약을 묶습니다.\n한 줄과 상세를 따로 만들어 claude를 2번 부릅니다.'
+                }
               />
             </button>
           </div>
@@ -327,7 +329,10 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
                 ⚠️ {shortDateKo(period.end)}까지만 반영된 요약입니다. 다시 만드세요.
               </div>
             )}
-            <div className="pre">{period.text}</div>
+            {/* 날짜 상세와 같은 짜임이다. 한 줄이 굵게 위에 오고 항목이 아래에 온다.
+                한 줄이 없는 것은 나누기 전에 만들어 둔 요약이다. 자리를 비워 둔다. */}
+            {period.overview && <strong className="selectable">{period.overview}</strong>}
+            {period.detail && <div className="pre">{period.detail}</div>}
             <div className="muted">
               {modelLabel(period.model)} · {kstDateTimeKo(period.generatedAt)}
             </div>
@@ -336,6 +341,14 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       </div>
     </>
   )
+}
+
+/**
+ * 복사용 텍스트. 화면에 보이는 것과 같아야 한다.
+ * 날짜 상세의 복사가 헤드라인과 항목을 함께 주는 것과 같은 방식이다.
+ */
+function periodText(p: PeriodSummary): string {
+  return [p.overview, p.detail].filter(Boolean).join('\n\n')
 }
 
 function DayDetail({

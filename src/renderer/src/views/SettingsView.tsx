@@ -273,11 +273,22 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             onChange={(e) => patch({ prompts: { ...form.prompts, day: e.target.value } })}
           />
         </label>
+        {/* 기간 요약은 두 번 부른다. 한 줄은 날짜별 헤드라인만, 상세는 날짜별 항목만
+            {data}로 받는다. 그래서 템플릿도 따로 둔다. */}
         <label>
-          주간/월간 요약
+          주간/월간 한 줄 요약
           <textarea
-            value={form.prompts.period}
-            onChange={(e) => patch({ prompts: { ...form.prompts, period: e.target.value } })}
+            value={form.prompts.periodOverview}
+            onChange={(e) =>
+              patch({ prompts: { ...form.prompts, periodOverview: e.target.value } })
+            }
+          />
+        </label>
+        <label>
+          주간/월간 상세 요약
+          <textarea
+            value={form.prompts.periodDetail}
+            onChange={(e) => patch({ prompts: { ...form.prompts, periodDetail: e.target.value } })}
           />
         </label>
       </div>
