@@ -56,6 +56,10 @@ export default function MonthView(): ReactNode {
       .finally(() => setBusy(null))
   }
 
+  // 아직 요약되지 않은 활동일 수 — '일일 조합'이 claude를 몇 번 부를지 결정한다
+  const summarized = new Set(statusInfo?.summarizedDays ?? [])
+  const pending = (statusInfo?.activeDays ?? []).filter((d) => !summarized.has(d)).length
+
   const saveXlsx = (): void => {
     void window.api
       .saveReportXlsx(ym)
@@ -69,7 +73,8 @@ export default function MonthView(): ReactNode {
         <MonthNav ym={ym} onChange={setYm} disabled={busy !== null} />
         {statusInfo && (
           <div className="muted">
-            활동 {statusInfo.activeDays.length}일 · AI 요약됨 {statusInfo.summarizedDays.length}일
+            활동 {statusInfo.activeDays.length}일 중 {statusInfo.activeDays.length - pending}일
+            요약됨
           </div>
         )}
         <div className="grid2">
@@ -89,6 +94,18 @@ export default function MonthView(): ReactNode {
           >
             월간 요약 (원본에서)
           </button>
+        </div>
+        <div className="muted">
+          일일 조합: 날짜별 요약을 이어 붙입니다
+          {statusInfo === null
+            ? ''
+            : pending > 0
+              ? ` — 밀린 ${pending}일을 먼저 만들어 claude를 ${pending + 1}번 부릅니다`
+              : ' — 모두 요약돼 있어 claude를 1번 부릅니다'}
+          .
+        </div>
+        <div className="muted">
+          원본에서: 이 달 기록을 한 번에 넘겨 claude를 1번 부릅니다. 양이 많으면 날짜별로 잘립니다.
         </div>
         <button type="button" className="btn primary" disabled={busy !== null} onClick={generateReport}>
           {busy === 'report' ? '기안 초안 생성 중…' : '기안 초안 생성 (제출용)'}

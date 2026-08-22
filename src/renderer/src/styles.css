@@ -321,12 +321,30 @@ table.excel td.empty {
 .scroll-x {
   overflow-x: auto;
 }
+form.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* 설정은 입력이 빽빽해서 카드 기본 간격(8px)으로는 항목끼리 붙어 보인다 */
+form.settings .card {
+  gap: 12px;
+}
+form.settings .grid2 {
+  gap: 10px;
+}
 form.settings label {
   display: flex;
   flex-direction: column;
   gap: 3px;
   font-size: 12px;
   font-weight: 600;
+}
+/* 체크박스는 라벨이 옆에 와야 한다 — 위의 세로 배치를 되돌린다 */
+form.settings label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }
 form.settings input,
 form.settings select,

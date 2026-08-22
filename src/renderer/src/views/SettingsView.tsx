@@ -103,12 +103,26 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
   return (
     <form
       className="settings"
-      style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
       onSubmit={(e) => {
         e.preventDefault()
         save()
       }}
     >
+      {/* 트레이 앱은 켜져 있어야 아래의 매일 자동 요약이 돈다 — 그 전제를 맨 위에 둔다 */}
+      <div className="card">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={form.autoLaunch}
+            onChange={(e) => patch({ autoLaunch: e.target.checked })}
+          />
+          로그인 시 앱 자동 시작
+        </label>
+        <div className="muted">
+          꺼두면 앱을 직접 실행한 동안에만 자동 요약이 동작합니다.
+        </div>
+      </div>
+
       <div className="card">
         <h3>제출 양식 프로필 (고정값)</h3>
         <div className="grid2">
@@ -198,14 +212,6 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             />
           </label>
         </div>
-        <label className="row" style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={form.autoLaunch}
-            onChange={(e) => patch({ autoLaunch: e.target.checked })}
-          />
-          로그인 시 앱 자동 시작
-        </label>
         <label>
           원본 추출 캐시 보관 기간 (개월, 0 = 무제한)
           <input
