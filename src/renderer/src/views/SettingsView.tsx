@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Settings } from '@shared/types'
+import { kstHHMM } from '@shared/dates'
 import { Spinner, Tip, errMsg, shortVersion } from '../common'
 
 /**
@@ -25,7 +26,7 @@ function Hint({ text, toLeft }: { text: string; toLeft?: boolean }): ReactNode {
 /** 연결 테스트 결과 — 성공 시 버전과 경로를 분리해야 좁은 줄에서 접히지 않는다 */
 type ClaudeState =
   | { kind: 'idle' }
-  | { kind: 'ok'; version: string; path: string }
+  | { kind: 'ok'; version: string; path: string; at: number }
   | { kind: 'error'; message: string }
 
 export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
@@ -56,7 +57,11 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     let alive = true
     window.api
       .detectClaude()
-      .then((i) => alive && setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path }))
+      .then(
+        (i) =>
+          alive &&
+          setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path, at: Date.now() })
+      )
       .catch((e: unknown) => alive && setClaude({ kind: 'error', message: errMsg(e) }))
     return () => {
       alive = false
@@ -101,7 +106,9 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     // 사라졌다 다시 나타나 카드 높이가 출렁인다. 새 결과가 오면 덮어쓰기만 한다.
     window.api
       .testClaude(form.claudePath ?? '')
-      .then((i) => setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path }))
+      .then((i) =>
+        setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path, at: Date.now() })
+      )
       .catch((e: unknown) => setClaude({ kind: 'error', message: errMsg(e) }))
       .finally(() => setTesting(false))
   }
@@ -144,9 +151,27 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             />
           </h3>
           <div className="row">
-            {claude.kind === 'ok' && <span className="ok">✓ {claude.version}</span>}
-            <button type="button" className="btn steady" disabled={testing} onClick={testClaude}>
+            {claude.kind === 'ok' && (
+              <>
+                <span className="ok">✓ {claude.version}</span>
+                {/* 성공했는데 경로·버전이 그대로면 눌러도 화면이 안 바뀐다.
+                    확인한 시각이 있어야 "방금 돌았다"는 것이 보인다. */}
+                <span className="muted">{kstHHMM(claude.at)} 확인</span>
+              </>
+            )}
+            <button
+              type="button"
+              className="btn steady tip-host"
+              disabled={testing}
+              onClick={testClaude}
+            >
               {testing ? '확인 중…' : '연결 테스트'}
+              <Tip
+                toLeft
+                text={
+                  '위 경로(비우면 자동 탐지)를 실제 실행 파일로 해석하고\nclaude --version 을 직접 실행해 봅니다.\n요약이 쓰는 것과 같은 경로라, 여기서 되면 요약도 됩니다.'
+                }
+              />
             </button>
           </div>
         </div>
