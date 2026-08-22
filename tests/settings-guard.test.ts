@@ -29,7 +29,7 @@ import {
 } from '../src/main/settings'
 
 const STORED = {
-  profile: { empNo: 'EMP001', name: '홍길동', corp: 'OO엔터테인먼트' },
+  profile: { empNo: 'EMP001', name: '테스트', corp: '테스트법인' },
   dailyAuto: 'silent',
   retentionMonths: 0,
   prompts: { day: 'MY DAY' }
