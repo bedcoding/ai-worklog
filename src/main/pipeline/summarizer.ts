@@ -93,7 +93,7 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
 
 /**
  * 구간의 활동일과, 그중 요약이 끝난 날짜.
- * end 를 오늘로 잘라낸다. 아직 오지 않은 날을 "활동 없음"으로 보이면 안 된다.
+ * end를 오늘로 잘라낸다. 아직 오지 않은 날을 "활동 없음"으로 보이면 안 된다.
  *
  * '요약이 끝났다'의 기준은 캐시 존재 여부다. 활동 없음(empty) 센티널도 끝난 것으로
  * 센다. 그러지 않으면 백필이 그 날짜를 건너뛰는데 상태는 미요약으로 남아, 밀린
@@ -116,7 +116,7 @@ export async function getRangeStatus(start: string, end: string): Promise<RangeS
 /**
  * 구간의 미요약 활동일을 하나씩 순차 생성한다. 조합은 하지 않는다.
  *
- * 기간 요약과 분리한 이유: 예전에는 '주간 요약' 한 번이 조용히 claude 를 N+1 번
+ * 기간 요약과 분리한 이유: 예전에는 '주간 요약' 한 번이 조용히 claude를 N+1 번
  * 불렀다. 비싼 단계(날짜 수만큼)와 싼 단계(1번)를 갈라놓으면 누르기 전에 비용을
  * 볼 수 있고, 중간에 중단하는 것도 의미가 생긴다.
  *
@@ -272,10 +272,10 @@ export async function getCachedPeriod(key: string): Promise<PeriodSummary | null
 }
 
 /**
- * 이미 만들어 둔 일별 요약을 묶어 주간/월간 요약을 만든다. claude 는 1 번만 부른다.
+ * 이미 만들어 둔 일별 요약을 묶어 주간/월간 요약을 만든다. claude는 1번만 부른다.
  *
  * 미요약 날짜가 남아 있으면 만들지 않고 거부한다. 예전에는 여기서 조용히 백필해
- * 한 번의 클릭이 N+1 번 호출이 됐다. 백필은 backfillRange 로 따로 부른다.
+ * 한 번의 클릭이 N+1 번 호출이 됐다. 백필은 backfillRange로 따로 부른다.
  */
 export async function ensurePeriodSummary(req: PeriodRequest): Promise<PeriodSummary> {
   const { start, end } = periodRangeOf(req)

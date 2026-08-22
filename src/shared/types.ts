@@ -104,7 +104,7 @@ export interface PeriodSummary {
   stale?: boolean
 }
 
-/** 임의 구간(주/월 공용)의 활동 현황. end 는 오늘 이후로 넘어가지 않게 잘린다. */
+/** 임의 구간(주/월 공용)의 활동 현황. end는 오늘 이후로 넘어가지 않게 잘린다. */
 export interface RangeStatus {
   start: string
   end: string
@@ -177,7 +177,7 @@ export interface WorklogApi {
   listRange(start: string, end: string): Promise<{ status: RangeStatus; summaries: DaySummary[] }>
   /**
    * 구간의 미요약 활동일을 하나씩 순차 생성한다. 조합은 하지 않는다.
-   * 진행률은 onBackfillProgress 로 오고 cancelBackfill 로 중단할 수 있다.
+   * 진행률은 onBackfillProgress로 오고 cancelBackfill로 중단할 수 있다.
    */
   backfillRange(start: string, end: string): Promise<RangeStatus>
   /** 특정 날짜 요약 생성 (force면 캐시 무시) */

@@ -3,7 +3,7 @@ import type { ClaudeInfo, ModelChoice } from '@shared/types'
 import { errMsg, modelLabel, shortVersion } from './common'
 
 /**
- * claude 가 연결됐는지와 어떤 모델로 요약하는지를 항상 보이게 한다.
+ * claude가 연결됐는지와 어떤 모델로 요약하는지를 항상 보이게 한다.
  * 요약이 "어디로 나가는지" 사용자가 확인할 수 있어야 하기 때문.
  *
  * 실행 파일 경로는 여기 두지 않는다. 이 폭에서는 꼬리만 남고,

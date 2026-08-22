@@ -12,7 +12,7 @@ import { initScheduler } from './scheduler'
 const IS_MAC = process.platform === 'darwin'
 const IS_WIN = process.platform === 'win32'
 
-/** electron-builder.yml 의 appId와 반드시 같아야 한다. 윈도우 토스트 알림 귀속에 쓰인다 */
+/** electron-builder.yml의 appId와 반드시 같아야 한다. 윈도우 토스트 알림 귀속에 쓰인다 */
 const APP_ID = 'dev.bedcoding.ai-worklog'
 
 // 맥은 메뉴바가 라이트/다크에 맞춰 반전시키는 단색 template 이미지를 쓰고,

@@ -51,7 +51,7 @@ export const cwdKey = (cwd: string, platform: string = process.platform): string
   platform === 'win32' ? cwd.toLowerCase() : cwd
 
 /**
- * ~/.claude/projects/<프로젝트>/*.jsonl 을 스트리밍 파싱해 [startDate, endDate](KST, inclusive)
+ * ~/.claude/projects/<프로젝트>/*.jsonl을 스트리밍 파싱해 [startDate, endDate](KST, inclusive)
  * 범위의 일별 다이제스트를 만든다.
  * 스캔 깊이는 정확히 2단계다. 그 아래(서브에이전트 워크플로 로그 등)는 보지 않는다.
  *
