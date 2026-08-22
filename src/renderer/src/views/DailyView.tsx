@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { kstDateOf, kstDateTimeKo, shortDateKo, ymOf } from '@shared/dates'
 import { renderDigestText } from '@shared/digest-text'
 import type { DayDigest, DaySummary, MonthStatus } from '@shared/types'
-import { CopyButton, MonthNav, Spinner, errMsg, modelLabel } from '../common'
+import { CopyButton, MonthNav, Spinner, Tip, errMsg, modelLabel } from '../common'
 
 export default function DailyView(): ReactNode {
   // 자정을 넘겨도 "오늘"이 어제로 굳지 않도록 창이 열릴 때마다 재평가한다
@@ -145,22 +145,24 @@ export default function DailyView(): ReactNode {
                   // 강제 재생성은 행을 펼친 뒤 '다시 생성'으로만 하게 둔다.
                   <button
                     type="button"
-                    className="btn row-action"
+                    className="btn row-action tip-host"
                     disabled={busyDate !== null}
-                    // 잠긴 이유를 커서가 놓인 자리에서 알려준다. 위쪽 안내 줄은 목록을
-                    // 내리면 화면 밖으로 나가지만 툴팁은 항상 그 자리에 뜬다.
-                    // 이 분기에서 busyDate 는 항상 다른 날짜다 (같은 날짜는 '생성 중…' 배지로 빠진다).
-                    title={
-                      busyDate
-                        ? `${shortDateKo(busyDate)} 요약을 만들고 있습니다. 끝난 뒤에 눌러 주세요.`
-                        : `${shortDateKo(date)} AI 요약 생성`
-                    }
                     onClick={(e) => {
                       e.stopPropagation()
                       generate(date)
                     }}
                   >
                     요약 생성
+                    {/* 잠긴 이유를 커서가 놓인 자리에서 알려준다. 위쪽 안내 줄은 목록을
+                        내리면 화면 밖으로 나가지만 말풍선은 항상 그 자리에 뜬다.
+                        이 분기에서 busyDate 는 항상 다른 날짜다 (같은 날짜는 '생성 중…' 배지로 빠진다).
+                        눌리는 상태에서는 라벨이 이미 할 일을 말하므로 띄우지 않는다. */}
+                    {busyDate && (
+                      <Tip
+                        toLeft
+                        text={`${shortDateKo(busyDate)} 요약을 만들고 있습니다.\n끝난 뒤에 눌러 주세요.`}
+                      />
+                    )}
                   </button>
                 )}
               </div>
