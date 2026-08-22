@@ -120,7 +120,9 @@ button.btn {
   cursor: pointer;
   white-space: nowrap;
 }
-button.btn:hover {
+/* :not(:disabled) 가 없으면 잠긴 버튼도 테두리가 강조돼 눌리는 것처럼 보인다.
+   크로미움은 disabled 버튼에도 hover 를 전달하므로 가드가 반드시 필요하다. */
+button.btn:hover:not(:disabled) {
   border-color: var(--accent);
 }
 button.btn.primary {

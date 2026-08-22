@@ -147,7 +147,14 @@ export default function DailyView(): ReactNode {
                     type="button"
                     className="btn row-action"
                     disabled={busyDate !== null}
-                    title={`${shortDateKo(date)} AI 요약 생성`}
+                    // 잠긴 이유를 커서가 놓인 자리에서 알려준다. 위쪽 안내 줄은 목록을
+                    // 내리면 화면 밖으로 나가지만 툴팁은 항상 그 자리에 뜬다.
+                    // 이 분기에서 busyDate 는 항상 다른 날짜다 (같은 날짜는 '생성 중…' 배지로 빠진다).
+                    title={
+                      busyDate
+                        ? `${shortDateKo(busyDate)} 요약을 만들고 있습니다. 끝난 뒤에 눌러 주세요.`
+                        : `${shortDateKo(date)} AI 요약 생성`
+                    }
                     onClick={(e) => {
                       e.stopPropagation()
                       generate(date)
