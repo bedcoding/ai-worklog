@@ -39,7 +39,7 @@ describe('writeJsonAtomic', () => {
     initCache(base)
     const file = join(base, 'concurrent.json')
     await Promise.all(
-      Array.from({ length: 20 }, (_, i) => writeJsonAtomic(file, { i, payload: 'x'.repeat(200) }))
+      Array.from({ length: 50 }, (_, i) => writeJsonAtomic(file, { i, payload: 'x'.repeat(200) }))
     )
     const parsed = JSON.parse(readFileSync(file, 'utf8')) as { i: number }
     expect(typeof parsed.i).toBe('number')
