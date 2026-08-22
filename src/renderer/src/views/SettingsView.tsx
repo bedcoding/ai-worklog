@@ -1,21 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { Profile, Settings } from '@shared/types'
+import type { Settings } from '@shared/types'
 import { Spinner, errMsg } from '../common'
-
-const PROFILE_FIELDS: { key: keyof Profile; label: string; placeholder: string }[] = [
-  { key: 'gianTitle', label: '기안 제목', placeholder: '예: OO본부 생성형 AI' },
-  { key: 'gianLink', label: '기안 링크', placeholder: '결재 문서 URL' },
-  { key: 'gianApprovedDate', label: '기안 승인일', placeholder: '예: 2026. 7. 1' },
-  { key: 'corp', label: '법인', placeholder: '예: OO엔터테인먼트' },
-  { key: 'dept', label: '소속', placeholder: '팀명 (최하위 1개)' },
-  { key: 'name', label: '이름', placeholder: '이름' },
-  { key: 'empNo', label: '사번', placeholder: '예: EMP000' },
-  { key: 'email', label: '회사메일', placeholder: 'name@example.com' },
-  { key: 'aiService', label: '사용 중인 AI 서비스', placeholder: '예: Claude' },
-  { key: 'plan', label: '구독 플랜', placeholder: '예: Max 5x' },
-  { key: 'billingCycle', label: '결제주기', placeholder: '예: 월간' },
-  { key: 'amount', label: '금액(현지통화)', placeholder: '예: 100 US' }
-]
 
 export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
   const [form, setForm] = useState<Settings | null>(null)
@@ -70,8 +55,6 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     setForm({ ...form, ...p })
     setSaved(false)
   }
-  const patchProfile = (key: keyof Profile, value: string): void =>
-    patch({ profile: { ...form.profile, [key]: value } })
 
   const save = (): void => {
     setError(null)
@@ -124,22 +107,6 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       </div>
 
       <div className="card">
-        <h3>제출 양식 프로필 (고정값)</h3>
-        <div className="grid2">
-          {PROFILE_FIELDS.map((f) => (
-            <label key={f.key}>
-              {f.label}
-              <input
-                value={form.profile[f.key]}
-                placeholder={f.placeholder}
-                onChange={(e) => patchProfile(f.key, e.target.value)}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="card">
         <h3>Claude CLI</h3>
         <label>
           실행 파일 경로 (비우면 자동 탐지)
@@ -162,31 +129,17 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         <div className="muted">
           요약은 이 실행 파일을 로컬에서 호출합니다. 구독 쿼터를 사용하며 API 과금은 없습니다.
         </div>
-        <div className="grid2">
-          <label>
-            요약 모델
-            <select
-              value={form.model}
-              onChange={(e) => patch({ model: e.target.value as Settings['model'] })}
-            >
-              <option value="default">CLI 기본 모델</option>
-              <option value="haiku">Haiku 4.5 (빠르고 저렴)</option>
-              <option value="sonnet">Sonnet 5</option>
-            </select>
-          </label>
-          <label>
-            월 절감 시간 (기안 문구용, 선택)
-            <input
-              type="number"
-              min={0}
-              value={form.monthlySavedHours ?? ''}
-              placeholder="예: 20"
-              onChange={(e) =>
-                patch({ monthlySavedHours: e.target.value === '' ? null : Number(e.target.value) })
-              }
-            />
-          </label>
-        </div>
+        <label>
+          요약 모델
+          <select
+            value={form.model}
+            onChange={(e) => patch({ model: e.target.value as Settings['model'] })}
+          >
+            <option value="default">CLI 기본 모델</option>
+            <option value="haiku">Haiku 4.5 (빠르고 저렴)</option>
+            <option value="sonnet">Sonnet 5</option>
+          </select>
+        </label>
       </div>
 
       <div className="card">
@@ -222,7 +175,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           />
         </label>
         <div className="muted">
-          오래된 원본 추출 캐시만 자동 삭제합니다. AI 요약·기안 기록은 영구 보관되며, ~/.claude의
+          오래된 원본 추출 캐시만 자동 삭제합니다. AI 요약 기록은 영구 보관되며, ~/.claude의
           Claude Code 원본 로그는 절대 삭제하지 않습니다.
         </div>
       </div>
@@ -235,8 +188,8 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           </button>
         </div>
         <div className="muted">
-          {'{date} {weekday} {digest} {label} {data} {ym} {savedHours}'} 자리표시자는 실행 시
-          치환됩니다. JSON 출력 형식을 없애면 자동 조립 대신 원문이 그대로 표시됩니다.
+          {'{date} {weekday} {digest} {label} {data}'} 자리표시자는 실행 시 치환됩니다. JSON 출력
+          형식을 없애면 자동 조립 대신 원문이 그대로 표시됩니다.
         </div>
         <label>
           일일 요약
@@ -250,13 +203,6 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           <textarea
             value={form.prompts.period}
             onChange={(e) => patch({ prompts: { ...form.prompts, period: e.target.value } })}
-          />
-        </label>
-        <label>
-          기안 문구 (사용 목적/예상 업무 결과물)
-          <textarea
-            value={form.prompts.gian}
-            onChange={(e) => patch({ prompts: { ...form.prompts, gian: e.target.value } })}
           />
         </label>
       </div>

@@ -4,7 +4,7 @@ import { IPC } from '@shared/types'
 import trayIconMac from '../../resources/iconTemplate.png?asset'
 import trayIconWin from '../../resources/trayIcon.png?asset'
 import { initCache } from './cache'
-import { isDialogOpen, isWindowPinned, registerIpc, setWindowPinned } from './ipc'
+import { isWindowPinned, registerIpc, setWindowPinned } from './ipc'
 import { POPUP_HEIGHT, POPUP_WIDTH, anchorOf, popupBounds } from './popup-bounds'
 import { cleanupOldDigests } from './retention'
 import { initScheduler } from './scheduler'
@@ -59,8 +59,7 @@ function createWindow(): void {
   win.on('blur', () => {
     // 사용자가 창을 고정했으면 닫지 않는다
     if (isWindowPinned()) return
-    // 저장 다이얼로그가 열려 있는 동안은 숨기지 않는다 (다이얼로그가 함께 사라진다)
-    if (isDialogOpen() || win?.webContents.isDevToolsOpened()) return
+    if (win?.webContents.isDevToolsOpened()) return
     lastHideMs = Date.now()
     win?.hide()
   })

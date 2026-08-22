@@ -1,7 +1,7 @@
 {
   "name": "ai-worklog",
   "version": "0.1.0",
-  "description": "Claude Code 사용 내역으로 일일 업무 요약과 월간 기안 초안을 자동 생성하는 macOS·Windows 트레이 앱",
+  "description": "Claude Code 사용 내역으로 일일·주간·월간 업무 요약을 자동 생성하는 macOS·Windows 트레이 앱",
   "main": "./out/main/index.cjs",
   "author": "bedcoding",
   "license": "MIT",
@@ -18,9 +18,6 @@
     "dist:win": "npm run build && electron-builder --win",
     "icons": "node scripts/gen-tray-icon.mjs",
     "check:no-network": "node scripts/check-no-network.mjs"
-  },
-  "dependencies": {
-    "exceljs": "^4.4.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

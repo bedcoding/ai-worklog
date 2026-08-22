@@ -27,7 +27,6 @@ function resolvePath(...segs: string[]): string {
  * 정상 키(dates.ts가 만드는 고정 형식)는 전부 통과하므로 맥/리눅스 동작 변화는 없다.
  */
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const YM_RE = /^\d{4}-\d{2}$/
 const PERIOD_RE = /^\d{4}-(?:\d{2}|W\d{2})$/
 
 function checked(seg: string, re: RegExp, label: string): string {
@@ -45,8 +44,6 @@ export const daySummaryPath = (date: string): string =>
   resolvePath('days', ymOf(checked(date, DATE_RE, '날짜')), `${date}.summary.json`)
 export const periodPath = (key: string): string =>
   resolvePath('periods', `${checked(key, PERIOD_RE, '기간 키')}.json`)
-export const reportPath = (ym: string): string =>
-  resolvePath('reports', `${checked(ym, YM_RE, '연월')}.json`)
 /** claude CLI 실행용 전용 cwd — collector가 이 경로를 수집에서 제외한다 */
 export const claudeWorkdir = (): string => resolvePath('claude-workdir')
 

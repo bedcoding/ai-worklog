@@ -9,7 +9,7 @@ import WeekView from './views/WeekView'
 const TABS = [
   { id: 'daily', label: '일일' },
   { id: 'week', label: '주간' },
-  { id: 'month', label: '월간 기안' },
+  { id: 'month', label: '월간 요약' },
   { id: 'settings', label: '설정' }
 ] as const
 
@@ -118,9 +118,7 @@ function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
     ? `${p.currentDate ?? '지금 날짜'}까지 만들고 중단합니다`
     : p.phase === 'scan'
       ? '기록 스캔 중…'
-      : p.phase === 'report'
-        ? '기안 문구 생성 중…'
-        : `일별 요약 생성 중 ${p.done}/${p.total}${p.currentDate ? ` (${p.currentDate})` : ''}`
+      : `일별 요약 생성 중 ${p.done}/${p.total}${p.currentDate ? ` (${p.currentDate})` : ''}`
   const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined
   return (
     <div className="progress-wrap">

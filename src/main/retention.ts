@@ -10,7 +10,7 @@ const TMP_STALE_MS = 60 * 60 * 1000
 /**
  * 오래된 원본 추출(digest) 캐시 자동 정리 + 고아 tmp 청소.
  * - retentionMonths(기본 12, 0=무제한)보다 오래된 달의 *.digest.json만 삭제한다.
- * - AI 요약(*.summary.json)·기안 캐시는 용량이 미미해 영구 보관.
+ * - AI 요약(*.summary.json)은 용량이 미미해 영구 보관.
  * - ~/.claude 원본 로그는 절대 건드리지 않는다 (이 앱은 원본에 대해 읽기 전용).
  */
 export async function cleanupOldDigests(now = new Date()): Promise<void> {
@@ -56,7 +56,7 @@ export async function cleanupOldDigests(now = new Date()): Promise<void> {
  * writeJsonAtomic이 남긴 고아 .tmp 청소.
  * 프로세스가 write와 rename 사이에서 죽거나, rename 실패 후 정리까지 실패하면 남는다.
  * 보관 기간 필터 바깥에서 캐시 루트 전체를 훑어야 한다 — tmp는 최신 달에도,
- * days/ 밖(settings.json, periods/, reports/)에도 생긴다.
+ * days/ 밖(settings.json, periods/)에도 생긴다.
  */
 async function cleanupStaleTmp(): Promise<void> {
   const cutoffMs = Date.now() - TMP_STALE_MS
@@ -85,7 +85,6 @@ async function cleanupStaleTmp(): Promise<void> {
   // Electron/Chromium 자체 캐시 디렉토리까지 훑게 되므로 하지 않는다.
   await sweep(cacheRoot())
   await sweep(join(cacheRoot(), 'periods'))
-  await sweep(join(cacheRoot(), 'reports'))
   let months: string[]
   try {
     months = await readdir(daysRoot())
