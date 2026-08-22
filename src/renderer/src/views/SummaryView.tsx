@@ -168,11 +168,6 @@ export default function SummaryView(): ReactNode {
             </button>
           </div>
         </div>
-        {settled && status && (
-          <div className="muted">
-            활동 {active.length}일 중 {active.length - pending}일 요약됨
-          </div>
-        )}
         {todayInRange && (
           <button
             type="button"
@@ -183,16 +178,21 @@ export default function SummaryView(): ReactNode {
             {busyDate === today ? '오늘 요약 생성 중…' : '오늘 하루 정리하기'}
           </button>
         )}
-        {/* 날짜 수만큼 claude 를 부르는 유일한 버튼이다. 누르기 전에 횟수를 보여준다. */}
+        {/* 날짜 수만큼 claude 를 부르는 유일한 버튼이다. 라벨에는 남은 날짜 수만,
+            호출 횟수는 말풍선에 둔다. 둘 다 라벨에 넣으면 괄호가 붙어 지저분하다. */}
         <button type="button" className="btn tip-host" disabled={busy || pending === 0} onClick={runBackfill}>
           {backfilling
             ? '전체 정리 중…'
             : pending === 0
               ? '전체 정리 완료'
-              : `전체 정리하기 (밀린 ${pending}일, claude ${pending}회)`}
+              : `밀린 ${pending}일 전체 정리하기`}
           <Tip
             toLeft
-            text={'요약이 없는 날짜를 하나씩 차례로 만듭니다.\n진행 중에 위쪽 막대에서 중단할 수 있습니다.'}
+            text={
+              pending === 0
+                ? '이 구간은 모두 정리돼 있습니다.'
+                : `요약이 없는 ${pending}일을 하나씩 차례로 만듭니다.\nclaude 를 ${pending}번 부릅니다.\n진행 중에 위쪽 막대에서 중단할 수 있습니다.`
+            }
           />
         </button>
         {error && <div className="error">{error}</div>}
