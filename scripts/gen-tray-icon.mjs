@@ -178,6 +178,50 @@ function makeAppIconPng(size) {
   })
 }
 
+/* ---------------- .ico 패킹 ---------------- */
+/**
+ * PNG 프레임들을 .ico 컨테이너로 묶는다 (PNG-in-ICO, Windows Vista+).
+ *
+ * electron-builder에 512px PNG만 주면 16~256px를 bicubic으로 축소해 넣는데,
+ * 작은 프레임이 회색 덩어리로 뭉개진다. 크기별로 직접 찍은 프레임을 넣어 그것을 피한다.
+ * electron-builder는 ICONDIR을 파싱해 최대 프레임이 256 미만이면 빌드를 실패시키므로
+ * 256 프레임이 반드시 있어야 한다.
+ */
+function packIco(frames) {
+  const count = frames.length
+  const header = Buffer.alloc(6)
+  header.writeUInt16LE(0, 0) // reserved
+  header.writeUInt16LE(1, 2) // type: icon
+  header.writeUInt16LE(count, 4)
+
+  const dir = Buffer.alloc(16 * count)
+  let offset = 6 + 16 * count
+  frames.forEach(({ size, png }, i) => {
+    const o = i * 16
+    dir[o] = size >= 256 ? 0 : size // 0 = 256px
+    dir[o + 1] = size >= 256 ? 0 : size
+    dir[o + 2] = 0 // 팔레트 색 수 (트루컬러는 0)
+    dir[o + 3] = 0 // reserved
+    dir.writeUInt16LE(1, o + 4) // color planes
+    dir.writeUInt16LE(32, o + 6) // bits per pixel
+    dir.writeUInt32LE(png.length, o + 8)
+    dir.writeUInt32LE(offset, o + 12)
+    offset += png.length
+  })
+
+  return Buffer.concat([header, dir, ...frames.map((f) => f.png)])
+}
+
+/**
+ * 앱 아이콘 프레임 — 크기에 따라 표현을 바꾼다.
+ * 원형 배지는 48px 미만에서 원이 공간을 다 먹어 문서가 흰 점이 된다(실측).
+ * 배지 안쪽 문서를 키우는 방향도 시험했지만 외곽선이 깨져 더 나빠졌다.
+ * 그래서 작은 프레임은 원을 빼고 트레이와 같은 solid 표현을 쓴다 — 문서 실루엣과
+ * 얼굴은 그대로이므로 정체성은 유지된다.
+ */
+const ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
+const appIconFrame = (size) => (size < 48 ? makeTrayPng(size) : makeAppIconPng(size))
+
 /* ---------------- 출력 ---------------- */
 const out = (name) => join(ROOT, 'resources', name)
 mkdirSync(join(ROOT, 'resources'), { recursive: true })
@@ -189,8 +233,15 @@ writeFileSync(out('iconTemplate@2x.png'), makeTemplatePng(32))
 writeFileSync(out('trayIcon.png'), makeTrayPng(16))
 writeFileSync(out('trayIcon@2x.png'), makeTrayPng(32))
 writeFileSync(out('trayIcon@3x.png'), makeTrayPng(48))
-// 앱 아이콘 — 512px 고정. electron-builder가 이 PNG에서 .ico/.icns를 만들며
-// 256px 미만으로 줄이면 ERR_ICON_TOO_SMALL로 윈도우 빌드가 즉시 실패한다.
+// 앱 아이콘 — 512px 고정. electron-builder가 이 PNG에서 맥 .icns를 만들며
+// 256px 미만으로 줄이면 ERR_ICON_TOO_SMALL로 빌드가 즉시 실패한다.
 writeFileSync(out('icon.png'), makeAppIconPng(512))
+// 윈도우 앱 아이콘 — 크기별로 직접 찍은 프레임을 담은 .ico
+writeFileSync(
+  out('icon.ico'),
+  packIco(ICO_SIZES.map((size) => ({ size, png: appIconFrame(size) })))
+)
 
-console.log('resources/ 아이콘 생성 완료 (mac template 2종, win tray 3종, app icon 1종)')
+console.log(
+  `resources/ 아이콘 생성 완료 (mac template 2종, win tray 3종, app icon png + ico ${ICO_SIZES.length}프레임)`
+)
