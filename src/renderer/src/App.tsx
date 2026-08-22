@@ -137,7 +137,9 @@ function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
             void window.api.cancelBackfill()
           }}
         >
-          {stopping ? '중단 중…' : '중단'}
+          {/* 라벨을 '중단 중…'으로 바꾸면 폭이 44 → 70px 로 늘어 옆 문구가 밀린다.
+              눌렸다는 것은 비활성 처리와 왼쪽 진행 문구가 이미 알려주므로 글자는 그대로 둔다. */}
+          중단
           <Tip toLeft text={'지금 만들고 있는 날짜는 끝내고\n다음 날짜부터 중단합니다'} />
         </button>
       </div>
