@@ -196,12 +196,16 @@ function DayDetail({
     if (sub === 'raw' && !digest && !digestBusy) onLoadDigest()
   }, [sub, digest, digestBusy, onLoadDigest])
 
+  // 화면에 보이는 것과 복사되는 것이 같아야 한다 — 키워드가 빠지면 그 줄은
+  // 선택도 복사도 안 되는 죽은 텍스트가 된다
+  const keywords = summary?.keywords ?? []
   const aiText =
     summary && !summary.empty
       ? summary.fallbackText ??
         [
           `${shortDateKo(date)} ${summary.headline ?? ''}`,
-          ...(summary.items ?? []).map((i) => `- [${i.project}] ${i.work}`)
+          ...(summary.items ?? []).map((i) => `- [${i.project}] ${i.work}`),
+          ...(keywords.length > 0 ? [`키워드: ${keywords.join(', ')}`] : [])
         ].join('\n')
       : ''
 
@@ -226,7 +230,7 @@ function DayDetail({
             <div className="pre">{summary.fallbackText}</div>
           ) : (
             <>
-              <strong>{summary.headline}</strong>
+              <strong className="selectable">{summary.headline}</strong>
               <ul className="items">
                 {(summary.items ?? []).map((i, idx) => (
                   <li key={idx}>
@@ -235,7 +239,7 @@ function DayDetail({
                 ))}
               </ul>
               <div className="row spread">
-                <span className="muted">{(summary.keywords ?? []).join(' · ')}</span>
+                <span className="muted selectable grow">{keywords.join(', ')}</span>
                 <button type="button" className="btn" disabled={busy} onClick={() => onGenerate(true)}>
                   {busy ? '생성 중…' : '다시 생성'}
                 </button>
