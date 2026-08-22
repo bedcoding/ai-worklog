@@ -164,6 +164,21 @@ button.btn:disabled {
   color: var(--ok);
   border-color: var(--ok);
 }
+/* 배지 모양을 유지하는 버튼 — 좁은 행에 버튼을 새로 넣지 않고 배지 자리를 쓴다 */
+.badge.action {
+  background: none;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.badge.action:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.badge.action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .day-item {
   border-top: 1px solid var(--border);
   padding: 8px 2px;
