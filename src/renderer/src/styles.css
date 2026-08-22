@@ -37,6 +37,11 @@ body {
   color: var(--text);
   -webkit-user-select: none;
   user-select: none;
+  /* 한글은 기본값에서 음절 사이 어디서나 끊겨 '실행 확 / 인' 처럼 한 글자만 남는 줄이
+     생긴다. keep-all 은 띄어쓰기(어절) 자리에서만 끊는다. 대신 공백 없는 긴 토큰(경로,
+     URL)은 끊을 곳이 없어 넘치므로, 그때만 아무 데서나 끊도록 overflow-wrap 을 함께 둔다. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .app {
   display: flex;
@@ -165,7 +170,6 @@ button.btn.steady {
 }
 .pre {
   white-space: pre-wrap;
-  word-break: break-word;
   font-size: 12px;
   line-height: 1.55;
   -webkit-user-select: text;
@@ -444,8 +448,6 @@ form.settings .readonly-box > .ellipsis {
   line-height: 1.55;
   /* 문장마다 넣은 줄바꿈을 살리고, 그보다 긴 줄은 알아서 접히게 둔다 */
   white-space: pre-line;
-  /* 공백 없는 긴 경로도 상자 안에서 접히게 한다 */
-  overflow-wrap: anywhere;
   text-align: left;
   -webkit-user-select: text;
   user-select: text;
