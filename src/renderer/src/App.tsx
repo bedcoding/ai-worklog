@@ -87,7 +87,7 @@ export default function App(): ReactNode {
         {tab === 'daily' && <DailyView />}
         {tab === 'week' && <WeekView />}
         {tab === 'month' && <MonthView />}
-        {/* 설정은 언마운트하지 않는다 — 저장 전 탭을 옮겨도 입력이 남아 있어야 한다 */}
+        {/* 설정은 언마운트하지 않는다. 저장 전 탭을 옮겨도 입력이 남아 있어야 한다 */}
         <div
           style={{
             display: tab === 'settings' ? 'contents' : 'none'
@@ -101,7 +101,7 @@ export default function App(): ReactNode {
   )
 }
 
-/** 압정 아이콘 — 고정 해제 상태에서는 CSS로 기울여 관례대로 구분한다 */
+/** 압정 아이콘. 고정 해제 상태에서는 CSS로 기울여 관례대로 구분한다 */
 function PinIcon(): ReactNode {
   return (
     <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false">
@@ -114,7 +114,7 @@ function PinIcon(): ReactNode {
 }
 
 function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
-  // 중단은 돌고 있는 claude를 죽이지 않는다 — 지금 날짜를 끝내고 다음으로 넘어가지 않을 뿐이다.
+  // 중단은 돌고 있는 claude를 죽이지 않는다. 지금 날짜를 끝내고 다음으로 넘어가지 않을 뿐이다.
   // 그 사이(최대 2분) 화면이 그대로면 눌리지 않은 것처럼 보이므로 눌렀다는 사실을 남긴다.
   // 생성이 끝나면 phase가 idle이 되어 이 배너 자체가 사라지므로 상태를 되돌릴 필요가 없다.
   const [stopping, setStopping] = useState(false)

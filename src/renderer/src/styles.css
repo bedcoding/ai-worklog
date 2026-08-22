@@ -70,7 +70,7 @@ nav.tabs button.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
-/* 창 고정 토글 — 탭과 달리 폭을 고정한다 */
+/* 창 고정 토글. 탭과 달리 폭을 고정한다 */
 nav.tabs button.pin {
   flex: 0 0 26px;
   display: flex;
@@ -79,7 +79,7 @@ nav.tabs button.pin {
   color: var(--muted);
 }
 /* 관례: 기울어진 압정 = 고정 안 됨, 똑바로 선 압정 = 고정됨.
-   회전은 아이콘에만 건다 — 버튼에 걸면 안에 붙는 말풍선까지 같이 기울어진다. */
+   회전은 아이콘에만 건다. 버튼에 걸면 안에 붙는 말풍선까지 같이 기울어진다. */
 nav.tabs button.pin svg {
   transform: rotate(40deg);
 }
@@ -144,7 +144,7 @@ button.btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
-/* 행 오른쪽에 들어가는 작은 실행 버튼. 알약 배지(.badge)는 상태, 모난 사각형은 동작 —
+/* 행 오른쪽에 들어가는 작은 실행 버튼. 알약 배지(.badge)는 상태, 모난 사각형은 동작.
    모양으로 갈라야 눌리는 것인지 알 수 있다 */
 button.btn.row-action {
   padding: 2px 8px;
@@ -187,7 +187,7 @@ button.btn.steady {
   color: var(--ok);
   border-color: var(--ok);
 }
-/* 진행 중 표시 — 요약이 이미 있는 날짜를 다시 만들 때도 이 배지로 바뀐다 */
+/* 진행 중 표시. 요약이 이미 있는 날짜를 다시 만들 때도 이 배지로 바뀐다 */
 .badge.busy {
   color: var(--accent);
   border-color: var(--accent);
@@ -227,7 +227,7 @@ button.btn.steady {
 }
 /* 펼친 상세는 날짜 행에 그대로 붙어 있어 어디까지가 그 날짜의 내용인지 보이지 않는다.
    배경 톤 + 테두리로 한 덩어리로 묶는다. 다크에서는 --bg 가 --card 보다 어두워
-   톤 관계가 뒤집히지만 여전히 가라앉은 패널로 읽힌다 — 어느 테마에서도 분리는 유지된다. */
+   톤 관계가 뒤집히지만 여전히 가라앉은 패널로 읽힌다. 어느 테마에서도 분리는 유지된다. */
 .day-detail {
   margin-top: 8px;
   padding: 10px;
@@ -237,7 +237,7 @@ button.btn.steady {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* .day-item 이 cursor: pointer 라 상세 안쪽까지 손가락 커서가 된다 — 여기는 접기 대상이 아니다 */
+  /* .day-item 이 cursor: pointer 라 상세 안쪽까지 손가락 커서가 된다. 여기는 접기 대상이 아니다 */
   cursor: default;
 }
 /* 키워드·모델·생성시각은 업무 내용이 아니라 그 요약에 대한 정보다 */
@@ -267,7 +267,7 @@ button.btn.steady {
 }
 ul.items {
   /* 불릿은 선택·복사에 포함되지 않아 화면과 복사 결과가 어긋난다.
-     대신 걸린 들여쓰기로 항목 경계를 만든다 — [프로젝트] 태그가 왼쪽으로 튀어나오고
+     대신 걸린 들여쓰기로 항목 경계를 만든다. [프로젝트] 태그가 왼쪽으로 튀어나오고
      접힌 줄이 그 아래로 들어간다. */
   list-style: none;
   padding-left: 0;
@@ -286,7 +286,7 @@ ul.items li {
   -webkit-user-select: text;
   user-select: text;
 }
-/* 선택 가능한 자리에만 글자 커서를 준다 — 바깥이 pointer/default 커서라
+/* 선택 가능한 자리에만 글자 커서를 준다. 바깥이 pointer/default 커서라
    이게 없으면 어느 줄을 드래그해 복사할 수 있는지 보이지 않는다 */
 .pre,
 ul.items,
@@ -331,7 +331,7 @@ form.settings label {
   font-size: 12px;
   font-weight: 600;
 }
-/* 체크박스는 라벨이 옆에 와야 한다 — 위의 세로 배치를 되돌린다 */
+/* 체크박스는 라벨이 옆에 와야 한다. 위의 세로 배치를 되돌린다 */
 form.settings label.checkbox {
   flex-direction: row;
   align-items: center;
@@ -392,7 +392,7 @@ button.statusbar:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 경로는 뒤쪽(파일명)이 중요하다 — rtl 로 두면 앞이 잘리고 끝이 남는다.
+/* 경로는 뒤쪽(파일명)이 중요하다. rtl 로 두면 앞이 잘리고 끝이 남는다.
    text-align 은 물리 방향이라, 짧아서 안 잘리는 경로가 오른쪽으로 붙는 것을 막는다 */
 .path-tail {
   direction: rtl;
@@ -420,7 +420,7 @@ form.settings .readonly-box > .ellipsis {
   position: relative;
 }
 /* 네이티브 title 툴팁은 뜨기까지 약 1초 걸리고 그 지연을 페이지에서 바꿀 수 없다.
-   직접 그려서 즉시 띄운다. transition·animation 을 걸지 않는 것이 핵심 —
+   직접 그려서 즉시 띄운다. transition·animation 을 걸지 않는 것이 핵심.
    지연이 0이어야 한다. */
 .tip {
   display: none;

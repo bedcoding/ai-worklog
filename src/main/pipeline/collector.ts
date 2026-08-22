@@ -8,7 +8,7 @@ import type { DayDigest } from '@shared/types'
 import { buildDigest, newProjectAcc, type DayAcc } from './digest'
 
 export interface CollectOptions {
-  /** 기본 ~/.claude — 테스트에서 픽스처 디렉토리 주입용 */
+  /** 기본 ~/.claude. 테스트에서 픽스처 디렉토리 주입용 */
   claudeDir?: string
   /** 수집에서 제외할 cwd (앱 자체 claude-workdir 등) */
   excludeCwds?: string[]
@@ -53,7 +53,7 @@ export const cwdKey = (cwd: string, platform: string = process.platform): string
 /**
  * ~/.claude/projects/<프로젝트>/*.jsonl 을 스트리밍 파싱해 [startDate, endDate](KST, inclusive)
  * 범위의 일별 다이제스트를 만든다.
- * 스캔 깊이는 정확히 2단계다 — 그 아래(서브에이전트 워크플로 로그 등)는 보지 않는다.
+ * 스캔 깊이는 정확히 2단계다. 그 아래(서브에이전트 워크플로 로그 등)는 보지 않는다.
  *
  * 성능: 로그 파일은 append-only이므로 mtime이 범위 시작 이전인 파일에는
  * 범위 내 레코드가 있을 수 없다 → mtime 필터만으로 대부분의 파일을 건너뛴다.
@@ -73,7 +73,7 @@ export async function collectDigests(
   const files = await listJsonlFiles(join(claudeDir, 'projects'), startMs)
 
   const days = new Map<string, DayAcc>()
-  /** 프롬프트를 이미 본 세션 — 세션 첫 프롬프트 판별용 */
+  /** 프롬프트를 이미 본 세션. 세션 첫 프롬프트 판별용 */
   const sessionSeen = new Set<string>()
   let skippedLines = 0
 

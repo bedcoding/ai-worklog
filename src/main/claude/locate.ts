@@ -195,7 +195,7 @@ export async function locateClaude(override?: string | null): Promise<string> {
 /**
  * 주의: execFileP는 promisify된 형태여야 한다.
  * 콜백형 execFile(path, args, cb)은 .cmd 경로에서 EINVAL을 동기 throw하며
- * 콜백을 호출하지 않아 프로세스를 죽인다 — 절대 콜백형으로 되돌리지 말 것.
+ * 콜백을 호출하지 않아 프로세스를 죽인다. 절대 콜백형으로 되돌리지 말 것.
  */
 export async function claudeVersion(path: string): Promise<string> {
   // 324MB 네이티브 바이너리의 최초 실행은 콜드 캐시에서 5.5초까지 걸린다(웜 ~200ms).

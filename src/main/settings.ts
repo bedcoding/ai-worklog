@@ -42,14 +42,14 @@ function merge(stored: Partial<Settings> | null): Settings {
   }
 }
 
-/** 파싱 불가 파일은 지우지 않고 옆으로 치워 보존한다 — 사용자가 손으로 복구할 수 있어야 한다 */
+/** 파싱 불가 파일은 지우지 않고 옆으로 치워 보존한다. 사용자가 손으로 복구할 수 있어야 한다 */
 async function quarantine(file: string): Promise<void> {
   // 콜론은 윈도우 파일명에 쓸 수 없다(NTFS 대체 데이터 스트림이 된다)
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   try {
     await rename(file, `${file}.corrupt-${stamp}`)
   } catch {
-    // 치워두기 실패는 치명적이지 않다 — 기본값으로 계속 진행한다
+    // 치워두기 실패는 치명적이지 않다. 기본값으로 계속 진행한다
   }
 }
 
@@ -58,7 +58,7 @@ async function load(): Promise<Settings> {
   if (read.kind === 'unreadable') {
     // 이미 읽어둔 값이 있으면 그것이 진실이다 (일시적 락으로 저장을 영구 차단하지 않는다)
     if (cached) return cached
-    // cached를 세우지 않는다 — 다음 호출에서 다시 읽고, 그 사이 저장은 거부된다
+    // cached를 세우지 않는다. 다음 호출에서 다시 읽고, 그 사이 저장은 거부된다
     return merge(null)
   }
   if (read.kind === 'corrupt') await quarantine(settingsPath())
@@ -67,7 +67,7 @@ async function load(): Promise<Settings> {
 }
 
 /**
- * 설정을 읽는다. 읽지 못하면 기본값을 반환한다 —
+ * 설정을 읽는다. 읽지 못하면 기본값을 반환한다.
  * 스케줄러·정리처럼 '동작은 계속해야 하는' 소비자를 위한 것이다.
  * 사용자에게 보여주고 되돌려 저장받는 경로는 getSettingsForEdit을 써야 한다.
  */
@@ -107,7 +107,7 @@ export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
   return cached
 }
 
-/** 테스트 전용 — 모듈 상태를 초기화한다 */
+/** 테스트 전용. 모듈 상태를 초기화한다 */
 export function __resetSettingsCache(): void {
   cached = null
   inflight = null

@@ -4,7 +4,7 @@ import { kstDateOf, ymOf } from '@shared/dates'
 import { cacheRoot, daysRoot } from './cache'
 import { getSettings } from './settings'
 
-/** 이보다 오래된 고아 .tmp만 지운다 — 진행 중인 쓰기를 건드리지 않기 위한 안전장치 */
+/** 이보다 오래된 고아 .tmp만 지운다. 진행 중인 쓰기를 건드리지 않기 위한 안전장치 */
 const TMP_STALE_MS = 60 * 60 * 1000
 
 /**
@@ -45,7 +45,7 @@ export async function cleanupOldDigests(now = new Date()): Promise<void> {
         try {
           await unlink(join(daysRoot(), ym, f))
         } catch {
-          // 삭제 실패는 무시 — 다음 실행에서 재시도된다
+          // 삭제 실패는 무시. 다음 실행에서 재시도된다
         }
       }
     }
@@ -55,7 +55,7 @@ export async function cleanupOldDigests(now = new Date()): Promise<void> {
 /**
  * writeJsonAtomic이 남긴 고아 .tmp 청소.
  * 프로세스가 write와 rename 사이에서 죽거나, rename 실패 후 정리까지 실패하면 남는다.
- * 보관 기간 필터 바깥에서 캐시 루트 전체를 훑어야 한다 — tmp는 최신 달에도,
+ * 보관 기간 필터 바깥에서 캐시 루트 전체를 훑어야 한다. tmp는 최신 달에도,
  * days/ 밖(settings.json, periods/)에도 생긴다.
  */
 async function cleanupStaleTmp(): Promise<void> {
@@ -76,7 +76,7 @@ async function cleanupStaleTmp(): Promise<void> {
         const st = await stat(p)
         if (st.isFile() && st.mtimeMs < cutoffMs) await unlink(p)
       } catch {
-        // 무시 — 다음 실행에서 재시도된다
+        // 무시. 다음 실행에서 재시도된다
       }
     }
   }

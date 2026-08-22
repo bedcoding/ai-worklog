@@ -9,7 +9,7 @@ import { isActiveDigest } from './digest'
 export interface Activity {
   /** 활동이 있는 KST 날짜 (오름차순) */
   dates: string[]
-  /** 원본 로그가 남아 있는 날짜의 다이제스트 — 없는 날짜는 요약 캐시만 존재 */
+  /** 원본 로그가 남아 있는 날짜의 다이제스트. 없는 날짜는 요약 캐시만 존재 */
   digests: Map<string, DayDigest>
 }
 

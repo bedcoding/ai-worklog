@@ -8,7 +8,7 @@ import type { DaySummary, PipelineError } from '@shared/types'
 /**
  * 매일 자동실행 스케줄러.
  * - dailyAuto: 'off' | 'confirm'(실행 전 확인 창) | 'silent'(조용히 실행)
- * - dailyTime: KST 기준 "HH:mm" — 실행 기록(lastAutoRunDate)이 KST 날짜이므로
+ * - dailyTime: KST 기준 "HH:mm". 실행 기록(lastAutoRunDate)이 KST 날짜이므로
  *   발화 판정도 KST로 통일해야 KST 밖 타임존에서 하루가 어긋나지 않는다.
  * - 슬립/재부팅으로 시각을 놓친 경우, 깨어날 때 그날 몫을 따라잡는다.
  */
@@ -40,7 +40,7 @@ export function initScheduler(
 ): void {
   onSummaryDone = notify
   onError = reportError
-  // 'resume'만으로는 부족하다 — 윈도우 11의 Modern Standby(S0)는 화면만 꺼진 채
+  // 'resume'만으로는 부족하다. 윈도우 11의 Modern Standby(S0)는 화면만 꺼진 채
   // 유지되어 resume이 발화하지 않는 기기가 많고, 실사용의 대부분은 '슬립'이 아니라 '화면 잠금'이다.
   powerMonitor.on('resume', () => {
     void catchUpThenReschedule()
@@ -78,7 +78,7 @@ export async function reschedule(): Promise<void> {
   const s = await getSettings()
   if (s.dailyAuto === 'off') return
   const delay = nextFireMs(s.dailyTime) - Date.now()
-  // 재예약은 이 콜백과 catchUpThenReschedule 두 곳에서만 — fire() 자신은 하지 않는다
+  // 재예약은 이 콜백과 catchUpThenReschedule 두 곳에서만. fire() 자신은 하지 않는다
   timer = setTimeout(() => {
     void fire().finally(() => void reschedule())
   }, delay)
@@ -156,7 +156,7 @@ async function fire(): Promise<void> {
     showNotification(
       summary.empty
         ? '오늘은 Claude Code 활동 기록이 없습니다'
-        : `오늘 업무 요약 완료 — ${summary.headline ?? '일일보기 탭에서 확인하세요'}`
+        : `오늘 업무 요약 완료. ${summary.headline ?? '일일보기 탭에서 확인하세요'}`
     )
     onSummaryDone?.(summary)
   } catch (e) {

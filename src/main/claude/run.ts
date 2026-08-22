@@ -4,7 +4,7 @@ import type { ModelChoice } from '@shared/types'
 export interface ClaudeRunOptions {
   claudePath: string
   model: ModelChoice
-  /** claude 실행 cwd — 로그 자기오염 방지를 위해 전용 디렉토리를 쓴다 */
+  /** claude 실행 cwd. 로그 자기오염 방지를 위해 전용 디렉토리를 쓴다 */
   cwd: string
   timeoutMs?: number
 }
@@ -18,7 +18,7 @@ interface ResultEnvelope {
 
 const RETRY_DELAYS_MS = [2_000, 8_000]
 
-/** 재시도해도 절대 성공하지 않는 실행 오류 — 즉시 중단해 사용자를 10초 기다리게 하지 않는다 */
+/** 재시도해도 절대 성공하지 않는 실행 오류. 즉시 중단해 사용자를 10초 기다리게 하지 않는다 */
 const PERMANENT_ERRORS = new Set(['EINVAL', 'ENOENT', 'EFTYPE', 'EACCES'])
 
 /** 강제 종료 후에도 close가 오지 않을 때 Promise를 반드시 settle시키는 유예 시간 */
@@ -82,7 +82,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
         windowsHide: true
       })
     } catch (e) {
-      // spawn은 .cmd/.ps1 경로에서 동기 throw한다 — code를 보존해야 재시도 여부를 판단할 수 있다
+      // spawn은 .cmd/.ps1 경로에서 동기 throw한다. code를 보존해야 재시도 여부를 판단할 수 있다
       const err = new Error(`claude 실행 실패: ${(e as Error).message}`) as NodeJS.ErrnoException
       err.code = (e as NodeJS.ErrnoException).code
       reject(err)

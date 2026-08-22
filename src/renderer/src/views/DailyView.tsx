@@ -140,8 +140,8 @@ export default function DailyView(): ReactNode {
                 ) : (
                   // 미요약 행에서 그 자리에서 생성을 실행한다.
                   // stopPropagation이 없으면 행 펼치기까지 함께 발동한다.
-                  // 알약 배지가 아니라 .btn 모양을 쓴다 — 상태 표시와 같은 생김새면 눌리는 줄 모른다.
-                  // 이미 요약된 날짜는 버튼으로 만들지 않는다 — 실수로 눌러 쿼터를 쓰는 것을 막고,
+                  // 알약 배지가 아니라 .btn 모양을 쓴다. 상태 표시와 같은 생김새면 눌리는 줄 모른다.
+                  // 이미 요약된 날짜는 버튼으로 만들지 않는다. 실수로 눌러 쿼터를 쓰는 것을 막고,
                   // 강제 재생성은 행을 펼친 뒤 '다시 생성'으로만 하게 둔다.
                   <button
                     type="button"
@@ -213,12 +213,12 @@ function DayDetail({
     if (hasAi) setSub('ai')
   }, [hasAi])
 
-  // 원본 탭을 처음 열 때만 읽는다 — 이미 읽어둔 날짜는 상위 캐시에서 즉시 표시된다
+  // 원본 탭을 처음 열 때만 읽는다. 이미 읽어둔 날짜는 상위 캐시에서 즉시 표시된다
   useEffect(() => {
     if (sub === 'raw' && !digest && !digestBusy) onLoadDigest()
   }, [sub, digest, digestBusy, onLoadDigest])
 
-  // 화면에 보이는 것과 복사되는 것이 같아야 한다 — 키워드가 빠지면 그 줄은
+  // 화면에 보이는 것과 복사되는 것이 같아야 한다. 키워드가 빠지면 그 줄은
   // 선택도 복사도 안 되는 죽은 텍스트가 된다
   const keywords = summary?.keywords ?? []
   const aiText =

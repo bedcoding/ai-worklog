@@ -14,7 +14,7 @@ const DEDUP_PREFIX = 80
 export interface PromptEntry {
   tsMs: number
   text: string
-  /** 세션의 첫 프롬프트 — 맥락 대표성이 높아 절단 시 우선 보존 */
+  /** 세션의 첫 프롬프트. 맥락 대표성이 높아 절단 시 우선 보존 */
   isSessionFirst: boolean
 }
 
@@ -51,7 +51,7 @@ export function newProjectAcc(cwd: string): ProjectAcc {
  *
  * 윈도우 로그의 cwd는 'D:\dev\proj' 형태여서 '/'로만 자르면 경로 전체가 프로젝트명이
  * 되고, 그 값이 AI 요약과 사내 제출 증빙까지 흘러가 로컬 디렉토리 구조가 노출된다.
- * 그렇다고 항상 백슬래시로도 자르면 안 된다 — POSIX에서 백슬래시는 파일명에 쓸 수 있는
+ * 그렇다고 항상 백슬래시로도 자르면 안 된다. POSIX에서 백슬래시는 파일명에 쓸 수 있는
  * 정상 문자이므로 맥의 'my\weird dir' 같은 디렉토리명이 잘려 버린다.
  * 윈도우는 '/'도 구분자로 받아들이므로 플랫폼별로 규칙을 나눈다.
  *
@@ -120,7 +120,7 @@ export function buildDigest(acc: DayAcc, skippedLines: number): DayDigest {
     { sessionCount: 0, promptCount: 0, toolCallCount: 0, tokens: { input: 0, output: 0 } }
   )
 
-  // isSessionFirst는 내부 선별용 — 최종 산출물에서는 제거
+  // isSessionFirst는 내부 선별용. 최종 산출물에서는 제거
   for (const p of projects) {
     for (const dp of p.prompts) delete (dp as { isSessionFirst?: boolean }).isSessionFirst
   }
@@ -173,7 +173,7 @@ export function isActiveDigest(d: DayDigest): boolean {
   return d.totals.promptCount > 0
 }
 
-/** 캐시 무효화 키 — builtAt/skippedLines 등 비본질 필드는 제외 */
+/** 캐시 무효화 키. builtAt/skippedLines 등 비본질 필드는 제외 */
 export function digestHash(d: DayDigest): string {
   return sha256(JSON.stringify({ date: d.date, projects: d.projects }))
 }

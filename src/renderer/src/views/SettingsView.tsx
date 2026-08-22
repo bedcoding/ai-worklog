@@ -3,10 +3,10 @@ import type { Settings } from '@shared/types'
 import { Spinner, Tip, errMsg, shortVersion } from '../common'
 
 /**
- * 설명을 상시 노출하지 않고 호버로 넘긴다 — 좁은 창에서 설명 줄이 화면을 크게 먹는다.
+ * 설명을 상시 노출하지 않고 호버로 넘긴다. 좁은 창에서 설명 줄이 화면을 크게 먹는다.
  * 다만 표식이 없으면 설명이 있다는 것 자체를 알 수 없으므로 ⓘ 는 남긴다.
  *
- * title 속성을 쓰지 않는다 — 네이티브 툴팁은 뜨기까지 약 1초 걸리고 그 지연을
+ * title 속성을 쓰지 않는다. 네이티브 툴팁은 뜨기까지 약 1초 걸리고 그 지연을
  * 페이지에서 바꿀 수 없다. 직접 그리면 즉시 뜨고 생김새도 앱과 맞춘다.
  *
  * @param toLeft 오른쪽 끝에 있는 ⓘ 는 말풍선을 왼쪽으로 펼쳐야 창 밖으로 안 나간다.
@@ -22,7 +22,7 @@ function Hint({ text, toLeft }: { text: string; toLeft?: boolean }): ReactNode {
   )
 }
 
-/** 연결 테스트 결과 — 성공 시 버전과 경로를 분리해야 좁은 줄에서 접히지 않는다 */
+/** 연결 테스트 결과. 성공 시 버전과 경로를 분리해야 좁은 줄에서 접히지 않는다 */
 type ClaudeState =
   | { kind: 'idle' }
   | { kind: 'ok'; version: string; path: string }
@@ -43,7 +43,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     window.api
       .getSettings()
       .then((s) => alive && setForm(s))
-      // 실패를 삼키면 안 된다 — 폼을 기본값으로 채우면 그 스냅샷이 그대로 저장돼
+      // 실패를 삼키면 안 된다. 폼을 기본값으로 채우면 그 스냅샷이 그대로 저장돼
       // 실제 설정을 덮어쓴다. 폼을 아예 그리지 않고 재시도를 제공한다.
       .catch((e: unknown) => alive && setLoadError(errMsg(e)))
     return () => {
@@ -101,7 +101,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
 
   const testClaude = (): void => {
     setTesting(true)
-    // 이전 결과를 지우지 않는다 — 지우면 ✓ 칩과 '실제 실행되는 파일' 필드가 통째로
+    // 이전 결과를 지우지 않는다. 지우면 ✓ 칩과 '실제 실행되는 파일' 필드가 통째로
     // 사라졌다 다시 나타나 카드 높이가 출렁인다. 새 결과가 오면 덮어쓰기만 한다.
     window.api
       .testClaude(form.claudePath ?? '')
@@ -124,7 +124,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         save()
       }}
     >
-      {/* 트레이 앱은 켜져 있어야 아래의 매일 자동 요약이 돈다 — 그 전제를 맨 위에 둔다 */}
+      {/* 트레이 앱은 켜져 있어야 아래의 매일 자동 요약이 돈다. 그 전제를 맨 위에 둔다 */}
       <div className="card">
         <label className="checkbox">
           <input
@@ -138,7 +138,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       </div>
 
       <div className="card">
-        {/* 카드 동작 버튼은 머리 오른쪽에 둔다 — 프롬프트 템플릿의 '기본값 복원'과 같은 자리.
+        {/* 카드 동작 버튼은 머리 오른쪽에 둔다. 프롬프트 템플릿의 '기본값 복원'과 같은 자리.
             ✓ 버전은 버튼 옆에 남긴다. 이게 없으면 눌러도 화면이 안 바뀌어 실행됐는지 알 수 없다. */}
         <div className="row spread">
           <h3>
@@ -184,7 +184,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         {/* 실패 사유는 길어서 머리에 못 넣는다. 원인이 위 입력칸이므로 그 아래에 붙인다 */}
         {claude.kind === 'error' && <div className="error">✗ {claude.message}</div>}
         {claude.kind === 'ok' && (
-          // 입력한 경로와 다를 수 있다 — 윈도우에서는 .cmd/.ps1 셰임이 실제 .exe 로
+          // 입력한 경로와 다를 수 있다. 윈도우에서는 .cmd/.ps1 셰임이 실제 .exe 로
           // 해석된다. 위아래 필드와 같은 상자를 써서 "이 입력의 결과값"으로 읽히게 한다.
           <label>
             실제 실행되는 파일

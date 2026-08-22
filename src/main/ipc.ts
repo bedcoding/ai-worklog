@@ -21,9 +21,9 @@ import { getSettings, getSettingsForEdit, setSettings } from './settings'
 
 /**
  * 창 고정. 고정 중에는 포커스를 잃어도 창을 숨기지 않는다.
- * 고정하면 항상 위에 두는 것까지 함께 해야 의미가 있다 — skipTaskbar 창이라
+ * 고정하면 항상 위에 두는 것까지 함께 해야 의미가 있다. skipTaskbar 창이라
  * 다른 창에 가려지면 작업표시줄 버튼도 Alt+Tab도 없어 되찾을 방법이 없다.
- * 세션 한정 상태다(앱을 다시 켜면 해제) — 켜 둔 걸 잊은 채 재시작하면 혼란스럽기 때문.
+ * 세션 한정 상태다(앱을 다시 켜면 해제). 켜 둔 걸 잊은 채 재시작하면 혼란스럽기 때문.
  */
 let windowPinned = false
 export const isWindowPinned = (): boolean => windowPinned
@@ -45,7 +45,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   const progressIdle = (): void =>
     progress({ done: 0, total: 0, currentDate: null, phase: 'idle' })
 
-  // 편집용 — 읽지 못하면 기본값 대신 실패한다 (기본값 스냅샷이 되돌아와 실제 설정을 덮는다)
+  // 편집용. 읽지 못하면 기본값 대신 실패한다 (기본값 스냅샷이 되돌아와 실제 설정을 덮는다)
   ipcMain.handle(IPC.settingsGet, () => getSettingsForEdit())
   ipcMain.handle(IPC.settingsSet, async (_e, patch: Partial<Settings>) => {
     const s = await setSettings(patch)
@@ -80,7 +80,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.dayGenerate, (_e, date: string, force?: boolean) =>
     ensureDaySummary(date, { force })
   )
-  // 화면 표시용 — 캐시가 있으면 스캔 없이 즉시 반환, force일 때만 원본 재스캔
+  // 화면 표시용. 캐시가 있으면 스캔 없이 즉시 반환, force일 때만 원본 재스캔
   ipcMain.handle(IPC.dayGetDigest, (_e, date: string, force?: boolean) =>
     ensureDayDigest(date, { preferCache: !force, force })
   )

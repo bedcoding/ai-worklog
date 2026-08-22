@@ -44,7 +44,7 @@ export const daySummaryPath = (date: string): string =>
   resolvePath('days', ymOf(checked(date, DATE_RE, '날짜')), `${date}.summary.json`)
 export const periodPath = (key: string): string =>
   resolvePath('periods', `${checked(key, PERIOD_RE, '기간 키')}.json`)
-/** claude CLI 실행용 전용 cwd — collector가 이 경로를 수집에서 제외한다 */
+/** claude CLI 실행용 전용 cwd. collector가 이 경로를 수집에서 제외한다 */
 export const claudeWorkdir = (): string => resolvePath('claude-workdir')
 
 /**
@@ -77,13 +77,13 @@ async function renameWithRetry(tmp: string, file: string): Promise<void> {
 
 /**
  * 같은 경로에 대한 쓰기만 호출 순서대로 직렬화한다. 다른 경로는 그대로 병렬.
- * 재시도만으로는 부족하다 — 동시 50건에서 재시도를 다 쓰고도 실패가 남는다.
+ * 재시도만으로는 부족하다. 동시 50건에서 재시도를 다 쓰고도 실패가 남는다.
  */
 const writeQueue = new Map<string, Promise<void>>()
 
 function serializeByPath<T>(key: string, task: () => Promise<T>): Promise<T> {
   const prev = writeQueue.get(key) ?? Promise.resolve()
-  // 두 번째 인자 필수 — 한 번 실패한 쓰기가 그 경로의 큐를 영구히 오염시키는 것을 막는다
+  // 두 번째 인자 필수. 한 번 실패한 쓰기가 그 경로의 큐를 영구히 오염시키는 것을 막는다
   const run = prev.then(task, task)
   const tail = run.then(
     () => {},
@@ -91,13 +91,13 @@ function serializeByPath<T>(key: string, task: () => Promise<T>): Promise<T> {
   )
   writeQueue.set(key, tail)
   void tail.then(() => {
-    // 자기가 아직 꼬리일 때만 정리 — 무조건 지우면 대기 중인 작업의 직렬화가 끊긴다
+    // 자기가 아직 꼬리일 때만 정리. 무조건 지우면 대기 중인 작업의 직렬화가 끊긴다
     if (writeQueue.get(key) === tail) writeQueue.delete(key)
   })
   return run
 }
 
-/** 읽기 결과 — '파일 없음'과 '지금 못 읽음'을 구분한다. 후자에서 기본값을 쓰면 설정이 소실된다. */
+/** 읽기 결과. '파일 없음'과 '지금 못 읽음'을 구분한다. 후자에서 기본값을 쓰면 설정이 소실된다. */
 export type JsonRead<T> =
   | { kind: 'ok'; value: T }
   | { kind: 'absent' }
@@ -127,7 +127,7 @@ export async function readJsonState<T>(file: string): Promise<JsonRead<T>> {
 }
 
 /**
- * 캐시 읽기 — 없거나 읽을 수 없으면 null.
+ * 캐시 읽기. 없거나 읽을 수 없으면 null.
  * 설정처럼 '없음'과 '못 읽음'을 구분해야 하는 곳은 readJsonState를 직접 쓴다.
  */
 export async function readJson<T>(file: string): Promise<T | null> {
@@ -136,7 +136,7 @@ export async function readJson<T>(file: string): Promise<T | null> {
 }
 
 /**
- * tmp에 쓰고 rename — 쓰다 만 파일이 캐시로 읽히는 것을 방지.
+ * tmp에 쓰고 rename. 쓰다 만 파일이 캐시로 읽히는 것을 방지.
  * tmp 이름은 호출마다 고유해야 같은 경로에 동시 쓰기가 겹쳐도 서로의 파일을 덮지 않는다.
  */
 export async function writeJsonAtomic(file: string, data: unknown): Promise<void> {
@@ -147,7 +147,7 @@ export async function writeJsonAtomic(file: string, data: unknown): Promise<void
       await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8')
       await renameWithRetry(tmp, file)
     } catch (e) {
-      // 정리 실패를 반드시 삼킨다 — 그러지 않으면 rm의 EBUSY가 진짜 원인(rename 실패)을 덮는다
+      // 정리 실패를 반드시 삼킨다. 그러지 않으면 rm의 EBUSY가 진짜 원인(rename 실패)을 덮는다
       await rm(tmp, { force: true, maxRetries: 3, retryDelay: 20 }).catch(() => {})
       throw e
     }
