@@ -23,7 +23,7 @@ import {
 import { cancelBackfill, resetCancel, type ProgressFn } from './pipeline/queue'
 import { DEFAULT_PROMPTS } from './prompts'
 import { reschedule } from './scheduler'
-import { getSettings, setSettings } from './settings'
+import { getSettings, getSettingsForEdit, setSettings } from './settings'
 
 /** 저장 다이얼로그가 열려 있는 동안 창의 blur→hide를 막기 위한 플래그 */
 let dialogOpen = false
@@ -55,7 +55,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   const progressIdle = (): void =>
     progress({ done: 0, total: 0, currentDate: null, phase: 'idle' })
 
-  ipcMain.handle(IPC.settingsGet, () => getSettings())
+  // 편집용 — 읽지 못하면 기본값 대신 실패한다 (기본값 스냅샷이 되돌아와 실제 설정을 덮는다)
+  ipcMain.handle(IPC.settingsGet, () => getSettingsForEdit())
   ipcMain.handle(IPC.settingsSet, async (_e, patch: Partial<Settings>) => {
     const s = await setSettings(patch)
     void reschedule()
@@ -69,7 +70,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return { path, version: await claudeVersion(path) }
   })
   ipcMain.handle(IPC.claudeTest, async (_e, path: string) => {
-    const p = path.trim() ? path.trim() : await locateClaude(null)
+    // locateClaude를 거쳐야 셰임(.cmd/.ps1/확장자없음)이 실제 .exe로 해석된다.
+    // 그러지 않으면 설정 탭 placeholder가 안내하는 claude.cmd로 '연결 테스트'를 누를 때
+    // 항상 spawn EINVAL로 실패한다.
+    const p = await locateClaude(path.trim() || null)
     return { path: p, version: await claudeVersion(p) }
   })
 

@@ -22,7 +22,11 @@ export default function StatusBar({
     let alive = true
     setChecking(true)
     setError(null)
-    void window.api.getSettings().then((s) => alive && setModel(s.model))
+    // 설정을 읽지 못할 수 있다 — 모델 표기는 기본값으로 두고 rejection을 삼킨다
+    window.api
+      .getSettings()
+      .then((s) => alive && setModel(s.model))
+      .catch(() => alive && setModel('default'))
     window.api
       .detectClaude()
       .then((i) => alive && setInfo(i))
