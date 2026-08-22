@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { kstDateOf, kstDateTimeKo, shortDateKo } from '@shared/dates'
+import { groupByProject, renderGroupedItems } from '@shared/day-items'
 import { renderDigestText } from '@shared/digest-text'
 import { rangeStateOf } from '@shared/range-state'
 import { cursorOf, keyOf, labelOf, rangeOf, shift, withSpan, type Cursor, type Span } from '@shared/span'
@@ -437,7 +438,7 @@ function DayDetail({
       ? summary.fallbackText ??
         [
           `${shortDateKo(date)} ${summary.headline ?? ''}`,
-          ...(summary.items ?? []).map((i) => `- [${i.project}] ${i.work}`),
+          renderGroupedItems(summary.items ?? []),
           ...(keywords.length > 0 ? [`키워드: ${keywords.join(', ')}`] : [])
         ].join('\n')
       : ''
@@ -464,13 +465,18 @@ function DayDetail({
           ) : (
             <>
               <strong className="selectable">{summary.headline}</strong>
-              <ul className="items">
-                {(summary.items ?? []).map((i, idx) => (
-                  <li key={idx}>
-                    <span className="muted">[{i.project}]</span> {i.work}
-                  </li>
+              {/* 프로젝트로 묶는다. 같은 태그가 열 줄 반복되면 정작 다른 부분인
+                  업무 내용이 반복되는 태그에 밀린다. */}
+              <div className="items">
+                {groupByProject(summary.items ?? []).map((g) => (
+                  <div key={g.project} className="item-group">
+                    <div className="muted">[{g.project}]</div>
+                    {g.works.map((work, idx) => (
+                      <div key={idx}>{work}</div>
+                    ))}
+                  </div>
                 ))}
-              </ul>
+              </div>
               {/* 키워드·모델·생성시각은 요약 본문이 아니라 그 요약에 붙는 정보라 선으로 가른다 */}
               <div className="detail-foot">
                 <div className="row spread">
