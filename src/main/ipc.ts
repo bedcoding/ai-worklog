@@ -7,12 +7,13 @@ import {
 } from '@shared/types'
 import { claudeVersion, locateClaude } from './claude/locate'
 import {
+  backfillRange,
   ensureDayDigest,
   ensureDaySummary,
   ensurePeriodSummary,
   getCachedDaySummary,
   getCachedPeriod,
-  getMonthStatus
+  getRangeStatus
 } from './pipeline/summarizer'
 import { cancelBackfill, resetCancel, type ProgressFn } from './pipeline/queue'
 import { DEFAULT_PROMPTS } from './prompts'
@@ -67,14 +68,26 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     return { path: p, version: await claudeVersion(p) }
   })
 
-  ipcMain.handle(IPC.dayList, async (_e, ym: string) => {
-    const status = await getMonthStatus(ym)
+  ipcMain.handle(IPC.rangeList, async (_e, start: string, end: string) => {
+    const status = await getRangeStatus(start, end)
     const summaries = []
     for (const d of status.activeDays) {
       const s = await getCachedDaySummary(d)
       if (s) summaries.push(s)
     }
     return { status, summaries }
+  })
+  // 날짜 수만큼 claude 를 부르는 유일한 경로다. 기간 요약과 취소 플래그를 공유한다.
+  ipcMain.handle(IPC.rangeBackfill, async (_e, start: string, end: string) => {
+    if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
+    longRunning = true
+    resetCancel()
+    try {
+      return await backfillRange(start, end, progress)
+    } finally {
+      longRunning = false
+      progressIdle()
+    }
   })
   // 일별 생성은 취소 대상이 아니므로 전역 취소 플래그를 건드리지 않는다
   ipcMain.handle(IPC.dayGenerate, (_e, date: string, force?: boolean) =>
@@ -86,19 +99,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   )
 
   ipcMain.handle(IPC.periodGet, (_e, key: string) => getCachedPeriod(key))
+  // 이미 만들어 둔 일별 요약을 묶기만 한다 (claude 1회). 미요약 날짜가 있으면 거부된다.
   ipcMain.handle(IPC.periodGenerate, async (_e, req: PeriodRequest) => {
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
     longRunning = true
-    resetCancel()
     try {
-      return await ensurePeriodSummary(req, progress)
+      return await ensurePeriodSummary(req)
     } finally {
       longRunning = false
-      progressIdle()
     }
   })
 
-  ipcMain.handle(IPC.monthGetStatus, (_e, ym: string) => getMonthStatus(ym))
   ipcMain.handle(IPC.backfillCancel, () => cancelBackfill())
   // 윈도우 클립보드 텍스트 관례는 CRLF다. 캐시 JSON에 저장되는 값은 LF로 두고
   // (해시·비교 안정성) 클립보드 경계에서만 변환한다. 이미 CRLF인 문자열이 CRCRLF가 되지 않도록 /\r?\n/를 쓴다.

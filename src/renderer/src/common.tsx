@@ -69,36 +69,6 @@ export function CopyButton({
   )
 }
 
-export function MonthNav({
-  ym,
-  onChange,
-  disabled = false
-}: {
-  ym: string
-  onChange: (ym: string) => void
-  disabled?: boolean
-}): ReactNode {
-  const move = (delta: number): void => {
-    const [y, m] = ym.split('-').map(Number)
-    const d = new Date(Date.UTC(y, m - 1 + delta, 1))
-    onChange(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
-  }
-  const [y, m] = ym.split('-').map(Number)
-  return (
-    <div className="row">
-      <button type="button" className="btn" disabled={disabled} onClick={() => move(-1)}>
-        ◀
-      </button>
-      <strong className="grow" style={{ textAlign: 'center' }}>
-        {y}년 {m}월
-      </strong>
-      <button type="button" className="btn" disabled={disabled} onClick={() => move(1)}>
-        ▶
-      </button>
-    </div>
-  )
-}
-
 export function Spinner({ label }: { label: string }): ReactNode {
   return <div className="muted">⏳ {label}</div>
 }

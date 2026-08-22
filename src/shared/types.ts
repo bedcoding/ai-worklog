@@ -97,7 +97,6 @@ export interface PeriodSummary {
   /** 시작/끝 날짜 (KST, inclusive) */
   start: string
   end: string
-  source: 'daily' | 'raw'
   text: string
   model: string
   generatedAt: string
@@ -105,11 +104,13 @@ export interface PeriodSummary {
   stale?: boolean
 }
 
-export interface MonthStatus {
-  ym: string
+/** 임의 구간(주/월 공용)의 활동 현황. end 는 오늘 이후로 넘어가지 않게 잘린다. */
+export interface RangeStatus {
+  start: string
+  end: string
   /** 활동이 있는 KST 날짜 목록 */
   activeDays: string[]
-  /** 요약 캐시가 존재하는 날짜 목록 (empty 센티널 포함) */
+  /** 요약 캐시가 있는 날짜 목록 (활동 없는 날 센티널은 제외) */
   summarizedDays: string[]
 }
 
@@ -140,12 +141,12 @@ export const IPC = {
   promptsDefaults: 'prompts:defaults',
   claudeDetect: 'claude:detect',
   claudeTest: 'claude:test',
-  dayList: 'day:list',
+  rangeList: 'range:list',
+  rangeBackfill: 'range:backfill',
   dayGenerate: 'day:generate',
   dayGetDigest: 'day:getDigest',
   periodGet: 'period:get',
   periodGenerate: 'period:generate',
-  monthGetStatus: 'month:getStatus',
   backfillCancel: 'backfill:cancel',
   clipboardWrite: 'clipboard:write',
   appSetAutoLaunch: 'app:setAutoLaunch',
@@ -161,7 +162,6 @@ export interface PeriodRequest {
   kind: 'week' | 'month'
   /** "2026-W29" 또는 "2026-07" */
   key: string
-  source: 'daily' | 'raw'
 }
 
 /** preload가 contextBridge로 노출하고 렌더러가 사용하는 API 표면 */
@@ -173,8 +173,13 @@ export interface WorklogApi {
   getDefaultPrompts(): Promise<PromptTemplates>
   detectClaude(): Promise<ClaudeInfo>
   testClaude(path: string): Promise<ClaudeInfo>
-  /** 해당 월의 날짜별 요약 목록 (캐시만 조회, 생성 안 함) + 활동 여부 */
-  listDays(ym: string): Promise<{ status: MonthStatus; summaries: DaySummary[] }>
+  /** 구간의 날짜별 요약 목록 (캐시만 조회, 생성 안 함) + 활동 여부 */
+  listRange(start: string, end: string): Promise<{ status: RangeStatus; summaries: DaySummary[] }>
+  /**
+   * 구간의 미요약 활동일을 하나씩 순차 생성한다. 조합은 하지 않는다.
+   * 진행률은 onBackfillProgress 로 오고 cancelBackfill 로 중단할 수 있다.
+   */
+  backfillRange(start: string, end: string): Promise<RangeStatus>
   /** 특정 날짜 요약 생성 (force면 캐시 무시) */
   generateDay(date: string, force?: boolean): Promise<DaySummary>
   /**
@@ -183,9 +188,8 @@ export interface WorklogApi {
    */
   getDayDigest(date: string, force?: boolean): Promise<DayDigest>
   getPeriod(key: string): Promise<PeriodSummary | null>
-  /** 주간/월간 요약 생성. source=daily면 미요약 날짜를 먼저 백필 */
+  /** 주간/월간 요약 생성. 구간의 모든 활동일이 요약돼 있어야 한다 (claude 1회) */
   generatePeriod(req: PeriodRequest): Promise<PeriodSummary>
-  getMonthStatus(ym: string): Promise<MonthStatus>
   cancelBackfill(): Promise<void>
   copyToClipboard(text: string): Promise<void>
   setAutoLaunch(enabled: boolean): Promise<void>

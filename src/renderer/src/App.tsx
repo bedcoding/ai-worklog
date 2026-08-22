@@ -2,22 +2,18 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { BackfillProgress, PipelineError } from '@shared/types'
 import StatusBar from './StatusBar'
 import { Tip } from './common'
-import DailyView from './views/DailyView'
-import MonthView from './views/MonthView'
 import SettingsView from './views/SettingsView'
-import WeekView from './views/WeekView'
+import SummaryView from './views/SummaryView'
 
 const TABS = [
-  { id: 'daily', label: '일일' },
-  { id: 'week', label: '주간' },
-  { id: 'month', label: '월간 요약' },
+  { id: 'summary', label: '요약' },
   { id: 'settings', label: '설정' }
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
 
 export default function App(): ReactNode {
-  const [tab, setTab] = useState<TabId>('daily')
+  const [tab, setTab] = useState<TabId>('summary')
   const [progress, setProgress] = useState<BackfillProgress | null>(null)
   // 설정을 저장하면 상태바가 claude 연결/모델을 다시 확인한다
   const [claudeNonce, setClaudeNonce] = useState(0)
@@ -84,9 +80,7 @@ export default function App(): ReactNode {
       )}
       {progress && <ProgressBanner p={progress} />}
       <main className="content">
-        {tab === 'daily' && <DailyView />}
-        {tab === 'week' && <WeekView />}
-        {tab === 'month' && <MonthView />}
+        {tab === 'summary' && <SummaryView />}
         {/* 설정은 언마운트하지 않는다. 저장 전 탭을 옮겨도 입력이 남아 있어야 한다 */}
         <div
           style={{
