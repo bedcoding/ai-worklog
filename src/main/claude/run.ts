@@ -5,7 +5,15 @@ import type { ModelChoice } from '@shared/types'
  * 생성 중인 글을 조각으로 알린다.
  * reset은 재시도로 처음부터 다시 쓴다는 뜻이다. 받아둔 조각을 버려야 한다.
  */
-export type StreamEvent = { kind: 'reset' } | { kind: 'delta'; text: string }
+export type StreamEvent =
+  /** 재시도로 처음부터 다시 쓴다. 받아둔 조각을 버려야 한다 */
+  | { kind: 'reset' }
+  /**
+   * 모델이 생각하는 중. 본문과 섞이면 안 되므로 따로 보낸다.
+   * 본문 첫 글자까지 수십 초 걸릴 수 있어, 그 사이 유일하게 움직이는 신호다.
+   */
+  | { kind: 'thinking'; text: string }
+  | { kind: 'delta'; text: string }
 
 export interface ClaudeRunOptions {
   claudePath: string
@@ -35,7 +43,7 @@ interface StreamLine {
   result?: string
   event?: {
     type?: string
-    delta?: { type?: string; text?: string }
+    delta?: { type?: string; text?: string; thinking?: string }
   }
 }
 
@@ -50,34 +58,41 @@ export function splitLines(carry: string, chunk: string): { lines: string[]; car
   return { carry: parts.pop() ?? '', lines: parts }
 }
 
+export type StreamLineKind =
+  /** 요약 본문 조각 */
+  | { kind: 'text'; text: string }
+  /**
+   * 모델이 생각하는 중. 요약 본문이 아니므로 본문과 같은 자리에 두면 안 된다.
+   * 그렇다고 버리면 본문이 나오기까지 수십 초간 화면이 죽은 것처럼 보인다.
+   */
+  | { kind: 'thinking'; text: string }
+  | { kind: 'result'; envelope: StreamLine }
+  | { kind: 'other' }
+
 /**
- * stream-json 한 줄에서 본문 조각을 뽑는다. 본문이 아니면 null이다.
- *
- * thinking_delta는 모델이 혼자 생각하는 내용이라 요약 본문이 아니다. 그대로 흘리면
- * 화면에 결과와 무관한 글이 흐른다. 모르는 줄과 깨진 줄도 조용히 버린다.
+ * stream-json 한 줄을 가른다. 모르는 줄과 깨진 줄은 other다.
+ * 한 줄을 한 번만 파싱한다. 종류마다 따로 파싱하면 같은 줄을 세 번 읽는다.
  */
-export function textDeltaOf(line: string): string | null {
-  if (!line.trim()) return null
+export function classifyLine(line: string): StreamLineKind {
+  if (!line.trim()) return { kind: 'other' }
   let ev: StreamLine
   try {
     ev = JSON.parse(line) as StreamLine
   } catch {
-    return null
+    return { kind: 'other' }
   }
-  if (ev.type !== 'stream_event' || ev.event?.type !== 'content_block_delta') return null
+  if (ev.type === 'result') return { kind: 'result', envelope: ev }
+  if (ev.type !== 'stream_event' || ev.event?.type !== 'content_block_delta') {
+    return { kind: 'other' }
+  }
   const delta = ev.event.delta
-  return delta?.type === 'text_delta' && typeof delta.text === 'string' ? delta.text : null
-}
-
-/** stream-json 한 줄이 최종 결과 봉투면 그것을 준다 */
-export function resultOf(line: string): StreamLine | null {
-  if (!line.trim()) return null
-  try {
-    const ev = JSON.parse(line) as StreamLine
-    return ev.type === 'result' ? ev : null
-  } catch {
-    return null
+  if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+    return { kind: 'text', text: delta.text }
   }
+  if (delta?.type === 'thinking_delta') {
+    return { kind: 'thinking', text: typeof delta.thinking === 'string' ? delta.thinking : '' }
+  }
+  return { kind: 'other' }
 }
 
 const RETRY_DELAYS_MS = [2_000, 8_000]
@@ -199,13 +214,10 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
     } else {
       let carry = ''
       const handle = (line: string): void => {
-        const done = resultOf(line)
-        if (done) {
-          resultLine = done
-          return
-        }
-        const text = textDeltaOf(line)
-        if (text !== null) opts.onStream?.({ kind: 'delta', text })
+        const ev = classifyLine(line)
+        if (ev.kind === 'result') resultLine = ev.envelope
+        else if (ev.kind === 'text') opts.onStream?.({ kind: 'delta', text: ev.text })
+        else if (ev.kind === 'thinking') opts.onStream?.({ kind: 'thinking', text: ev.text })
       }
       child.stdout?.on('data', (d: string) => {
         const split = splitLines(carry, d)

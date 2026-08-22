@@ -106,7 +106,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     longRunning = true
     try {
       return await ensurePeriodPart(req, part, (e) =>
-        push(IPC.periodStream, { part, kind: e.kind, text: e.kind === 'delta' ? e.text : undefined })
+        push(IPC.periodStream, {
+          part,
+          kind: e.kind,
+          text: e.kind === 'reset' ? undefined : e.text
+        })
       )
     } finally {
       longRunning = false

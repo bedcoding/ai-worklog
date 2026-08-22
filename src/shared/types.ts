@@ -116,10 +116,14 @@ export interface PeriodPart {
 /** 기간 요약의 두 부분. 서로 다른 데이터를 보고 따로 만든다 */
 export type PeriodPartKind = 'overview' | 'detail'
 
-/** 생성 중인 기간 요약의 글 조각. 어느 부분의 것인지 함께 보낸다 */
+/**
+ * 생성 중인 기간 요약의 소식. 어느 부분의 것인지 함께 보낸다.
+ * thinking은 본문이 아직 없다는 뜻이다. 본문 첫 글자까지 수십 초 걸릴 수 있어,
+ * 그 사이에도 화면이 살아 있으려면 이 신호가 필요하다.
+ */
 export interface PeriodStreamEvent {
   part: PeriodPartKind
-  kind: 'reset' | 'delta'
+  kind: 'reset' | 'thinking' | 'delta'
   text?: string
 }
 
