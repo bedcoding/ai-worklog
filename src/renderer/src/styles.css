@@ -150,6 +150,30 @@ button.btn.row-action {
   padding: 2px 8px;
   font-size: 11px;
 }
+/* 기간 단위 선택. 붙은 두 칸이라 지금 어느 쪽인지 한눈에 보인다 */
+.seg {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg button {
+  padding: 4px 12px;
+  border: none;
+  background: var(--card);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.seg button.on {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.seg button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 /* 진행 중에 라벨이 바뀌는 버튼은 폭을 고정한다. 고정하지 않으면 글자가 바뀔 때마다
    옆 요소가 밀려 화면이 흔들린다. 82px 는 실측값('연결 테스트' 80.6px,
    '중단 중…' 70.5px) 위로 올린 값이다. */
