@@ -100,7 +100,11 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           실행 파일 경로 (비우면 자동 탐지)
           <input
             value={form.claudePath ?? ''}
-            placeholder="예: ~/.local/bin/claude"
+            placeholder={
+              window.api.platform === 'win32'
+                ? '예: C:\\Program Files\\nodejs\\claude.cmd'
+                : '예: ~/.local/bin/claude'
+            }
             onChange={(e) => patch({ claudePath: e.target.value.trim() || null })}
           />
         </label>

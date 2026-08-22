@@ -20,11 +20,21 @@ export default function App(): ReactNode {
   const [progress, setProgress] = useState<BackfillProgress | null>(null)
   // 설정을 저장하면 상태바가 claude 연결/모델을 다시 확인한다
   const [claudeNonce, setClaudeNonce] = useState(0)
+  const [pinned, setPinned] = useState(false)
 
   useEffect(
     () => window.api.onBackfillProgress((p) => setProgress(p.phase === 'idle' ? null : p)),
     []
   )
+
+  // 핀 상태는 main이 갖고 있다 (blur 처리 주체가 main이기 때문). 초기값을 읽어 표시를 맞춘다.
+  useEffect(() => {
+    let alive = true
+    void window.api.getWindowPinned().then((p) => alive && setPinned(p))
+    return () => {
+      alive = false
+    }
+  }, [])
 
   return (
     <div className="app">
@@ -39,6 +49,19 @@ export default function App(): ReactNode {
             {t.label}
           </button>
         ))}
+        <button
+          type="button"
+          className={pinned ? 'pin pinned' : 'pin'}
+          aria-pressed={pinned}
+          title={
+            pinned
+              ? '창 고정 해제 — 다른 곳을 클릭하면 창이 닫힙니다'
+              : '창 고정 — 다른 곳을 클릭해도 창이 닫히지 않습니다'
+          }
+          onClick={() => void window.api.setWindowPinned(!pinned).then(setPinned)}
+        >
+          <PinIcon />
+        </button>
       </nav>
       {progress && <ProgressBanner p={progress} />}
       <main className="content">
@@ -56,6 +79,18 @@ export default function App(): ReactNode {
       </main>
       <StatusBar nonce={claudeNonce} onOpenSettings={() => setTab('settings')} />
     </div>
+  )
+}
+
+/** 압정 아이콘 — 고정 해제 상태에서는 CSS로 기울여 관례대로 구분한다 */
+function PinIcon(): ReactNode {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false">
+      <path
+        d="M5 2h6v1.2l-1 .8v3.2l1.8 2.3H8.7V14H7.3V9.5H4.2L6 7.2V4L5 3.2V2z"
+        fill="currentColor"
+      />
+    </svg>
   )
 }
 

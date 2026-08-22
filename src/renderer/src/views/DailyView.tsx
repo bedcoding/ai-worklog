@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { kstDateOf, shortDateKo, ymOf } from '@shared/dates'
+import { kstDateOf, kstDateTimeKo, shortDateKo, ymOf } from '@shared/dates'
 import { renderDigestText } from '@shared/digest-text'
 import type { DayDigest, DaySummary, MonthStatus } from '@shared/types'
 import { CopyButton, MonthNav, Spinner, errMsg, modelLabel } from '../common'
@@ -222,7 +222,7 @@ function DayDetail({
                 </button>
               </div>
               <div className="muted">
-                {modelLabel(summary.model)} · {new Date(summary.generatedAt).toLocaleString('ko-KR')}
+                {modelLabel(summary.model)} · {kstDateTimeKo(summary.generatedAt)}
               </div>
             </>
           )
@@ -250,7 +250,7 @@ function DayDetail({
               )}
               <div className="row spread">
                 <span className="muted">
-                  {new Date(digest.builtAt).toLocaleString('ko-KR')} 추출됨
+                  {kstDateTimeKo(digest.builtAt)} 추출됨
                 </span>
                 <button
                   type="button"

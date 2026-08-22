@@ -30,7 +30,8 @@ body,
   height: 100%;
 }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI',
+    'Malgun Gothic', 'Noto Sans KR', sans-serif;
   font-size: 13px;
   background: var(--bg);
   color: var(--text);
@@ -63,6 +64,23 @@ nav.tabs button {
 nav.tabs button.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+/* 창 고정 토글 — 탭과 달리 폭을 고정한다 */
+nav.tabs button.pin {
+  flex: 0 0 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  /* 관례: 기울어진 압정 = 고정 안 됨, 똑바로 선 압정 = 고정됨 */
+  transform: rotate(40deg);
+}
+nav.tabs button.pin:hover {
+  color: var(--text);
+}
+nav.tabs button.pin.pinned {
+  color: var(--accent);
+  transform: none;
 }
 main.content {
   flex: 1;
@@ -240,7 +258,7 @@ form.settings textarea {
   font-family: inherit;
 }
 form.settings textarea {
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Cascadia Mono', 'D2Coding', monospace;
   font-size: 11px;
   line-height: 1.5;
   min-height: 110px;
