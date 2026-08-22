@@ -387,10 +387,6 @@ button.statusbar:hover {
 .statusbar .dot.ok {
   background: var(--ok);
 }
-.statusbar .path {
-  max-width: 45%;
-  direction: rtl;
-}
 .ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -3,8 +3,12 @@ import type { ClaudeInfo, ModelChoice } from '@shared/types'
 import { errMsg, modelLabel, shortVersion } from './common'
 
 /**
- * 어떤 claude 실행 파일이 어떤 모델로 연결돼 있는지 항상 보이게 한다.
+ * claude 가 연결됐는지와 어떤 모델로 요약하는지를 항상 보이게 한다.
  * 요약이 "어디로 나가는지" 사용자가 확인할 수 있어야 하기 때문.
+ *
+ * 실행 파일 경로는 여기 두지 않는다 — 이 폭에서는 꼬리만 남고,
+ * 그 꼬리(claude-code/bin/claude.exe)는 어느 설치에서나 같아 식별에 쓸모가 없다.
+ * 전체 경로는 설정 탭의 '실제 실행되는 파일'에서 본다.
  */
 export default function StatusBar({
   nonce,
@@ -61,10 +65,9 @@ export default function StatusBar({
       ) : (
         <>
           <span className="dot ok" />
-          <span className="grow ellipsis">
+          <span className="ellipsis">
             claude {version} · {modelLabel(model)}
           </span>
-          <span className="muted ellipsis path">{info?.path}</span>
         </>
       )}
     </div>
