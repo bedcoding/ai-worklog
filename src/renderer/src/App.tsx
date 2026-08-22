@@ -110,8 +110,13 @@ function PinIcon(): ReactNode {
 }
 
 function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
-  const phaseLabel =
-    p.phase === 'scan'
+  // 중단은 돌고 있는 claude를 죽이지 않는다 — 지금 날짜를 끝내고 다음으로 넘어가지 않을 뿐이다.
+  // 그 사이(최대 2분) 화면이 그대로면 눌리지 않은 것처럼 보이므로 눌렀다는 사실을 남긴다.
+  // 생성이 끝나면 phase가 idle이 되어 이 배너 자체가 사라지므로 상태를 되돌릴 필요가 없다.
+  const [stopping, setStopping] = useState(false)
+  const phaseLabel = stopping
+    ? `${p.currentDate ?? '지금 날짜'}까지 만들고 중단합니다`
+    : p.phase === 'scan'
       ? '기록 스캔 중…'
       : p.phase === 'report'
         ? '기안 문구 생성 중…'
@@ -121,8 +126,17 @@ function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
     <div className="progress-wrap">
       <div className="row spread">
         <span className="muted">{phaseLabel}</span>
-        <button type="button" className="btn" onClick={() => void window.api.cancelBackfill()}>
-          취소
+        <button
+          type="button"
+          className="btn"
+          disabled={stopping}
+          title="지금 만들고 있는 날짜는 끝내고, 다음 날짜부터 중단합니다"
+          onClick={() => {
+            setStopping(true)
+            void window.api.cancelBackfill()
+          }}
+        >
+          {stopping ? '중단 중…' : '중단'}
         </button>
       </div>
       <div className="progress-track">
