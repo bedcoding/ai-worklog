@@ -79,11 +79,14 @@ const INSET_Y = 0.06 // 문서 상하 여백
 const CUT = 0.28 // 우상단 접힌 모서리 — 사각형을 '종이'로 읽히게 하는 요소
 const STROKE = 20 // 선 두께 = box / STROKE
 const EYE = 7 // 눈 크기 = box / EYE
-const EYE_Y = 0.4 // 눈 높이 (문서 높이 기준)
-const EYE_GAP = 0.13 // 두 눈 간격 (박스 기준)
+const EYE_GAP = 0.13 // 두 눈 좌우 간격 (박스 기준)
 const MOUTH_W = 0.28
 const MOUTH_H = 18 // 입 두께 = box / MOUTH_H
-const MOUTH_Y = 0.62
+// 눈·입 높이는 '눈-입 수직 간격 = 눈 높이'가 되도록 맞춘 값이다.
+// 16/24/32/48px 에서 각각 2:2, 3:3, 4:4, 6:6 으로 떨어진다.
+// MOUTH_Y 를 0.69 미만으로 내리면 16px 에서 반올림 때문에 간격이 1px 로 줄어 눈과 입이 붙는다.
+const EYE_Y = 0.34 // 눈 높이 (문서 높이 기준)
+const MOUTH_Y = 0.69
 
 function docShape(originX, originY, box) {
   const sw = Math.max(1, Math.round(box / STROKE))
