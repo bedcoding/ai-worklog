@@ -2,11 +2,40 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { ModelChoice } from '@shared/types'
 
 /** 설정의 모델 선택값을 사람이 읽는 이름으로 */
-export function modelLabel(model: ModelChoice | string): string {
+export function modelLabel(model: ModelChoice | string, defaultModel?: string | null): string {
   if (model === 'haiku') return 'Haiku 4.5'
   if (model === 'sonnet') return 'Sonnet 5'
-  if (model === 'default') return 'CLI 기본 모델'
+  if (model === 'opus') return 'Opus 5'
+  if (model === 'fable') return 'Fable 5'
+  // 'CLI 기본 모델'만 적으면 그게 fable인지 opus인지 알 수 없다. 알아냈으면 밝힌다
+  if (model === 'default') {
+    return defaultModel ? `${shortModel(defaultModel)} (CLI 기본)` : 'CLI 기본 모델'
+  }
   return model
+}
+
+/**
+ * 모델명을 짧게. claude- 접두어와 [1m] 같은 꼬리표를 떼고 날짜도 뗀다.
+ * claude-fable-5 -> fable-5, claude-haiku-4-5-20251001 -> haiku-4.5
+ */
+export function shortModel(name: string): string {
+  const base = name
+    .replace(/^claude-/, '')
+    .replace(/\[[^\]]*\]$/, '')
+    .replace(/-\d{8}$/, '')
+  // haiku-4-5 처럼 버전이 하이픈으로 갈린 것만 점으로 되돌린다
+  return base.replace(/-(\d+)-(\d+)$/, '-$1.$2')
+}
+
+/**
+ * 요약 아래에 찍는 모델 표기. 실제로 응답한 모델명이 있으면 그것을 쓴다.
+ * 'CLI 기본 모델'만 적으면 그게 fable인지 opus인지 화면에서 알 수 없다.
+ */
+export function madeByLabel(model: string, modelName?: string): string {
+  if (!modelName) return modelLabel(model)
+  const short = shortModel(modelName)
+  // 고른 값이 'default'면 실제 이름만으로는 그것이 CLI 설정이었다는 사실이 사라진다
+  return model === 'default' ? `${short} (CLI 기본)` : short
 }
 
 /** invoke 에러를 사용자 문구로 (Electron이 붙이는 접두어 제거) */

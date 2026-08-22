@@ -66,7 +66,7 @@ export default function StatusBar({
         <>
           <span className="dot ok" />
           <span className="ellipsis">
-            claude {version} · {modelLabel(model)}
+            claude {version} · {modelLabel(model, info?.defaultModel)}
           </span>
         </>
       )}

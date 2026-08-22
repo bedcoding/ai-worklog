@@ -35,6 +35,27 @@ interface ResultEnvelope {
   subtype?: string
   is_error?: boolean
   result?: string
+  /** 실제로 응답한 모델. 키가 모델명이다 (예: claude-fable-5) */
+  modelUsage?: Record<string, unknown>
+}
+
+/**
+ * 실행 결과. 어떤 모델이 응답했는지 함께 준다.
+ *
+ * 'CLI 기본 모델'로 두면 앱은 무슨 모델이 쓰였는지 모른다. 사용자의 CLI 설정이
+ * 바뀌면 요약 품질이 말없이 따라 바뀌는데 화면에는 그 흔적이 없다.
+ * 그래서 요약마다 실제로 쓴 모델을 남긴다.
+ */
+export interface RunResult {
+  text: string
+  /** 봉투에서 못 읽으면 null */
+  model: string | null
+}
+
+/** modelUsage 의 첫 키가 실제 응답 모델이다. 없으면 null */
+function modelOf(envelope: { modelUsage?: Record<string, unknown> }): string | null {
+  const names = Object.keys(envelope.modelUsage ?? {})
+  return names.length > 0 ? names[0] : null
 }
 
 /** stream-json이 한 줄에 하나씩 내보내는 이벤트. 쓰는 것만 적는다 */
@@ -43,6 +64,7 @@ interface StreamLine {
   subtype?: string
   is_error?: boolean
   result?: string
+  modelUsage?: Record<string, unknown>
   /** system/thinking_tokens 가 실어 보내는 누적 토큰 수 */
   estimated_tokens?: number
   event?: {
@@ -140,7 +162,7 @@ function killTree(child: ChildProcess): void {
  * - --no-session-persistence: 이 실행이 ~/.claude/projects 로그에 남지 않게 함
  * - 실패 시 2s/8s 백오프로 2회 재시도 (영구 오류는 재시도하지 않음)
  */
-export async function runClaude(prompt: string, opts: ClaudeRunOptions): Promise<string> {
+export async function runClaude(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
   let lastError: Error = new Error('claude 실행 실패')
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     try {
@@ -159,7 +181,7 @@ export async function runClaude(prompt: string, opts: ClaudeRunOptions): Promise
   throw lastError
 }
 
-function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
+function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
   const streaming = !!opts.onStream
   // stream-json은 --verbose를 함께 주지 않으면 CLI가 실행을 거부한다
   const args = streaming
@@ -269,7 +291,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
           reject(new Error(`claude 응답 오류 (${resultLine.subtype ?? 'unknown'})`))
           return
         }
-        resolve(resultLine.result)
+        resolve({ text: resultLine.result, model: modelOf(resultLine) })
         return
       }
       try {
@@ -278,7 +300,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<string> {
           reject(new Error(`claude 응답 오류 (${envelope.subtype ?? 'unknown'})`))
           return
         }
-        resolve(envelope.result)
+        resolve({ text: envelope.result, model: modelOf(envelope) })
       } catch {
         reject(new Error(`claude 응답을 파싱할 수 없습니다: ${stdout.slice(0, 300)}`))
       }

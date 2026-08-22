@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Settings } from '@shared/types'
-import { Spinner, Tip, errMsg, shortVersion } from '../common'
+import { Spinner, Tip, errMsg, shortModel, shortVersion } from '../common'
 
 /**
  * 설명을 상시 노출하지 않고 호버로 넘긴다. 좁은 창에서 설명 줄이 화면을 크게 먹는다.
@@ -25,7 +25,7 @@ function Hint({ text, toLeft }: { text: string; toLeft?: boolean }): ReactNode {
 /** 연결 테스트 결과. 성공 시 버전과 경로를 분리해야 좁은 줄에서 접히지 않는다 */
 type ClaudeState =
   | { kind: 'idle' }
-  | { kind: 'ok'; version: string; path: string }
+  | { kind: 'ok'; version: string; path: string; defaultModel: string | null }
   | { kind: 'error'; message: string }
 
 export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
@@ -59,7 +59,12 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       .then(
         (i) =>
           alive &&
-          setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path })
+          setClaude({
+            kind: 'ok',
+            version: shortVersion(i.version),
+            path: i.path,
+            defaultModel: i.defaultModel ?? null
+          })
       )
       .catch((e: unknown) => alive && setClaude({ kind: 'error', message: errMsg(e) }))
     return () => {
@@ -106,7 +111,12 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     window.api
       .testClaude(form.claudePath ?? '')
       .then((i) =>
-        setClaude({ kind: 'ok', version: shortVersion(i.version), path: i.path })
+        setClaude({
+          kind: 'ok',
+          version: shortVersion(i.version),
+          path: i.path,
+          defaultModel: i.defaultModel ?? null
+        })
       )
       .catch((e: unknown) => setClaude({ kind: 'error', message: errMsg(e) }))
       .finally(() => setTesting(false))
@@ -198,14 +208,30 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           </label>
         )}
         <label>
-          요약 모델
+          <span>
+            요약 모델{' '}
+            <Hint
+              toLeft
+              text={
+                '기본으로 두면 CLI 설정을 따라갑니다.\n코딩용으로 CLI 모델을 바꾸면 요약도 함께 바뀝니다.\n요약마다 실제로 쓴 모델이 아래에 적힙니다.'
+              }
+            />
+          </span>
           <select
             value={form.model}
             onChange={(e) => patch({ model: e.target.value as Settings['model'] })}
           >
-            <option value="default">CLI 기본 모델</option>
-            <option value="haiku">Haiku 4.5 (빠르고 저렴)</option>
+            {/* '기본'이 실제로 무엇인지 적어 둔다. 이것을 몰라 Fable 5로 요약되는 줄
+                모르고 지낼 수 있다. 읽지 못했으면 이름 없이 둔다. */}
+            <option value="default">
+              {claude.kind === 'ok' && claude.defaultModel
+                ? `CLI 기본 모델 (${shortModel(claude.defaultModel)})`
+                : 'CLI 기본 모델'}
+            </option>
+            <option value="opus">Opus 5</option>
+            <option value="fable">Fable 5</option>
             <option value="sonnet">Sonnet 5</option>
+            <option value="haiku">Haiku 4.5 (빠르고 저렴)</option>
           </select>
         </label>
       </div>

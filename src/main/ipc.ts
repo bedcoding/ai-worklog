@@ -6,7 +6,7 @@ import {
   type PeriodRequest,
   type Settings
 } from '@shared/types'
-import { claudeVersion, locateClaude } from './claude/locate'
+import { claudeDefaultModel, claudeVersion, locateClaude } from './claude/locate'
 import {
   backfillRange,
   ensureDayDigest,
@@ -59,14 +59,22 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.claudeDetect, async () => {
     const s = await getSettings()
     const path = await locateClaude(s.claudePath)
-    return { path, version: await claudeVersion(path) }
+    return {
+      path,
+      version: await claudeVersion(path),
+      defaultModel: await claudeDefaultModel()
+    }
   })
   ipcMain.handle(IPC.claudeTest, async (_e, path: string) => {
     // locateClaude를 거쳐야 셰임(.cmd/.ps1/확장자없음)이 실제 .exe로 해석된다.
     // 그러지 않으면 설정 탭 placeholder가 안내하는 claude.cmd로 '연결 테스트'를 누를 때
     // 항상 spawn EINVAL로 실패한다.
     const p = await locateClaude(path.trim() || null)
-    return { path: p, version: await claudeVersion(p) }
+    return {
+      path: p,
+      version: await claudeVersion(p),
+      defaultModel: await claudeDefaultModel()
+    }
   })
 
   ipcMain.handle(IPC.rangeList, async (_e, start: string, end: string) => {

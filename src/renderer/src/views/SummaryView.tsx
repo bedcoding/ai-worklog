@@ -13,7 +13,7 @@ import type {
   PeriodSummary,
   RangeStatus
 } from '@shared/types'
-import { CopyButton, Elapsed, Spinner, Tip, errMsg, modelLabel } from '../common'
+import { CopyButton, Elapsed, Spinner, Tip, errMsg, madeByLabel } from '../common'
 
 /** 생성 중에만 쓰는 화면 상태. 저장되지 않는다 */
 interface StreamState {
@@ -440,7 +440,7 @@ function PeriodPartBlock({
       {/* generatedAt이 빈 옛 캐시가 있다. 그대로 넘기면 'NaN:NaN'이 찍힌다 */}
       {!working && part?.generatedAt && (
         <div className="muted">
-          {modelLabel(part.model)} · {kstDateTimeKo(part.generatedAt)}
+          {madeByLabel(part.model, part.modelName)} · {kstDateTimeKo(part.generatedAt)}
         </div>
       )}
     </div>
@@ -588,7 +588,8 @@ function DayDetail({
                   </button>
                 </div>
                 <div className="muted">
-                  {modelLabel(summary.model)} · {kstDateTimeKo(summary.generatedAt)}
+                  {madeByLabel(summary.model, summary.modelName)} ·{' '}
+                  {kstDateTimeKo(summary.generatedAt)}
                 </div>
               </div>
             </>

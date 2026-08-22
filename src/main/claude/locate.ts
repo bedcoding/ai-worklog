@@ -197,6 +197,23 @@ export async function locateClaude(override?: string | null): Promise<string> {
  * 콜백형 execFile(path, args, cb)은 .cmd 경로에서 EINVAL을 동기 throw하며
  * 콜백을 호출하지 않아 프로세스를 죽인다. 절대 콜백형으로 되돌리지 말 것.
  */
+/**
+ * CLI 설정에 박힌 기본 모델. --model 을 주지 않을 때 실제로 쓰이는 값이다.
+ *
+ * 앱은 전용 cwd(claude-workdir)에서 claude 를 부르므로 프로젝트별 설정이 끼어들지
+ * 않는다. 그래서 사용자 설정 파일 하나만 보면 된다.
+ * 읽지 못하면 null 이다. 모르는 것을 아는 척하지 않는다.
+ */
+export async function claudeDefaultModel(): Promise<string | null> {
+  try {
+    const raw = await readFile(join(homedir(), '.claude', 'settings.json'), 'utf8')
+    const model = (JSON.parse(raw) as { model?: unknown }).model
+    return typeof model === 'string' && model.trim() ? model.trim() : null
+  } catch {
+    return null
+  }
+}
+
 export async function claudeVersion(path: string): Promise<string> {
   // 324MB 네이티브 바이너리의 최초 실행은 콜드 캐시에서 5.5초까지 걸린다(웜 ~200ms).
   // 실시간 검사가 붙은 환경을 감안해 넉넉히 둔다.

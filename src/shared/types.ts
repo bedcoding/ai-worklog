@@ -1,4 +1,8 @@
-export type ModelChoice = 'default' | 'haiku' | 'sonnet'
+/**
+ * 요약에 쓸 모델. CLI 의 --model 이 받는 별칭을 그대로 쓴다.
+ * 'default' 는 --model 을 주지 않는다는 뜻이고, 그때는 CLI 설정을 따른다.
+ */
+export type ModelChoice = 'default' | 'haiku' | 'sonnet' | 'opus' | 'fable'
 
 /** 매일 자동실행 모드: 끄기 / 컨펌 후 실행 / 조용히 실행 */
 export type DailyAutoMode = 'off' | 'confirm' | 'silent'
@@ -86,7 +90,13 @@ export interface DaySummaryItem {
 export interface DaySummary {
   date: string
   digestHash: string
+  /** 설정에서 고른 값 ('default' | 'haiku' | ...) */
   model: string
+  /**
+   * 실제로 응답한 모델명 (예: claude-fable-5).
+   * 'default'는 CLI 설정을 따르므로, 이것이 없으면 무엇이 만들었는지 알 수 없다.
+   */
+  modelName?: string
   generatedAt: string
   /** 활동 없는 날 센티널 */
   empty?: boolean
@@ -107,7 +117,10 @@ export interface PeriodPart {
   text: string
   /** 만들 때 반영한 마지막 날짜 (오늘 이후로 잘린다) */
   end: string
+  /** 설정에서 고른 값 */
   model: string
+  /** 실제로 응답한 모델명 (예: claude-fable-5) */
+  modelName?: string
   generatedAt: string
   /** 구간이 끝나기 전에 만들어 아직 덜 반영된 부분 (조회 시 계산) */
   stale?: boolean
@@ -155,6 +168,11 @@ export interface RangeStatus {
 export interface ClaudeInfo {
   path: string
   version: string
+  /**
+   * CLI 설정에 박힌 기본 모델 (예: claude-fable-5). 읽지 못하면 null.
+   * '기본 모델'로 두면 무엇이 쓰이는지 화면에서 알 수 없어 함께 내려준다.
+   */
+  defaultModel?: string | null
 }
 
 export type BackfillPhase = 'scan' | 'summarize' | 'idle'
