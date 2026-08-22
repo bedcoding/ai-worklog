@@ -31,29 +31,12 @@ export const DEFAULT_PROMPTS: PromptTemplates = {
 
 <데이터>
 {data}
-</데이터>`,
-
-  gian: `아래 <데이터>는 {ym} 한 달간 Claude Code(AI 코딩 도구)로 수행한 일별 업무 요약입니다.
-회사 제출용 기안서의 두 항목을 작성하세요.
-
-규칙:
-- "purpose": 사용 목적 1문장. 반복 업무 자동화·생산성 관점으로 작성하고, 월 절감 시간이
-  주어지면 "(월 약 N시간 절감 예상)" 형태로 포함. 예: "반복 기획·자료조사 자동화 (월 약 20시간 절감 예상)"
-- "outputs": 예상 업무 결과물 1줄, 명사 나열. 예: "주간 기획 리포트, 경쟁작 모니터링 표"
-- 실제 수행한 업무 범위를 벗어나는 표현 금지. JSON 외의 텍스트 없이 출력하세요.
-
-{"purpose": "...", "outputs": "..."}
-
-월 절감 시간(수동 입력, "없음"이면 문구 생략): {savedHours}
-
-<데이터>
-{data}
 </데이터>`
 }
 
 /**
  * {word} 형태 플레이스홀더만 치환한다.
- * 템플릿 안의 JSON 예시({"purpose": ...})는 따옴표 때문에 \w+에 매칭되지 않아 안전.
+ * 템플릿 안의 JSON 예시({"headline": ...})는 따옴표 때문에 \w+에 매칭되지 않아 안전.
  */
 export function renderTemplate(tpl: string, vars: Record<string, string>): string {
   return tpl.replace(/\{(\w+)\}/g, (m, key: string) => (key in vars ? vars[key] : m))

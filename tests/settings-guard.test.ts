@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  *
  * 윈도우는 강제 파일 락이 있어(맥은 없음) 백신·인덱서가 settings.json을 잡으면 읽기가
  * EBUSY로 실패한다. 그때 기본값을 진실처럼 다루면, 렌더러가 그 기본값 스냅샷을 폼에 담고
- * 나중에 전체를 되돌려 저장해 사번·법인·이름·커스텀 프롬프트가 디스크에서 사라진다.
+ * 나중에 전체를 되돌려 저장해 실행 경로·커스텀 프롬프트가 디스크에서 사라진다.
  * 실제 파일 락은 플랫폼 의존이라, 여기서는 읽기 계층을 대체해 결정 로직만 검증한다.
  */
 const mocks = vi.hoisted(() => ({
@@ -29,7 +29,8 @@ import {
 } from '../src/main/settings'
 
 const STORED = {
-  profile: { empNo: 'EMP001', name: '테스트', corp: '테스트법인' },
+  // 사용자가 직접 넣은 값들 — 기본값으로 덮이면 안 되는 것들이다
+  claudePath: 'D:\\tools\\claude.exe',
   dailyAuto: 'silent',
   retentionMonths: 0,
   prompts: { day: 'MY DAY' }
@@ -57,7 +58,7 @@ describe('설정을 읽지 못한 상태에서는 저장하지 않는다', () =>
     mocks.readState.mockResolvedValue({ kind: 'unreadable', code: 'EBUSY' })
     const s = await getSettings()
     expect(s.dailyAuto).toBe('off')
-    expect(s.profile.empNo).toBe('')
+    expect(s.claudePath).toBe(null)
   })
 
   it('락이 풀리면 회복되고, 저장은 디스크 값 위에 병합된다', async () => {
@@ -68,7 +69,7 @@ describe('설정을 읽지 못한 상태에서는 저장하지 않는다', () =>
     const saved = await setSettings({ model: 'haiku' })
     expect(saved.model).toBe('haiku')
     // 실제 설정이 살아 있어야 한다
-    expect(saved.profile.empNo).toBe('EMP001')
+    expect(saved.claudePath).toBe(STORED.claudePath)
     expect(saved.dailyAuto).toBe('silent')
     expect(saved.retentionMonths).toBe(0)
     expect(saved.prompts.day).toBe('MY DAY')
@@ -94,7 +95,7 @@ describe('동시 조회가 상태를 갈라놓지 않는다', () => {
     await getSettings()
     mocks.readState.mockResolvedValue({ kind: 'unreadable', code: 'EBUSY' })
     const saved = await setSettings({ model: 'sonnet' })
-    expect(saved.profile.empNo).toBe('EMP001')
+    expect(saved.claudePath).toBe(STORED.claudePath)
     expect(saved.model).toBe('sonnet')
     expect(mocks.writes).toHaveLength(1)
   })
@@ -112,7 +113,7 @@ describe('깨진 설정 파일', () => {
     mocks.readState.mockResolvedValue({ kind: 'absent' })
     const saved = await setSettings({ model: 'haiku' })
     expect(saved.model).toBe('haiku')
-    expect(saved.profile.empNo).toBe('')
+    expect(saved.claudePath).toBe(null)
     expect(mocks.writes).toHaveLength(1)
   })
 })

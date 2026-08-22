@@ -11,6 +11,7 @@ import { extractJson, runClaude, type ClaudeRunOptions } from '../claude/run'
 import { renderTemplate } from '../prompts'
 import { getSettings } from '../settings'
 import {
+  daysOfMonth,
   kstDateOf,
   kstStartOfDayMs,
   monthRange,
@@ -18,7 +19,13 @@ import {
   weekRange,
   weekdayKo
 } from '@shared/dates'
-import type { DayDigest, DaySummary, PeriodRequest, PeriodSummary } from '@shared/types'
+import type {
+  DayDigest,
+  DaySummary,
+  MonthStatus,
+  PeriodRequest,
+  PeriodSummary
+} from '@shared/types'
 import { renderDigestText } from '@shared/digest-text'
 import { activityInRange } from './activity'
 import { collectDigests } from './collector'
@@ -86,6 +93,23 @@ export async function ensureDayDigest(
 
 export async function getCachedDaySummary(date: string): Promise<DaySummary | null> {
   return readJson<DaySummary>(daySummaryPath(date))
+}
+
+/**
+ * 그 달의 활동일과, 그중 요약이 있는 날짜.
+ * 오늘 이후는 세지 않는다 — 아직 오지 않은 날을 "활동 없음"으로 보이면 안 된다.
+ */
+export async function getMonthStatus(ym: string): Promise<MonthStatus> {
+  const today = todayKst()
+  const days = daysOfMonth(ym).filter((d) => d <= today)
+  if (days.length === 0) return { ym, activeDays: [], summarizedDays: [] }
+  const { dates } = await activityInRange(days[0], days[days.length - 1])
+  const summarizedDays: string[] = []
+  for (const d of dates) {
+    const s = await getCachedDaySummary(d)
+    if (s && !s.empty) summarizedDays.push(d)
+  }
+  return { ym, activeDays: dates, summarizedDays }
 }
 
 interface DayJson {
@@ -177,7 +201,7 @@ function periodLabelOf(req: PeriodRequest, start: string, end: string): string {
   return `${shortDateKo(start)}~${shortDateKo(end)} 주간`
 }
 
-/** 일별 요약을 사람이 읽는 한 줄들로 조립 (기간 daily 소스, 기안 데이터 공용) */
+/** 일별 요약을 사람이 읽는 한 줄들로 조립 (기간 daily 소스가 claude에 넘기는 데이터) */
 export function renderDailyLines(summaries: DaySummary[]): string {
   const lines: string[] = []
   for (const s of summaries) {
@@ -281,3 +305,4 @@ export async function ensurePeriodSummary(
   await writeJsonAtomic(periodPath(req.key), period)
   return period
 }
+

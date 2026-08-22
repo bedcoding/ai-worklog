@@ -275,8 +275,7 @@ ul.items li {
    이게 없으면 어느 줄을 드래그해 복사할 수 있는지 보이지 않는다 */
 .pre,
 ul.items,
-.selectable,
-table.excel {
+.selectable {
   cursor: text;
 }
 .progress-wrap {
@@ -297,29 +296,6 @@ table.excel {
   height: 100%;
   background: var(--accent);
   transition: width 0.25s;
-}
-table.excel {
-  border-collapse: collapse;
-  font-size: 11px;
-  -webkit-user-select: text;
-  user-select: text;
-}
-table.excel th,
-table.excel td {
-  border: 1px solid var(--border);
-  padding: 4px 8px;
-  white-space: nowrap;
-  text-align: left;
-}
-table.excel th {
-  background: var(--bg);
-  font-weight: 600;
-}
-table.excel td.empty {
-  color: var(--muted);
-}
-.scroll-x {
-  overflow-x: auto;
 }
 form.settings {
   display: flex;

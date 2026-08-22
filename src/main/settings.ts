@@ -4,23 +4,8 @@ import { readJsonState, settingsPath, writeJsonAtomic } from './cache'
 import { DEFAULT_PROMPTS } from './prompts'
 
 export const DEFAULT_SETTINGS: Settings = {
-  profile: {
-    gianTitle: '',
-    gianLink: '',
-    gianApprovedDate: '',
-    corp: '',
-    dept: '',
-    name: '',
-    empNo: '',
-    email: '',
-    aiService: 'Claude',
-    plan: '',
-    billingCycle: '',
-    amount: ''
-  },
   claudePath: null,
   model: 'default',
-  monthlySavedHours: null,
   autoLaunch: false,
   dailyAuto: 'off',
   dailyTime: '18:00',
@@ -53,7 +38,6 @@ function merge(stored: Partial<Settings> | null): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
-    profile: { ...DEFAULT_SETTINGS.profile, ...stored?.profile },
     prompts: { ...DEFAULT_PROMPTS, ...stored?.prompts }
   }
 }
@@ -117,7 +101,6 @@ export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
   cached = {
     ...cached,
     ...patch,
-    profile: { ...cached.profile, ...patch.profile },
     prompts: { ...cached.prompts, ...patch.prompts }
   }
   await writeJsonAtomic(settingsPath(), cached)

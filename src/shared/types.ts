@@ -1,34 +1,3 @@
-/**
- * 제출 양식의 고정 프로필 필드.
- * 사내 "회사 표준 AI 도구 신청" 엑셀 양식 12컬럼과 1:1 대응한다.
- */
-export interface Profile {
-  /** 기안 제목 (예: OO본부 생성형 AI) */
-  gianTitle: string
-  /** 기안 링크 — 결재 문서 URL */
-  gianLink: string
-  /** 기안 승인일 (예: 2026. 7. 1) */
-  gianApprovedDate: string
-  /** 법인 */
-  corp: string
-  /** 소속 (최하위 1개 — 팀명/부서명) */
-  dept: string
-  /** 이름 */
-  name: string
-  /** 사번 */
-  empNo: string
-  /** 회사메일 */
-  email: string
-  /** 사용 중인 AI 서비스 (예: Claude) */
-  aiService: string
-  /** 구독 플랜 (예: Max 5x) */
-  plan: string
-  /** 결제주기 (예: 월간) */
-  billingCycle: string
-  /** 금액(현지통화) (예: 100 US) */
-  amount: string
-}
-
 export type ModelChoice = 'default' | 'haiku' | 'sonnet'
 
 /** 매일 자동실행 모드: 끄기 / 컨펌 후 실행 / 조용히 실행 */
@@ -40,24 +9,19 @@ export interface PromptTemplates {
   day: string
   /** 주간/월간 요약 (일일 조합·원본 공용). 플레이스홀더: {label} {data} */
   period: string
-  /** 기안 두 칸(purpose/outputs). 플레이스홀더: {ym} {savedHours} {data} */
-  gian: string
 }
 
 export interface Settings {
-  profile: Profile
   /** null이면 자동 탐지 */
   claudePath: string | null
   model: ModelChoice
-  /** 기안 "사용 목적"에 넣을 월 절감 시간(수동 입력). null이면 문구 생략 */
-  monthlySavedHours: number | null
   autoLaunch: boolean
   dailyAuto: DailyAutoMode
   /** "HH:mm" (KST, 로컬 시각) */
   dailyTime: string
   /**
    * 원본 추출(digest) 캐시 보관 기간(개월). 0이면 무제한.
-   * AI 요약·기안 캐시는 용량이 미미해 영구 보관하며,
+   * AI 요약 캐시는 용량이 미미해 영구 보관하며,
    * ~/.claude 원본 로그는 이 앱이 절대 삭제하지 않는다.
    */
   retentionMonths: number
@@ -149,25 +113,12 @@ export interface MonthStatus {
   summarizedDays: string[]
 }
 
-export interface MonthReport {
-  ym: string
-  purpose: string
-  outputs: string
-  /** 일자별 증빙 목록 (번호 매긴 라인) */
-  appendix: string[]
-  /** 기안 본문용: "필드: 값" 1줄씩 렌더된 플레인텍스트 덩어리 */
-  text: string
-  /** 엑셀 등록용: 양식 12컬럼 헤더 + 1행 (탭 구분, 엑셀/웹 표에 붙여넣기 가능) */
-  excelTsv: string
-  generatedAt: string
-}
-
 export interface ClaudeInfo {
   path: string
   version: string
 }
 
-export type BackfillPhase = 'scan' | 'summarize' | 'report' | 'idle'
+export type BackfillPhase = 'scan' | 'summarize' | 'idle'
 
 export interface BackfillProgress {
   done: number
@@ -177,7 +128,7 @@ export interface BackfillProgress {
 }
 
 export interface PipelineError {
-  scope: 'day' | 'period' | 'report' | 'claude'
+  scope: 'day' | 'period' | 'claude'
   date?: string
   message: string
   retryable: boolean
@@ -195,9 +146,6 @@ export const IPC = {
   periodGet: 'period:get',
   periodGenerate: 'period:generate',
   monthGetStatus: 'month:getStatus',
-  monthGetReport: 'month:getReport',
-  monthGenerateReport: 'month:generateReport',
-  monthSaveXlsx: 'month:saveXlsx',
   backfillCancel: 'backfill:cancel',
   clipboardWrite: 'clipboard:write',
   appSetAutoLaunch: 'app:setAutoLaunch',
@@ -238,12 +186,6 @@ export interface WorklogApi {
   /** 주간/월간 요약 생성. source=daily면 미요약 날짜를 먼저 백필 */
   generatePeriod(req: PeriodRequest): Promise<PeriodSummary>
   getMonthStatus(ym: string): Promise<MonthStatus>
-  /** 캐시된 기안 초안 조회 (생성 안 함) */
-  getReport(ym: string): Promise<MonthReport | null>
-  /** 기안 초안 생성. 미요약 날짜를 먼저 백필 */
-  generateReport(ym: string): Promise<MonthReport>
-  /** 엑셀 양식(.xlsx) 저장 — 저장 위치 선택창을 띄운다. 저장 경로 또는 취소 시 null 반환 */
-  saveReportXlsx(ym: string): Promise<string | null>
   cancelBackfill(): Promise<void>
   copyToClipboard(text: string): Promise<void>
   setAutoLaunch(enabled: boolean): Promise<void>
