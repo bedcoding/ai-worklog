@@ -123,8 +123,10 @@ export type PeriodPartKind = 'overview' | 'detail'
  */
 export interface PeriodStreamEvent {
   part: PeriodPartKind
-  kind: 'reset' | 'thinking' | 'delta'
+  kind: 'reset' | 'thinking' | 'tokens' | 'delta'
   text?: string
+  /** kind가 tokens일 때의 누적 생각 토큰 수 */
+  count?: number
 }
 
 /** 주간/월간 자유 텍스트 요약. key 예: "2026-W29", "2026-07" */

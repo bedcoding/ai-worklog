@@ -7,7 +7,9 @@ const DELTA =
   '{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"안녕하세요. \\""}},"session_id":"300c4c96","parent_tool_use_id":null,"uuid":"7f494dbd"}'
 const THINKING =
   '{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"사용자가 인사를"}},"session_id":"300c4c96"}'
-const SYSTEM = '{"type":"system","subtype":"thinking_tokens","session_id":"300c4c96"}'
+const TOKENS =
+  '{"type":"system","subtype":"thinking_tokens","estimated_tokens":340,"estimated_tokens_delta":2,"session_id":"300c4c96"}'
+const SYSTEM = '{"type":"system","subtype":"init","session_id":"300c4c96","model":"claude-sonnet-4"}'
 const RESULT =
   '{"type":"result","subtype":"success","is_error":false,"duration_api_ms":5695,"result":"안녕하세요","session_id":"300c4c96"}'
 
@@ -27,7 +29,12 @@ describe('classifyLine', () => {
     expect(r.kind === 'result' && r.envelope.result).toBe('안녕하세요')
   })
 
-  it('system·빈 줄은 other 다', () => {
+  it('생각 토큰 누계를 뽑는다', () => {
+    // 실측: 이 이벤트가 5초부터 온다. 본문 첫 글자는 55초라 그 사이 유일한 숫자다
+    expect(classifyLine(TOKENS)).toEqual({ kind: 'tokens', count: 340 })
+  })
+
+  it('쓰지 않는 system 이벤트와 빈 줄은 other 다', () => {
     expect(classifyLine(SYSTEM).kind).toBe('other')
     expect(classifyLine('').kind).toBe('other')
     expect(classifyLine('   ').kind).toBe('other')
