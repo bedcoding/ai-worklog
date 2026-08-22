@@ -17,9 +17,36 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # src/ 정적 검사라 플랫폼 독립적 — 한 잡에서만 돌린다
       - run: npm run check:no-network
       - run: npm test
       - run: npm run build
       - run: npx electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-win:
+    # 같은 태그의 draft 릴리스에 두 러너가 동시에 publish하면 릴리스 생성이 경쟁한다
+    needs: build-mac
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Electron dist(~145MB) 재다운로드를 줄인다
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
