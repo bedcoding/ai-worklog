@@ -89,13 +89,16 @@ export function MadeBy({
   return (
     <div className="madeby">
       <span className="badge">{madeByLabel(model, modelName)}</span>
-      <span className="badge">{kstDateTimeKo(at)}</span>
-      {/* tabIndex 를 주어야 키보드로도 말풍선을 열 수 있다 (.tip-host:focus-visible) */}
-      {warn && (
-        <span className="mark warn tip-host" tabIndex={0} aria-label={warn}>
-          !
+      {/* 낡았으면 시각 라벨 자체를 빨갛게 물들이고 거기에 말풍선을 붙인다. 옆에 (!)를
+          따로 띄우면 글리프가 하나 더 늘 뿐이고, 정작 문제인 것은 이 시각이다.
+          tabIndex 를 주어야 키보드로도 열린다 (.tip-host:focus-visible). */}
+      {warn ? (
+        <span className="badge warn tip-host" tabIndex={0} aria-label={warn}>
+          {kstDateTimeKo(at)}
           <Tip up text={warn} />
         </span>
+      ) : (
+        <span className="badge">{kstDateTimeKo(at)}</span>
       )}
     </div>
   )

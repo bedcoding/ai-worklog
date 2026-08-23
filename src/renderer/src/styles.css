@@ -427,17 +427,19 @@ button.btn.steady {
   letter-spacing: -0.2px;
 }
 
-/* 기간 요약의 제목·내용 두 덩이. 각자 버튼을 갖고 따로 만들어지므로 선으로 가른다.
-   인접 선택자를 쓴다. :first-of-type 은 위에 안내문 div 가 오면 그쪽에 걸려
-   '제목' 이 두 번째 div 가 되고, 안내문이 있을 때만 그 아래 선이 생겼다. */
+/* 기간 요약의 제목·내용 두 덩이. 각자 버튼을 갖고 따로 만들어지므로 선이 아니라
+   상자로 가른다. 1px 선으로는 두 덩이가 한 덩이처럼 붙어 보였다. 색 든 면 위의 흰
+   상자라 선 없이 색조 대비만으로 갈라진다. 덤으로 색 든 면이 큰 평면이 아니라
+   두 상자를 담는 틀이 된다.
+   --surface 를 --card 로 되돌려야 안에 든 버튼이 흰 상자를 따라온다. */
 .period-part {
+  --surface: var(--card);
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.period-part + .period-part {
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface);
 }
 /* 만든 내력. 모델과 시각을 라벨 둘로 갈라 놓는다. 가운뎃점으로 이으면 한 줄 산문이
    되어 어느 쪽이 무엇인지 읽어서 갈라야 한다. */
@@ -462,32 +464,29 @@ button.btn.steady {
   flex: none;
   width: 15px;
   height: 15px;
-  border: 1px solid var(--muted);
+  border: 1px solid var(--danger);
   border-radius: 50%;
-  color: var(--muted);
+  color: var(--danger);
   font-size: 10px;
   font-weight: 700;
   /* 15px 원 안에서 글자를 가운데 두려면 줄 높이를 죽여야 한다 */
   line-height: 1;
   cursor: help;
 }
-/* 조치가 필요한 것. 앱에서 유일한 빨간 표식이라 눈이 여기로 온다 */
-.mark.warn {
-  border-color: var(--danger);
-  color: var(--danger);
-}
 /* 채워서 열려 있다는 것을 알린다. 글자색은 --card 로 둔다. 라이트에서는 흰 글자,
    다크에서는 어두운 글자가 되어 어느 테마에서도 읽힌다 (#fff 로 박으면 다크에서
    밝은 회색 위에 흰 글자가 된다) */
 .mark:hover,
 .mark:focus-visible {
-  background: var(--muted);
+  background: var(--danger);
   color: var(--card);
   outline: none;
 }
-.mark.warn:hover,
-.mark.warn:focus-visible {
-  background: var(--danger);
+/* 낡은 요약. 시각 라벨을 그대로 물들인다 */
+.badge.warn {
+  border-color: var(--danger);
+  color: var(--danger);
+  cursor: help;
 }
 /* 모델이 생각하는 내용. 요약 본문이 아니므로 본문과 같은 모양이면 안 된다.
    점선 상자 + 죽인 색 + 왼쪽 띠로 갈라 둔다. 본문은 검은 글자에 막대만 붙는다.
