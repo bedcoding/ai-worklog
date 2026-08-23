@@ -61,7 +61,7 @@ export default function StatusBar({
   return (
     <div className="statusbar">
       {checking ? (
-        <span className="muted">claude 연결 확인 중…</span>
+        <span className="muted">claude 연결 확인 중</span>
       ) : (
         <>
           <span className="dot ok" />

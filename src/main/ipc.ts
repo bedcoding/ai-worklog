@@ -77,15 +77,18 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
   })
 
-  ipcMain.handle(IPC.rangeList, async (_e, start: string, end: string, refresh?: boolean) => {
-    const { status, cache } = await getRangeStatus(start, end, !!refresh)
-    const summaries = []
-    for (const d of status.activeDays) {
-      const s = await getCachedDaySummary(d)
-      if (s) summaries.push(s)
+  ipcMain.handle(
+    IPC.rangeList,
+    async (_e, start: string, end: string, opts?: { indexOnly?: boolean }) => {
+      const { status, cache } = await getRangeStatus(start, end, opts ?? {})
+      const summaries = []
+      for (const d of status.activeDays) {
+        const s = await getCachedDaySummary(d)
+        if (s) summaries.push(s)
+      }
+      return { status, summaries, cache }
     }
-    return { status, summaries, cache }
-  })
+  )
   // 날짜 수만큼 claude를 부르는 유일한 경로다. 기간 요약과 취소 플래그를 공유한다.
   ipcMain.handle(IPC.rangeBackfill, async (_e, start: string, end: string) => {
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')

@@ -98,8 +98,19 @@ export function CopyButton({
   )
 }
 
+/**
+ * 진행 중임을 알리는 줄.
+ *
+ * 라벨에 '…'을 붙이지 않는다. 폭을 더 먹으면서도 멈춰 있어서, 정말 도는 중인지는
+ * 알려주지 못한다. 도는 원이 그 일을 하고 폭은 10px 로 고정이다.
+ * (⏳ 이모지도 같은 이유로 뺐다. 그림만 모래시계일 뿐 움직이지 않는다.)
+ */
 export function Spinner({ label }: { label: string }): ReactNode {
-  return <div className="muted">⏳ {label}</div>
+  return (
+    <div className="muted">
+      <span className="spin" /> {label}
+    </div>
+  )
 }
 
 /**

@@ -31,13 +31,14 @@ interface StreamState {
 }
 
 /**
- * 활동일 목록의 출처를 한 줄로. 숫자를 그대로 적는다.
- * '캐시됨' 같은 말만 적으면 무엇이 캐시된 것인지 알 수 없다.
+ * 그 날의 원본 내역과 그 출처.
+ * cached 는 파일에서 꺼냈는지, final 은 그 날이 끝난 뒤에 만들어졌는지다.
+ * 둘은 다르다. 오늘치는 캐시에서 왔어도 확정이 아니다.
  */
-function cacheLabel(c: ActivityCache): string {
-  if (c.cachedDays === 0) return `기록 ${c.scannedDays}일치를 원본에서 읽었습니다`
-  if (c.scannedDays === 0) return `기록 ${c.cachedDays}일치를 저장된 것에서 읽었습니다`
-  return `저장된 것 ${c.cachedDays}일 · 원본에서 읽음 ${c.scannedDays}일`
+interface DayRaw {
+  digest: DayDigest
+  cached: boolean
+  final: boolean
 }
 
 const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1, tokens: 0 }
@@ -47,12 +48,19 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [today, setToday] = useState(() => kstDateOf(Date.now()))
   const [cursor, setCursor] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
   const [status, setStatus] = useState<RangeStatus | null>(null)
-  // 활동일 목록을 어디서 얻었는지. 캐시가 조용히 돌면 목록이 원본과 맞는지 알 수 없다
-  const [cache, setCache] = useState<ActivityCache | null>(null)
-  const [rereading, setRereading] = useState(false)
-  // status가 어느 구간의 것인지. 구간을 옮기는 동안 이전 구간의 날짜와 개수가
-  // 새 라벨 아래 남아 있으면 화면이 거짓말을 한다 (8월 라벨에 지난주 7일).
-  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+  /** 2차 조회(원본을 실제로 훑는 쪽)가 도는 중 */
+  const [reading, setReading] = useState(false)
+  /** 1차 조회가 확인하지 않고 넘긴 날짜 수. 1이면 오늘 하나뿐이다 */
+  const [pending, setPending] = useState(0)
+  /**
+   * 화면에 그려도 되는 구간. 데이터가 도착할 때만 앞으로 간다.
+   *
+   * cursor 를 그대로 그리면 라벨은 즉시 새 구간인데 목록·요약은 아직 옛 구간이라,
+   * 그 사이를 비워 두거나(카드가 접힌다) 옛 값을 남겨야(8월 라벨에 지난주 7일) 한다.
+   * 셋을 이 스냅샷 하나에서 뽑으면 한 번에 바뀌어 깜빡임이 없다.
+   * 주간/한달 버튼과 화살표는 cursor 를 그대로 써서 누른 즉시 반응한다.
+   */
+  const [shown, setShown] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
   const [summaries, setSummaries] = useState<Map<string, DaySummary>>(new Map())
   const [period, setPeriod] = useState<PeriodSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -64,36 +72,75 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [stream, setStream] = useState<StreamState>(IDLE_STREAM)
   const [openDate, setOpenDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음)
-  const [digests, setDigests] = useState<Map<string, DayDigest>>(new Map())
+  // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음).
+  // cached 는 main 이 판정해 준 값이다. builtAt 을 보고 짐작하면 규칙이 바뀔 때 어긋난다.
+  const [digests, setDigests] = useState<Map<string, DayRaw>>(new Map())
   const [digestBusy, setDigestBusy] = useState<string | null>(null)
   const [digestErr, setDigestErr] = useState<string | null>(null)
 
   // 구간을 빠르게 전환할 때 이전 구간의 응답이 늦게 도착해 덮어쓰는 것을 막는다
   const reqRef = useRef(0)
-  const { start, end } = rangeOf(cursor)
-  const periodKey = keyOf(cursor)
+  // 그려지는 것과 화면의 버튼이 누르는 것은 모두 shown 에서 뽑는다.
+  // cursor 는 요청을 만들 때만 쓴다. status 는 늘 shown 의 것이다 (apply 에서 함께 바꾼다).
+  const shownRange = rangeOf(shown)
 
   /**
-   * @param quiet 스피너를 띄우지 않는다. 이미 목록이 있는데 다시 읽을 때 쓴다
-   * @param refresh 저장된 활동 인덱스를 무시하고 원본 로그를 다시 훑는다
+   * 두 번에 걸쳐 읽는다.
+   *
+   * 1차는 저장된 인덱스만 보므로 즉시 끝난다. 이것으로 목록을 먼저 그린다.
+   * 2차가 실제로 원본을 훑는다. 그 사이 목록은 이미 화면에 있고, 아직 확인하지
+   * 않은 날짜(대개 오늘 하나)에만 읽는 표시가 붙는다.
+   *
+   * 전에는 목록 전체를 스피너 한 장으로 덮었다. 이미 아는 스무 날이 오늘 하나를
+   * 확인하는 300ms 동안 사라졌다.
+   *
+   * @param quiet 목록을 비우지 않는다. 이미 목록이 있는데 다시 읽을 때 쓴다
    */
-  const load = useCallback((quiet = false, refresh = false): void => {
-    const key = periodKey
+  const load = useCallback((quiet = false): void => {
+    // 이 요청이 어느 구간의 것인지 붙들어 둔다. 도착할 때 화면을 이 구간으로 한꺼번에 옮긴다
+    const at = cursor
+    const key = keyOf(at)
+    const { start: from, end: to } = rangeOf(at)
     const id = ++reqRef.current
     if (!quiet) setLoading(true)
     setError(null)
-    void window.api.getPeriod(periodKey).then((p) => {
-      if (id === reqRef.current) setPeriod(p)
-    })
-    window.api
-      .listRange(start, end, refresh)
-      .then((r) => {
+
+    /**
+     * 라벨·목록·기간 요약을 한 번에 바꾼다.
+     *
+     * 예전에는 셋이 서로 다른 시점에 바뀌어 화면이 깜빡였다. 커서를 옮기면 그 렌더에서
+     * 곧바로 라벨만 새 구간이 되고, 목록은 loadedKey 가 아직 옛 값이라 빈 배열이 되어
+     * 카드가 접혔다 펴졌다. 기간 요약은 옛 구간 글을 들고 있어 새 제목 밑에 남았다.
+     */
+    const apply = (
+      r: { status: RangeStatus; summaries: DaySummary[]; cache: ActivityCache },
+      p: PeriodSummary | null
+    ): void => {
+      setStatus(r.status)
+      setSummaries(new Map(r.summaries.map((s) => [s.date, s])))
+      setPeriod(p)
+      setShown(at)
+      setPending(r.cache.pendingDays)
+      // 1차 결과로도 목록을 그리므로 여기서 스피너를 내린다
+      setLoading(false)
+    }
+
+    setReading(true)
+    const first = Promise.all([
+      window.api.listRange(from, to, { indexOnly: true }),
+      window.api.getPeriod(key)
+    ])
+      .then(([r, p]) => {
+        if (id === reqRef.current) apply(r, p)
+      })
+      // 1차가 실패해도 2차가 진짜 답을 가져온다. 여기서 오류를 띄우지 않는다
+      .catch(() => {})
+
+    void first
+      .then(() => Promise.all([window.api.listRange(from, to), window.api.getPeriod(key)]))
+      .then(([r, p]) => {
         if (id !== reqRef.current) return
-        setStatus(r.status)
-        setCache(r.cache)
-        setSummaries(new Map(r.summaries.map((s) => [s.date, s])))
-        setLoadedKey(key)
+        apply(r, p)
       })
       .catch((e: unknown) => {
         if (id === reqRef.current) setError(errMsg(e))
@@ -101,10 +148,10 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       .finally(() => {
         if (id === reqRef.current) {
           setLoading(false)
-          setRereading(false)
+          setReading(false)
         }
       })
-  }, [periodKey, start, end])
+  }, [cursor])
 
   // 마지막으로 고른 구간 단위를 되살린다. 기준 날짜는 되살리지 않는다.
   // 다시 열었을 때 보고 싶은 것은 지난달이 아니라 지금이다.
@@ -152,6 +199,21 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
     if (doneCount > 0) load(true)
   }, [doneCount, load])
 
+  /**
+   * 펼친 날짜를 화면 맨 위로 올린다.
+   *
+   * 한 번에 하나만 펼치는 아코디언이라, 새 날짜를 누르면 앞서 펼쳐 둔 상세가 함께
+   * 접힌다. 그것이 화면 위쪽에 있었으면 그만큼 내용이 줄어 방금 누른 행이 위로 밀려
+   * 나간다. 실제로 8/16 을 눌렀는데 8/16 이 화면 밖으로 올라가고 그 아래가 보였다.
+   *
+   * 브라우저의 스크롤 앵커링이 이것을 보정하려 하지만, 어느 요소가 앵커로 뽑히는지에
+   * 따라 결과가 달라져서 어떤 때는 되고 어떤 때는 안 된다. 그래서 직접 맞춘다.
+   */
+  useEffect(() => {
+    if (!openDate) return
+    document.getElementById(`day-${openDate}`)?.scrollIntoView({ block: 'start' })
+  }, [openDate])
+
   useEffect(() => {
     const refreshToday = (): void => setToday(kstDateOf(Date.now()))
     window.addEventListener('focus', refreshToday)
@@ -165,7 +227,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       setDigestErr(null)
       window.api
         .getDayDigest(date, force)
-        .then((d) => setDigests((prev) => new Map(prev).set(date, d)))
+        .then((r) => setDigests((prev) => new Map(prev).set(date, r)))
         .catch((e: unknown) => setDigestErr(errMsg(e)))
         .finally(() => setDigestBusy(null))
     },
@@ -198,7 +260,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
     setBackfilling(true)
     setError(null)
     window.api
-      .backfillRange(start, end)
+      .backfillRange(shownRange.start, shownRange.end)
       .then((s) => setStatus(s))
       .catch((e: unknown) => setError(errMsg(e)))
       .finally(() => {
@@ -213,7 +275,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
     setStream({ ...IDLE_STREAM, startedAt: Date.now() })
     setError(null)
     window.api
-      .generatePeriod({ kind: cursor.span, key: periodKey }, part)
+      .generatePeriod({ kind: shown.span, key: keyOf(shown) }, part)
       .then((p) => setPeriod(p))
       .catch((e: unknown) => setError(errMsg(e)))
       .finally(() => {
@@ -222,18 +284,20 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       })
   }
 
-  // 아직 도착하지 않은 응답과 다른 구간의 응답은 똑같이 '모른다'로 취급한다.
-  // 지난주 개수가 이번 달 라벨 아래 남으면 화면이 거짓말을 한다.
-  const settled = loadedKey === periodKey
-  const state = rangeStateOf(settled ? status : null)
+  const state = rangeStateOf(status)
   const busy = busyDate !== null || backfilling || composing !== null
-  const spanWord = cursor.span === 'week' ? '주간' : '월간'
-  const days = settled ? [...(status?.activeDays ?? [])].sort().reverse() : []
-  const todayInRange = today >= start && today <= end
+  const spanWord = shown.span === 'week' ? '주간' : '월간'
+  const days = [...(status?.activeDays ?? [])].sort().reverse()
+  const todayInRange = today >= shownRange.start && today <= shownRange.end
 
   // 지금 만들고 있는 날짜. 하루만 만들 때도, 전체 정리로 여러 날을 훑을 때도
   // 그 날짜 행에 불이 켜져야 한다. 어느 쪽이 시작했는지는 화면에서 중요하지 않다.
   const workingDate = busyDate ?? progress?.currentDate ?? null
+
+  // 확인할 것이 오늘 하나뿐이면 그 행에만 표시한다. 그 이상이면 아직 행조차 없는
+  // 날짜가 섞여 있어 행에 붙일 수 없다. 그때만 줄로 알린다.
+  const readingToday = reading && pending === 1
+  const readingRange = reading && pending > 1
 
   // 누른 버튼이 진행 상황을 직접 말한다. 위쪽 막대에만 있으면 방금 누른 자리와
   // 상태가 뜨는 자리가 멀다. 줄을 새로 만들지 않고 라벨에 붙여 높이가 흔들리지 않게 한다.
@@ -241,8 +305,8 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const scanned = backfilling && progress?.phase === 'summarize' && progress.total > 0
   const backfillLabel = backfilling
     ? scanned && progress
-      ? `전체 정리 중… ${progress.done}/${progress.total}`
-      : '전체 정리 중…'
+      ? `전체 정리 중 ${progress.done}/${progress.total}`
+      : '전체 정리 중'
     : state.kind === 'loading'
       ? '전체 정리하기'
       : state.kind === 'empty'
@@ -285,7 +349,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
             <button type="button" className="btn" disabled={busy} onClick={() => setCursor(shift(cursor, -1))}>
               ◀
             </button>
-            <strong>{labelOf(cursor)}</strong>
+            <strong>{labelOf(shown)}</strong>
             <button type="button" className="btn" disabled={busy} onClick={() => setCursor(shift(cursor, 1))}>
               ▶
             </button>
@@ -298,7 +362,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
             disabled={busy}
             onClick={() => generateDay(today, true)}
           >
-            {busyDate === today ? '오늘 요약 생성 중…' : '오늘 하루 정리하기'}
+            {busyDate === today ? '오늘 요약 생성 중' : '오늘 하루 정리하기'}
           </button>
         )}
         {/* 날짜 수만큼 claude를 부르는 유일한 버튼이다. 라벨에는 남은 날짜 수만,
@@ -318,46 +382,27 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         {error && <div className="error">{error}</div>}
       </div>
 
-      {/* 캐시를 숨기지 않는다. 몇 일치를 저장된 것에서 읽었는지 적고,
-          원본을 다시 훑을 길을 같이 둔다. */}
-      {!loading && cache && (
-        <div className="card cache-note">
-          <span className="muted grow ellipsis tip-host">
-            {cacheLabel(cache)}
-            <Tip
-              text={
-                // 한 줄에 한 문장씩. 문장 중간에서 접히면 읽다가 걸린다
-                '지난 날짜의 활동 여부는 하루가 끝나면 바뀌지 않아 저장해 둡니다.\n' +
-                '오늘치는 저장하지 않고 열 때마다 원본을 읽습니다.' +
-                (cache.builtAt ? `\n저장한 시각: ${kstDateTimeKo(cache.builtAt)}` : '')
-              }
-            />
-          </span>
-          <button
-            type="button"
-            className="btn tip-host"
-            disabled={busy || rereading}
-            onClick={() => {
-              setRereading(true)
-              load(true, true)
-            }}
-          >
-            {rereading ? '읽는 중…' : '다시 읽기'}
-            <Tip toLeft text={'저장된 것을 버리고 원본 로그를 다시 훑습니다.'} />
-          </button>
-        </div>
-      )}
-
+      {/* 구간 전체를 다시 읽는 줄은 두지 않는다. 캐싱은 자동이라 누를 일이 없는데
+          목록 위에 늘 떠 있으면 자리만 먹는다. 캐시 여부는 각 날짜를 펼쳤을 때
+          그 날의 원본 내역 아래에 적는다. */}
       <div className="card">
-        {loading && <Spinner label="기록을 읽는 중…" />}
-        {!loading && days.length === 0 && (
-          <div className="muted">이 기간에는 Claude Code 활동 기록이 없습니다.</div>
+        {/* 목록을 스피너로 덮지 않는다. 아는 행은 이미 그려져 있고, 확인 중인 날짜에만
+            그 행에 표시가 붙는다. 아직 아무 행도 없을 때만 무엇을 읽는지 말한다. */}
+        {days.length === 0 &&
+          (loading || readingRange ? (
+            <Spinner label={`${shortDateKo(shownRange.start)}~${shortDateKo(shownRange.end)} 기록을 읽는 중`} />
+          ) : (
+            <div className="muted">이 기간에는 Claude Code 활동 기록이 없습니다.</div>
+          ))}
+        {/* 행은 있는데 아직 확인하지 않은 지난 날짜가 남은 경우. 목록 위에 한 줄만 둔다 */}
+        {days.length > 0 && readingRange && (
+          <Spinner label={`아직 확인하지 않은 ${pending}일을 읽는 중`} />
         )}
         {days.map((date) => {
           const s = summaries.get(date)
           const open = openDate === date
           return (
-            <div key={date} className="day-item">
+            <div key={date} id={`day-${date}`} className="day-item">
               <div
                 className="row spread"
                 onClick={() => setOpenDate(open ? null : date)}
@@ -367,10 +412,13 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
                 <span className="grow muted ellipsis">
                   {s?.empty ? '활동 없음' : (s?.headline ?? s?.fallbackText?.slice(0, 40) ?? '')}
                 </span>
-                {workingDate === date ? (
+                {readingToday && date === today ? (
+                  // 오늘은 하루가 끝나지 않아 저장하지 않는다. 열 때마다 원본을 읽는다
+                  <span className="badge busy">기록 읽는 중</span>
+                ) : workingDate === date ? (
                   // 요약이 이미 있는 날짜를 다시 만들 때도 진행이 보여야 한다.
                   // 예전에는 그 행이 'AI 요약됨'으로 남아, 다른 날짜가 왜 다 잠겼는지 알 수 없었다.
-                  <span className="badge busy">생성 중…</span>
+                  <span className="badge busy">생성 중</span>
                 ) : s ? (
                   <span className={`badge${s.empty ? '' : ' on'}`}>
                     {s.empty ? '없음' : 'AI 요약됨'}
@@ -402,7 +450,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
                   busy={workingDate === date}
                   anyBusy={busy}
                   onGenerate={(force) => generateDay(date, force)}
-                  digest={digests.get(date) ?? null}
+                  raw={digests.get(date) ?? null}
                   digestBusy={digestBusy === date}
                   digestErr={digestBusy === date ? null : digestErr}
                   onLoadDigest={(force) => loadDigest(date, force)}
@@ -415,7 +463,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
 
       <div className="card">
         <h3>{spanWord} 요약</h3>
-        {/* loading일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중…'이 그
+        {/* loading일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중'이 그
             상태를 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다. */}
         {state.kind === 'pending' ? (
           <div className="muted">
@@ -489,7 +537,7 @@ function PeriodPartBlock({
             disabled={locked}
             onClick={onMake}
           >
-            {working ? '만드는 중…' : part ? '다시 만들기' : '만들기'}
+            {working ? '만드는 중' : part ? '다시 만들기' : '만들기'}
             {/* 이 카드는 항상 맨 아래다. 아래로 펼치면 스크롤 영역이 말풍선만큼
                 늘어나 없던 스크롤바가 생기고, 그 폭에 목록 글자까지 밀린다.
                 위로 펼치면 이미 있는 내용을 덮으므로 영역이 늘지 않는다. */}
@@ -545,7 +593,7 @@ function Working({ stream }: { stream: StreamState }): ReactNode {
   return (
     <>
       <div className="muted">
-        ⏳ {working}… <Elapsed since={stream.startedAt} />
+        <span className="spin" /> {working} <Elapsed since={stream.startedAt} />
         {/* 생각 토큰은 글자보다 먼저 오지만 아예 안 오는 프롬프트도 있다 */}
         {stream.tokens > 0 && !stream.text && ` · ${stream.tokens} 토큰`}
         {/* 재시도는 조용히 일어나면 그냥 멈춘 것으로 보인다 */}
@@ -572,7 +620,7 @@ function DayDetail({
   busy,
   anyBusy,
   onGenerate,
-  digest,
+  raw,
   digestBusy,
   digestErr,
   onLoadDigest
@@ -582,11 +630,12 @@ function DayDetail({
   busy: boolean
   anyBusy: boolean
   onGenerate: (force?: boolean) => void
-  digest: DayDigest | null
+  raw: DayRaw | null
   digestBusy: boolean
   digestErr: string | null
   onLoadDigest: (force?: boolean) => void
 }): ReactNode {
+  const digest = raw?.digest ?? null
   const hasAi = !!summary && !summary.empty
   const [sub, setSub] = useState<'raw' | 'ai'>(hasAi ? 'ai' : 'raw')
 
@@ -653,11 +702,20 @@ function DayDetail({
                   <span className="muted selectable grow">{keywords.join(', ')}</span>
                   <button
                     type="button"
-                    className="btn"
+                    className="btn tip-host"
                     disabled={anyBusy}
                     onClick={() => onGenerate(true)}
                   >
-                    {busy ? '생성 중…' : '다시 생성'}
+                    {busy ? '생성 중' : '다시 생성'}
+                    {/* 같은 카드의 '새로고침'과 성격이 반대다. 그쪽은 원본을 다시 읽고
+                        이쪽은 claude 를 부른다. 어느 쪽이 쿼터를 쓰는지 적어 둔다. */}
+                    <Tip
+                      toLeft
+                      up
+                      text={
+                        'claude를 다시 불러 이 날짜의\n요약을 새로 씁니다.\n구독 쿼터를 사용합니다.'
+                      }
+                    />
                   </button>
                 </div>
                 <div className="muted">
@@ -674,11 +732,16 @@ function DayDetail({
             </span>
             <button
               type="button"
-              className="btn primary"
+              className="btn primary tip-host"
               disabled={anyBusy}
               onClick={() => onGenerate()}
             >
-              {busy ? '생성 중…' : 'AI 요약 생성'}
+              {busy ? '생성 중' : 'AI 요약 생성'}
+              <Tip
+                toLeft
+                up
+                text={'claude를 불러 이 날짜의 요약을 만듭니다.\n구독 쿼터를 사용합니다.'}
+              />
             </button>
           </div>
         ))}
@@ -686,7 +749,7 @@ function DayDetail({
       {sub === 'raw' && (
         <>
           {digestErr && <div className="error">{digestErr}</div>}
-          {digestBusy && <Spinner label="원본 내역 추출 중… (AI 호출 없음)" />}
+          {digestBusy && <Spinner label="원본 내역 추출 중 (AI 호출 없음)" />}
           {digest && (
             <>
               {digest.projects.length === 0 ? (
@@ -696,14 +759,37 @@ function DayDetail({
               )}
               <div className="detail-foot">
                 <div className="row spread">
-                  <span className="muted">{kstDateTimeKo(digest.builtAt)} 추출됨</span>
+                  {/* 세 가지를 갈라 적는다. 오늘치는 캐시에서 와도 확정이 아니라,
+                      '캐싱됨'만 적으면 다시 읽어도 같은 값일 것처럼 읽힌다.
+                      실제로 오늘치가 몇 시간 낡은 채로 그렇게 표시됐다. */}
+                  {raw?.cached && raw.final ? (
+                    <span className="muted">
+                      <span className="badge">캐싱됨</span> {kstDateTimeKo(digest.builtAt)} 추출
+                    </span>
+                  ) : raw?.cached ? (
+                    <span className="muted">
+                      ⚠️ {kstDateTimeKo(digest.builtAt)}까지만 추출됐습니다
+                    </span>
+                  ) : (
+                    <span className="muted">{kstDateTimeKo(digest.builtAt)} 방금 읽음</span>
+                  )}
                   <button
                     type="button"
-                    className="btn"
+                    className="btn tip-host"
                     disabled={digestBusy}
                     onClick={() => onLoadDigest(true)}
                   >
-                    {digestBusy ? '읽는 중…' : '새로고침'}
+                    {digestBusy ? '읽는 중' : '새로고침'}
+                    {/* 무엇을 새로고치는지 이름만으로는 알 수 없다. 옆에 '캐싱됨'이
+                        붙어 있으니 그것을 다시 만든다는 것까지 적는다. */}
+                    <Tip
+                      toLeft
+                      up
+                      text={
+                        // 한 줄에 한 문장씩. 문장 중간에서 접히면 읽다가 걸린다
+                        '이 날짜의 원본 로그를 다시 훑어\n저장해 둔 것을 새로 만듭니다.\nAI 호출은 없습니다.'
+                      }
+                    />
                   </button>
                 </div>
               </div>

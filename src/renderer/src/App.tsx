@@ -117,7 +117,7 @@ function ProgressBanner({ p }: { p: BackfillProgress }): ReactNode {
   const phaseLabel = stopping
     ? `${p.currentDate ?? '지금 날짜'}까지 만들고 중단합니다`
     : p.phase === 'scan'
-      ? '기록 스캔 중…'
+      ? '기록 스캔 중'
       // 날짜는 붙이지 않는다. 목록에서 그 날짜 행이 직접 불을 켜므로,
       // 여기에 ISO 날짜를 괄호로 또 적으면 날짜가 있어야 할 자리에서 멀어진다.
       : `일별 요약 생성 중 ${p.done}/${p.total}`
