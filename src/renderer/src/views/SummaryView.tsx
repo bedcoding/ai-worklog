@@ -476,9 +476,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         {/* loading일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중'이 그
             상태를 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다. */}
         {state.kind === 'pending' ? (
-          <div className="muted">
-            날짜별 요약이 모두 있어야 만들 수 있습니다. 위에서 전체 정리를 먼저 끝내세요.
-          </div>
+          <div className="muted">날짜별 요약이 모두 있어야 만들 수 있습니다.</div>
         ) : state.kind === 'empty' ? (
           <div className="muted">이 기간에는 묶을 기록이 없습니다.</div>
         ) : null}
@@ -555,9 +553,6 @@ function PeriodPartBlock({
           </button>
         </div>
       </div>
-      {part?.stale && !working && (
-        <div className="muted">⚠️ {shortDateKo(part.end)}까지만 반영됐습니다. 다시 만드세요.</div>
-      )}
       {working ? (
         <Working stream={stream} />
       ) : (
@@ -573,6 +568,14 @@ function PeriodPartBlock({
         <div className="muted">
           {madeByLabel(part.model, part.modelName)} · {kstDateTimeKo(part.generatedAt)}
         </div>
+      )}
+      {/* 낡음 표시는 본문 위가 아니라 만든 내력 아래에 둔다. 이것은 요약 내용이
+          아니라 '언제까지 반영된 것인가'에 대한 말이라 생성 시각과 한 덩이다.
+          위에 두면 라벨과 본문이 갈라져 본문이 한 줄 아래로 밀린다.
+          그림 문자(경고 삼각형)를 쓰지 않는다. 이 화면의 유일한 그림 문자여서
+          덧붙인 것처럼 보였다. 앱에서 하나뿐인 빨간 줄이니 색만으로 충분하다. */}
+      {part?.stale && !working && (
+        <div className="stale">{shortDateKo(part.end)}까지만 반영됐습니다. 다시 만드세요.</div>
       )}
     </div>
   )
