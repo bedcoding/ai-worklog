@@ -307,14 +307,13 @@ export interface WorklogApi {
    *
    * state 는 이것이 어디서 왔는지다. 화면이 builtAt 을 보고 짐작하면
    * main 의 판정 규칙이 바뀔 때 조용히 어긋난다.
-   * - scanned: 방금 원본을 읽었다
-   * - cached: 캐시에서 왔고 소스 로그 파일이 그대로다
-   * - stale: 캐시에서 왔는데 소스 로그 파일이 그 뒤에 바뀌었다
+   * - cached: 읽은 소스 로그 파일이 그대로여서 캐시를 썼다. 다시 읽어도 같다
+   * - scanned: 그렇지 않아 방금 원본을 읽었다
    */
   getDayDigest(
     date: string,
     force?: boolean
-  ): Promise<{ digest: DayDigest; state: 'scanned' | 'cached' | 'stale' }>
+  ): Promise<{ digest: DayDigest; state: 'scanned' | 'cached' }>
   getPeriod(key: string): Promise<PeriodSummary | null>
   /** 주간/월간 요약 생성. 구간의 모든 활동일이 요약돼 있어야 한다 (claude 1회) */
   generatePeriod(req: PeriodRequest, part: PeriodPartKind): Promise<PeriodSummary>

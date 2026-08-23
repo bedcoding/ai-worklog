@@ -105,9 +105,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.dayGenerate, (_e, date: string, force?: boolean) =>
     ensureDaySummary(date, { force })
   )
-  // 화면 표시용. 캐시가 있으면 스캔 없이 즉시 반환, force일 때만 원본 재스캔
+  // 캐시가 확실히 최신일 때만 그것을 쓰고, 아니면 그 자리에서 다시 읽는다.
+  // 낡은 것을 주고 사용자가 '새로고침'을 누르게 두지 않는다.
   ipcMain.handle(IPC.dayGetDigest, (_e, date: string, force?: boolean) =>
-    ensureDayDigest(date, { preferCache: !force, force })
+    ensureDayDigest(date, { force })
   )
 
   ipcMain.handle(IPC.periodGet, (_e, key: string) => getCachedPeriod(key))

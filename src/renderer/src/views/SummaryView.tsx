@@ -33,7 +33,7 @@ interface StreamState {
 /** 그 날의 원본 내역과, 그것이 어디서 왔는지 */
 interface DayRaw {
   digest: DayDigest
-  state: 'scanned' | 'cached' | 'stale'
+  state: 'scanned' | 'cached'
 }
 
 const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1, tokens: 0 }
@@ -756,16 +756,12 @@ function DayDetail({
               )}
               <div className="detail-foot">
                 <div className="row spread">
-                  {/* 세 가지를 갈라 적는다. '캐싱됨'만 적으면 다시 읽어도 같은 값일
-                      것처럼 읽힌다. 실제로 8/22 가 그렇게 표시된 채 프롬프트 16개를
-                      빠뜨리고 있었다. 낡음은 원본 로그 파일이 바뀌었다는 뜻이다. */}
+                  {/* '캐싱됨'은 다시 읽어도 같다는 뜻이다. 읽은 소스 로그 파일이
+                      하나도 바뀌지 않았을 때만 붙는다. 바뀌었으면 이 행을 펼칠 때
+                      이미 다시 읽었으므로 '방금 읽음'이 된다. */}
                   {raw?.state === 'cached' ? (
                     <span className="muted">
                       <span className="badge">캐싱됨</span> {kstDateTimeKo(digest.builtAt)} 추출
-                    </span>
-                  ) : raw?.state === 'stale' ? (
-                    <span className="muted">
-                      ⚠️ {kstDateTimeKo(digest.builtAt)} 이후 원본이 바뀌었습니다
                     </span>
                   ) : (
                     <span className="muted">{kstDateTimeKo(digest.builtAt)} 방금 읽음</span>
