@@ -32,6 +32,12 @@ export interface DayAcc {
   date: string
   /** key: cwd */
   projects: Map<string, ProjectAcc>
+  /**
+   * 이 날짜의 레코드가 나온 로그 파일 경로 → 읽던 시점의 mtime.
+   * 이 날짜에 기여하지 않은 파일은 담지 않는다. 담으면 지난달 다이제스트가
+   * 새 세션이 생길 때마다 낡은 것으로 잡힌다.
+   */
+  sources: Map<string, number>
 }
 
 export function newProjectAcc(cwd: string): ProjectAcc {
@@ -130,7 +136,8 @@ export function buildDigest(acc: DayAcc, skippedLines: number): DayDigest {
     projects,
     totals,
     skippedLines,
-    builtAt: new Date().toISOString()
+    builtAt: new Date().toISOString(),
+    sources: [...acc.sources].map(([path, mtimeMs]) => ({ path, mtimeMs }))
   }
 }
 

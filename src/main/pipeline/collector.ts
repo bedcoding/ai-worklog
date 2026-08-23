@@ -55,8 +55,13 @@ export const cwdKey = (cwd: string, platform: string = process.platform): string
  * 범위의 일별 다이제스트를 만든다.
  * 스캔 깊이는 정확히 2단계다. 그 아래(서브에이전트 워크플로 로그 등)는 보지 않는다.
  *
- * 성능: 로그 파일은 append-only이므로 mtime이 범위 시작 이전인 파일에는
- * 범위 내 레코드가 있을 수 없다 → mtime 필터만으로 대부분의 파일을 건너뛴다.
+ * 성능: 레코드를 쓰면 파일 mtime 이 그 시각 이후가 되므로, mtime 이 범위 시작보다
+ * 이전인 파일에는 범위 내 레코드가 있을 수 없다 → mtime 필터로 대부분을 건너뛴다.
+ *
+ * 다만 그 역은 성립하지 않는다. 파일 내용이 시간 순서로만 쌓이지는 않는다. 여러 날에
+ * 걸치는 긴 세션의 파일에는 옛 날짜 타임스탬프를 가진 레코드가 나중에 덧붙는다
+ * (실측: 8/23 레코드보다 뒤에 적힌 8/22 레코드 1380개). 그래서 '하루가 지나면 그 날
+ * 다이제스트는 확정'이 아니고, 읽은 파일의 mtime 을 남겨 두어야 낡음을 알 수 있다.
  * 날짜 분류는 세션이 아니라 레코드 단위(자정을 넘는 세션도 올바르게 분리).
  */
 export async function collectDigests(
@@ -79,7 +84,7 @@ export async function collectDigests(
 
   for (const file of files) {
     const rl = createInterface({
-      input: createReadStream(file, 'utf8'),
+      input: createReadStream(file.path, 'utf8'),
       crlfDelay: Infinity
     })
     for await (const line of rl) {
@@ -102,9 +107,11 @@ export async function collectDigests(
       const date = kstDateOf(tsMs)
       let day = days.get(date)
       if (!day) {
-        day = { date, projects: new Map() }
+        day = { date, projects: new Map(), sources: new Map() }
         days.set(date, day)
       }
+      // 이 날짜의 레코드가 이 파일에서 나왔다. 나중에 이 파일이 바뀌면 낡은 것이다
+      day.sources.set(file.path, file.mtimeMs)
       let proj = day.projects.get(key)
       if (!proj) {
         proj = newProjectAcc(cwd)
@@ -118,7 +125,7 @@ export async function collectDigests(
         if (text) {
           // 날짜를 키에 포함해 "그 날 안에서의 첫 프롬프트"로 정의한다.
           // 스캔 범위(하루 vs 한 달)에 따라 판정이 뒤집혀 digestHash가 흔들리는 것을 막는다.
-          const sessionKey = `${date}:${rec.sessionId ?? file}`
+          const sessionKey = `${date}:${rec.sessionId ?? file.path}`
           const isSessionFirst = !sessionSeen.has(sessionKey)
           sessionSeen.add(sessionKey)
           proj.prompts.push({ tsMs, text, isSessionFirst })
@@ -141,14 +148,20 @@ export async function collectDigests(
   return { digests, skippedLines }
 }
 
-async function listJsonlFiles(projectsDir: string, minMtimeMs: number): Promise<string[]> {
+/** mtime 도 함께 준다. 다이제스트에 남겨 두면 나중에 바뀌었는지 볼 수 있다 */
+interface LogFile {
+  path: string
+  mtimeMs: number
+}
+
+async function listJsonlFiles(projectsDir: string, minMtimeMs: number): Promise<LogFile[]> {
   let dirs: string[]
   try {
     dirs = await readdir(projectsDir)
   } catch {
     return []
   }
-  const files: string[] = []
+  const files: LogFile[] = []
   for (const dir of dirs) {
     const dirPath = join(projectsDir, dir)
     let entries: string[]
@@ -162,7 +175,7 @@ async function listJsonlFiles(projectsDir: string, minMtimeMs: number): Promise<
       const filePath = join(dirPath, entry)
       try {
         const s = await stat(filePath)
-        if (s.isFile() && s.mtimeMs >= minMtimeMs) files.push(filePath)
+        if (s.isFile() && s.mtimeMs >= minMtimeMs) files.push({ path: filePath, mtimeMs: s.mtimeMs })
       } catch {
         // 삭제 경합 등은 무시
       }

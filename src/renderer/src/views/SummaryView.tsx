@@ -30,15 +30,10 @@ interface StreamState {
   tokens: number
 }
 
-/**
- * 그 날의 원본 내역과 그 출처.
- * cached 는 파일에서 꺼냈는지, final 은 그 날이 끝난 뒤에 만들어졌는지다.
- * 둘은 다르다. 오늘치는 캐시에서 왔어도 확정이 아니다.
- */
+/** 그 날의 원본 내역과, 그것이 어디서 왔는지 */
 interface DayRaw {
   digest: DayDigest
-  cached: boolean
-  final: boolean
+  state: 'scanned' | 'cached' | 'stale'
 }
 
 const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1, tokens: 0 }
@@ -73,7 +68,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [openDate, setOpenDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음).
-  // cached 는 main 이 판정해 준 값이다. builtAt 을 보고 짐작하면 규칙이 바뀔 때 어긋난다.
+  // state 는 main 이 판정해 준 값이다. builtAt 을 보고 짐작하면 규칙이 바뀔 때 어긋난다.
   const [digests, setDigests] = useState<Map<string, DayRaw>>(new Map())
   const [digestBusy, setDigestBusy] = useState<string | null>(null)
   const [digestErr, setDigestErr] = useState<string | null>(null)
@@ -759,16 +754,16 @@ function DayDetail({
               )}
               <div className="detail-foot">
                 <div className="row spread">
-                  {/* 세 가지를 갈라 적는다. 오늘치는 캐시에서 와도 확정이 아니라,
-                      '캐싱됨'만 적으면 다시 읽어도 같은 값일 것처럼 읽힌다.
-                      실제로 오늘치가 몇 시간 낡은 채로 그렇게 표시됐다. */}
-                  {raw?.cached && raw.final ? (
+                  {/* 세 가지를 갈라 적는다. '캐싱됨'만 적으면 다시 읽어도 같은 값일
+                      것처럼 읽힌다. 실제로 8/22 가 그렇게 표시된 채 프롬프트 16개를
+                      빠뜨리고 있었다. 낡음은 원본 로그 파일이 바뀌었다는 뜻이다. */}
+                  {raw?.state === 'cached' ? (
                     <span className="muted">
                       <span className="badge">캐싱됨</span> {kstDateTimeKo(digest.builtAt)} 추출
                     </span>
-                  ) : raw?.cached ? (
+                  ) : raw?.state === 'stale' ? (
                     <span className="muted">
-                      ⚠️ {kstDateTimeKo(digest.builtAt)}까지만 추출됐습니다
+                      ⚠️ {kstDateTimeKo(digest.builtAt)} 이후 원본이 바뀌었습니다
                     </span>
                   ) : (
                     <span className="muted">{kstDateTimeKo(digest.builtAt)} 방금 읽음</span>

@@ -1,3 +1,4 @@
+import { stat } from 'node:fs/promises'
 import {
   claudeWorkdir,
   dayDigestPath,
@@ -47,60 +48,90 @@ async function claudeOpts(): Promise<ClaudeRunOptions> {
 }
 
 function emptyDigest(date: string): DayDigest {
-  return buildDigest({ date, projects: new Map() }, 0)
+  return buildDigest({ date, projects: new Map(), sources: new Map() }, 0)
 }
 
 const DAY_MS = 86400_000
 
 /** 그 날이 끝난 뒤에 만들어진 다이제스트만 확정본으로 신뢰한다 */
-function isComplete(d: DayDigest): boolean {
-  const builtMs = Date.parse(d.builtAt ?? '')
-  return Number.isFinite(builtMs) && builtMs >= kstStartOfDayMs(d.date) + DAY_MS
+/**
+ * 다이제스트를 만든 뒤 그 소스 파일이 바뀌었는지.
+ *
+ * '하루가 끝난 뒤에 만들었으면 확정'은 사실이 아니었다. 여러 날에 걸치는 긴 세션의
+ * 로그 파일에는 옛 날짜 타임스탬프를 가진 레코드가 나중에 덧붙는다. 실측: 8/22
+ * 다이제스트를 8/23 00:30 에 만들었는데도 프롬프트 16개가 빠졌고, 그 세션 파일에서
+ * 8/23 레코드보다 뒤에 적힌 8/22 레코드가 1380개였다.
+ *
+ * 그래서 시각이 아니라 파일을 본다. 소스 파일 몇 개 stat 이라 1ms 도 안 걸린다.
+ * (전체 546개 stat 이 40ms, 원본 파싱은 하루치 280ms)
+ *
+ * sources 가 없는 옛 캐시는 판정할 수 없다. 그때 어떻게 할지는 쓰는 쪽에 달렸다.
+ *
+ * @param strict 판정할 수 없으면 낡음으로 본다. 요약 생성 경로가 이것을 쓴다.
+ *   불완전한 데이터로 요약이 굳는 것이 2.5초 재스캔보다 훨씬 비싸고, 뒤에 claude
+ *   호출이 수십 초 붙으므로 그 값도 묻힌다. 화면 조회는 반대다. 확인이 안 된다고
+ *   모든 과거 날짜에 경고를 띄우면 아무것도 알려주지 않으면서 시끄럽기만 하다.
+ */
+async function digestStale(d: DayDigest, strict: boolean): Promise<boolean> {
+  if (!d.sources) {
+    if (strict) return true
+    const builtMs = Date.parse(d.builtAt ?? '')
+    const complete = Number.isFinite(builtMs) && builtMs >= kstStartOfDayMs(d.date) + DAY_MS
+    return !complete
+  }
+  for (const src of d.sources) {
+    try {
+      const st = await stat(src.path)
+      if (st.mtimeMs !== src.mtimeMs) return true
+    } catch {
+      // 파일이 사라졌다. 같은 내용을 다시 만들 수 없으므로 낡음으로 보지 않는다.
+      // 낡음으로 보면 재스캔이 결과를 오히려 줄인다.
+    }
+  }
+  return false
 }
 
 export interface DigestOptions {
   /** 캐시를 무시하고 원본 로그를 다시 스캔한다 (사용자의 "새로고침") */
   force?: boolean
   /**
-   * 화면 표시용 조회. 캐시가 있으면 완결성과 무관하게 즉시 반환해 스캔 비용을 없앤다.
-   * 요약 생성 경로는 이 옵션을 쓰지 않으므로 정확성에는 영향이 없다.
+   * 화면 표시용 조회. 낡았어도 캐시를 그대로 준다. 대신 상태를 함께 알려
+   * 화면이 '원본이 바뀌었다'고 적을 수 있게 한다.
+   * 요약 생성 경로는 이 옵션을 쓰지 않는다.
    */
   preferCache?: boolean
 }
 
 /**
- * 날짜의 다이제스트를 확보한다.
- * 요약 생성 경로에서는 하루가 끝난 뒤 만들어진 캐시만 재사용한다. 자동 실행이
- * 18시에 만든 오늘치 다이제스트가 다음날 확정본으로 굳어 이후 활동이 누락되는 것을 막는다.
+ * 그 날의 원본 내역과 그 상태.
+ *
+ * - scanned: 방금 원본을 읽었다
+ * - cached: 캐시에서 왔고 소스 파일이 그대로다
+ * - stale: 캐시에서 왔는데 소스 파일이 그 뒤에 바뀌었다
+ *
+ * 판정 규칙이 여기 있으므로 여기서 답한다. 화면이 builtAt 을 보고 짐작하게 두면
+ * 규칙이 바뀔 때 조용히 어긋난다.
  */
-/**
- * 그 날의 원본 내역.
- *
- * cached 와 final 을 함께 준다. 판정 규칙(isComplete, 오늘 여부)이 여기 있으므로
- * 여기서 답한다. 화면이 builtAt 을 보고 짐작하게 두면 규칙이 바뀔 때 조용히 어긋난다.
- *
- * 둘은 다른 것을 말한다.
- * - cached: 원본을 읽지 않고 파일에서 꺼냈는가
- * - final: 그 날이 끝난 뒤에 만들어졌는가. 아니면 뒤에 쌓인 기록이 빠져 있다
- *
- * preferCache 는 완결성과 무관하게 캐시를 쓰므로(스캔 비용 회피) 오늘치는 몇 시간
- * 낡은 것이 나올 수 있다. 그것을 화면이 '캐싱됨'이라고만 적으면 확정본처럼 보인다.
- */
+export type DigestState = 'scanned' | 'cached' | 'stale'
+
 export async function ensureDayDigest(
   date: string,
   opts: DigestOptions = {}
-): Promise<{ digest: DayDigest; cached: boolean; final: boolean }> {
+): Promise<{ digest: DayDigest; state: DigestState }> {
   if (!opts.force) {
     const cachedDigest = await readJson<DayDigest>(dayDigestPath(date))
-    if (cachedDigest && (opts.preferCache || (date < todayKst() && isComplete(cachedDigest)))) {
-      return { digest: cachedDigest, cached: true, final: isComplete(cachedDigest) }
+    if (cachedDigest) {
+      // 화면 조회(preferCache)는 판정 불가를 낡음으로 보지 않는다. 요약 경로는 본다
+      const stale = await digestStale(cachedDigest, !opts.preferCache)
+      // 낡지 않았으면 어느 경로에서든 그대로 쓴다. 낡았으면 화면 조회만 그대로 준다
+      if (!stale) return { digest: cachedDigest, state: 'cached' }
+      if (opts.preferCache) return { digest: cachedDigest, state: 'stale' }
     }
   }
   const { digests } = await collectDigests(date, date, { excludeCwds: [claudeWorkdir()] })
   const digest = digests.get(date) ?? emptyDigest(date)
   await writeJsonAtomic(dayDigestPath(date), digest)
-  // 방금 읽었어도 오늘치는 확정이 아니다. 오늘은 아직 끝나지 않았다
-  return { digest, cached: false, final: isComplete(digest) }
+  return { digest, state: 'scanned' }
 }
 
 export async function getCachedDaySummary(date: string): Promise<DaySummary | null> {
@@ -215,6 +246,8 @@ async function generateDaySummary(
   date: string,
   opts: { force?: boolean; preCollected?: DayDigest }
 ): Promise<DaySummary> {
+  // preferCache 를 주지 않는다. 낡은 캐시면 다시 훑는다. 뒤에 claude 호출이 수십 초
+  // 붙으므로 2.5초 재스캔은 묻히고, 불완전한 데이터로 요약이 굳는 것이 훨씬 비싸다.
   const digest = opts.preCollected ?? (await ensureDayDigest(date)).digest
   if (opts.preCollected) await writeJsonAtomic(dayDigestPath(date), digest)
 
