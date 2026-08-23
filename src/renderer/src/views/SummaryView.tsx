@@ -411,8 +411,10 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
                 onClick={() => setOpenDate(open ? null : date)}
                 role="button"
               >
-                <strong>{shortDateKo(date)}</strong>
-                <span className="grow muted ellipsis">
+                <strong className="day-date">{shortDateKo(date)}</strong>
+                {/* 업무 내용이 이 줄의 본문이다. 예전에는 이것이 회색이고 날짜가 검은
+                    굵은 글씨여서 무게가 뒤집혀 있었다. 활동이 없는 날만 회색으로 둔다. */}
+                <span className={`grow ellipsis${s?.empty ? ' muted' : ''}`}>
                   {s?.empty ? '활동 없음' : (s?.headline ?? s?.fallbackText?.slice(0, 40) ?? '')}
                 </span>
                 {readingToday && date === today ? (
@@ -422,10 +424,13 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
                   // 요약이 이미 있는 날짜를 다시 만들 때도 진행이 보여야 한다.
                   // 예전에는 그 행이 'AI 요약됨'으로 남아, 다른 날짜가 왜 다 잠겼는지 알 수 없었다.
                   <span className="badge busy">생성 중</span>
+                ) : s?.empty ? (
+                  <span className="badge">없음</span>
                 ) : s ? (
-                  <span className={`badge${s.empty ? '' : ' on'}`}>
-                    {s.empty ? '없음' : 'AI 요약됨'}
-                  </span>
+                  // 요약이 있으면 배지를 달지 않는다. 모든 줄에 'AI 요약됨'이 붙어
+                  // 있으면 아무것도 구분해 주지 않으면서 시선만 먹는다. 요약이 있다는
+                  // 것은 왼쪽에 업무 내용이 적혀 있다는 사실로 이미 드러난다.
+                  null
                 ) : (
                   // 미요약 행에서 그 자리에서 생성을 실행한다.
                   // stopPropagation이 없으면 행 펼치기까지 함께 발동한다.
