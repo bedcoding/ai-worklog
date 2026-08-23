@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Settings } from '@shared/types'
 import { Spinner, Tip, errMsg, shortModel, shortVersion } from '../common'
 
@@ -28,21 +28,48 @@ type ClaudeState =
   | { kind: 'ok'; version: string; path: string; defaultModel: string | null }
   | { kind: 'error'; message: string }
 
+/** 자동 저장 상태. 저장이 눈에 보이지 않으면 값이 남았는지 알 방법이 없다 */
+type SaveState =
+  | { kind: 'idle' }
+  | { kind: 'saving' }
+  | { kind: 'saved' }
+  | { kind: 'error'; message: string }
+
+/**
+ * 타이핑은 매 글자를 디스크에 쓰지 않고 멈춘 뒤에 쓴다.
+ * 고르는 항목(select·checkbox)은 한 번의 동작으로 끝나므로 기다릴 이유가 없어 즉시 쓴다.
+ */
+const TYPING_DELAY = 500
+
 export default function SettingsView({ onSaved }: { onSaved?: () => void }): ReactNode {
   const [form, setForm] = useState<Settings | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [save, setSave] = useState<SaveState>({ kind: 'idle' })
   const [claude, setClaude] = useState<ClaudeState>({ kind: 'idle' })
   const [testing, setTesting] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** 디바운스가 끝나면 보낼 스냅샷 */
+  const queued = useRef<Settings | null>(null)
+  /**
+   * 저장을 한 줄로 세운다. 겹쳐 보내면 늦게 도착한 옛 스냅샷이 새 값을 덮는다.
+   * 매번 폼 전체를 보내므로 마지막에 보낸 것이 디스크의 진실이 되어야 한다.
+   */
+  const chain = useRef<Promise<void>>(Promise.resolve())
+  /** 마지막으로 OS에 반영한 자동 시작 값. 바뀔 때만 로그인 항목을 건드린다 */
+  const lastAuto = useRef<boolean | null>(null)
 
   useEffect(() => {
     let alive = true
     setLoadError(null)
     window.api
       .getSettings()
-      .then((s) => alive && setForm(s))
+      .then((s) => {
+        if (!alive) return
+        // 디스크에서 읽은 값을 기준선으로 둔다. 이후 이 값이 바뀔 때만 로그인 항목을 고친다
+        lastAuto.current = s.autoLaunch
+        setForm(s)
+      })
       // 실패를 삼키면 안 된다. 폼을 기본값으로 채우면 그 스냅샷이 그대로 저장돼
       // 실제 설정을 덮어쓴다. 폼을 아예 그리지 않고 재시도를 제공한다.
       .catch((e: unknown) => alive && setLoadError(errMsg(e)))
@@ -72,6 +99,14 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     }
   }, [])
 
+  // '저장됨'은 잠시 뒤 스스로 사라진다. 계속 띄워 두면 폼 아래를 영구히 가린다.
+  // 오류는 사용자가 조치해야 하므로 남긴다.
+  useEffect(() => {
+    if (save.kind !== 'saved') return
+    const t = setTimeout(() => setSave({ kind: 'idle' }), 2500)
+    return () => clearTimeout(t)
+  }, [save])
+
   if (loadError) {
     return (
       <div className="card">
@@ -86,22 +121,52 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
   }
   if (!form) return <Spinner label="설정을 불러오는 중…" />
 
-  const patch = (p: Partial<Settings>): void => {
-    setForm({ ...form, ...p })
-    setSaved(false)
+  const commit = (next: Settings): void => {
+    setSave({ kind: 'saving' })
+    chain.current = chain.current.then(async () => {
+      try {
+        await window.api.setSettings(next)
+        // 응답으로 폼을 덮지 않는다. 저장하는 동안 사용자가 더 고쳤으면 그것이 사라진다.
+        // 폼 전체를 보내므로 main이 되돌려주는 값은 방금 보낸 것과 같다.
+        if (lastAuto.current !== next.autoLaunch) {
+          lastAuto.current = next.autoLaunch
+          await window.api.setAutoLaunch(next.autoLaunch)
+        }
+        setSave({ kind: 'saved' })
+        onSaved?.()
+      } catch (e: unknown) {
+        setSave({ kind: 'error', message: errMsg(e) })
+      }
+    })
   }
 
-  const save = (): void => {
-    setError(null)
-    window.api
-      .setSettings(form)
-      .then((s) => {
-        setForm(s)
-        setSaved(true)
-        onSaved?.()
-        return window.api.setAutoLaunch(s.autoLaunch)
-      })
-      .catch((e: unknown) => setError(errMsg(e)))
+  /** 기다리던 저장을 지금 보낸다. 입력칸에서 포커스가 빠질 때도 부른다 */
+  const flush = (): void => {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+    const next = queued.current
+    queued.current = null
+    if (next) commit(next)
+  }
+
+  /**
+   * @param now 고르는 항목은 즉시 저장한다. 예전에는 폼 맨 아래 저장 버튼을 눌러야
+   *   했는데, 그 버튼이 프롬프트 입력칸 세 개 아래에 있어서 모델을 골라 놓고도
+   *   저장되지 않은 채 지나갔다.
+   */
+  const patch = (p: Partial<Settings>, now = false): void => {
+    const next = { ...form, ...p }
+    setForm(next)
+    queued.current = next
+    if (timer.current) clearTimeout(timer.current)
+    if (now) {
+      flush()
+      return
+    }
+    setSave({ kind: 'saving' })
+    timer.current = setTimeout(flush, TYPING_DELAY)
   }
 
   const testClaude = (): void => {
@@ -123,15 +188,17 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
   }
 
   const restorePrompts = (): void => {
-    void window.api.getDefaultPrompts().then((prompts) => patch({ prompts }))
+    // 버튼 한 번으로 끝나는 동작이라 기다릴 이유가 없다
+    void window.api.getDefaultPrompts().then((prompts) => patch({ prompts }, true))
   }
 
   return (
     <form
       className="settings"
       onSubmit={(e) => {
+        // 입력칸에서 Enter 를 누르면 기본 동작이 폼 제출이다. 기다리던 저장을 지금 보낸다
         e.preventDefault()
-        save()
+        flush()
       }}
     >
       {/* 트레이 앱은 켜져 있어야 아래의 매일 자동 요약이 돈다. 그 전제를 맨 위에 둔다 */}
@@ -140,7 +207,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           <input
             type="checkbox"
             checked={form.autoLaunch}
-            onChange={(e) => patch({ autoLaunch: e.target.checked })}
+            onChange={(e) => patch({ autoLaunch: e.target.checked }, true)}
           />
           로그인 시 앱 자동 시작
           <Hint text={'꺼두면 앱을 직접 실행한 동안에만\n자동 요약이 동작합니다.'} />
@@ -190,6 +257,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
                 : '예: ~/.local/bin/claude'
             }
             onChange={(e) => patch({ claudePath: e.target.value.trim() || null })}
+            onBlur={flush}
           />
         </label>
         {/* 실패 사유는 길어서 머리에 못 넣는다. 원인이 위 입력칸이므로 그 아래에 붙인다 */}
@@ -219,7 +287,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           </span>
           <select
             value={form.model}
-            onChange={(e) => patch({ model: e.target.value as Settings['model'] })}
+            onChange={(e) => patch({ model: e.target.value as Settings['model'] }, true)}
           >
             {/* '기본'이 실제로 무엇인지 적어 둔다. 이것을 몰라 Fable 5로 요약되는 줄
                 모르고 지낼 수 있다. 읽지 못했으면 이름 없이 둔다. */}
@@ -243,7 +311,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             매일 자동 요약
             <select
               value={form.dailyAuto}
-              onChange={(e) => patch({ dailyAuto: e.target.value as Settings['dailyAuto'] })}
+              onChange={(e) => patch({ dailyAuto: e.target.value as Settings['dailyAuto'] }, true)}
             >
               <option value="off">끄기</option>
               <option value="confirm">물어보고 실행</option>
@@ -256,6 +324,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
               type="time"
               value={form.dailyTime}
               onChange={(e) => patch({ dailyTime: e.target.value })}
+              onBlur={flush}
             />
           </label>
         </div>
@@ -274,6 +343,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             min={0}
             value={form.retentionMonths}
             onChange={(e) => patch({ retentionMonths: Math.max(0, Number(e.target.value) || 0) })}
+            onBlur={flush}
           />
         </label>
       </div>
@@ -297,6 +367,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           <textarea
             value={form.prompts.day}
             onChange={(e) => patch({ prompts: { ...form.prompts, day: e.target.value } })}
+            onBlur={flush}
           />
         </label>
         {/* 기간 요약은 두 번 부른다. 한 줄은 날짜별 헤드라인만, 상세는 날짜별 항목만
@@ -308,6 +379,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             onChange={(e) =>
               patch({ prompts: { ...form.prompts, periodOverview: e.target.value } })
             }
+            onBlur={flush}
           />
         </label>
         <label>
@@ -315,14 +387,31 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           <textarea
             value={form.prompts.periodDetail}
             onChange={(e) => patch({ prompts: { ...form.prompts, periodDetail: e.target.value } })}
+            onBlur={flush}
           />
         </label>
       </div>
 
-      {error && <div className="error">{error}</div>}
-      <button type="submit" className="btn primary">
-        {saved ? '저장됨 ✓' : '설정 저장'}
-      </button>
+      {/* 자동 저장은 눈에 보이지 않으면 저장됐는지 알 수 없다. 스크롤 위치와 무관하게
+          보이도록 sticky 로 띄운다. 예전의 저장 버튼은 프롬프트 입력칸 세 개 아래에
+          있어서, 위에서 모델을 고르고도 저장하지 못한 채 지나갔다.
+
+          다만 이것은 아래 내용을 덮으므로 평상시에는 아예 없다. */}
+      {save.kind !== 'idle' && (
+        <div className={`save-state${save.kind === 'error' ? ' wide' : ''}`} role="status">
+          {save.kind === 'error' ? (
+            <>
+              <span className="error grow">{save.message}</span>
+              {/* 폼에 있는 값이 사용자가 원하는 값이므로 그것을 다시 보낸다 */}
+              <button type="button" className="btn" onClick={() => commit(form)}>
+                다시 시도
+              </button>
+            </>
+          ) : (
+            <span className="muted">{save.kind === 'saving' ? '저장 중…' : '저장됨 ✓'}</span>
+          )}
+        </div>
+      )}
     </form>
   )
 }
