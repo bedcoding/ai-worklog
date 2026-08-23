@@ -47,6 +47,11 @@ export function daysOfMonth(ym: string): string[] {
   return Array.from({ length: last }, (_, i) => `${ym}-${pad(i + 1)}`)
 }
 
+/** 오늘의 KST 날짜 */
+export function todayKst(): string {
+  return kstDateOf(Date.now())
+}
+
 export function addDays(date: string, n: number): string {
   return kstDateOf(kstStartOfDayMs(date) + n * DAY_MS)
 }

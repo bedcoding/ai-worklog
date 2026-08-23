@@ -85,6 +85,7 @@ async function cleanupStaleTmp(): Promise<void> {
   // Electron/Chromium 자체 캐시 디렉토리까지 훑게 되므로 하지 않는다.
   await sweep(cacheRoot())
   await sweep(join(cacheRoot(), 'periods'))
+  await sweep(join(cacheRoot(), 'activity'))
   let months: string[]
   try {
     months = await readdir(daysRoot())

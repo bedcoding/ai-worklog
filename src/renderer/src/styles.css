@@ -452,6 +452,15 @@ form.settings textarea {
   min-height: 110px;
   resize: vertical;
 }
+/* 활동일 목록의 출처 표시. 목록 위에 얇게 둔다 */
+.card.cache-note {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
