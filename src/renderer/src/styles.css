@@ -367,6 +367,19 @@ button.btn.steady {
   color: var(--accent);
   border-color: var(--accent);
 }
+/*
+ * 기간 요약 카드. 위의 날짜 목록 카드와 색을 달리한다.
+ *
+ * 목록은 재료고 이것은 결과물인데, 둘 다 흰 카드에 같은 테두리라 무게가 같아 보였다.
+ * accent 를 옅게 섞어 라이트에서 #f4f6fe(흰색보다 R 이 11 낮다), 다크에서 #252a36
+ * (카드보다 밝고 푸르다) 이 된다. 테두리는 더 진하게 섞어 경계를 확실히 만든다.
+ * 본문 글자색은 건드리지 않는다. 읽고 복사하는 글이다.
+ */
+.card.period {
+  background: color-mix(in srgb, var(--accent) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
 /* 기간 요약의 제목·내용 두 덩이. 각자 버튼을 갖고 따로 만들어지므로 선으로 가른다.
    첫 덩이에는 위쪽 선을 두지 않는다. 카드 머리(h3) 바로 아래라 선이 겹쳐 보인다. */
 .period-part {
