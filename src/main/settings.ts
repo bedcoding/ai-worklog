@@ -6,6 +6,7 @@ import { DEFAULT_PROMPTS } from './prompts'
 export const DEFAULT_SETTINGS: Settings = {
   claudePath: null,
   model: 'default',
+  span: 'week',
   autoLaunch: false,
   dailyAuto: 'off',
   dailyTime: '18:00',
