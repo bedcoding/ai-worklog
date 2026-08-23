@@ -190,6 +190,32 @@ button.btn.row-action {
 button.btn.steady {
   min-width: 82px;
 }
+/* 도는 원. 진행 중이라는 것을 글자 없이 알린다.
+   라벨마다 '…'을 붙이면 그만큼 폭을 더 먹는데, 정작 멈춰 있어서 도는 중인지는
+   알려주지 못한다. 폭은 고정 10px 이고 움직이는 쪽이 이 일을 한다.
+   currentColor 를 쓰므로 muted 줄에서도 error 줄에서도 그 줄의 색을 따른다. */
+.spin {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  /* 글자 기준선에 맞춘다. 없으면 원이 한 픽셀 떠 보인다 */
+  vertical-align: -1px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* 움직임을 줄이도록 설정한 환경에서는 테두리 링만 남긴다 */
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
 .muted {
   color: var(--muted);
   font-size: 12px;
@@ -451,15 +477,6 @@ form.settings textarea {
   line-height: 1.5;
   min-height: 110px;
   resize: vertical;
-}
-/* 활동일 목록의 출처 표시. 목록 위에 얇게 둔다 */
-.card.cache-note {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  font-size: 11px;
 }
 .grid2 {
   display: grid;

@@ -73,20 +73,34 @@ export interface DigestOptions {
  * 요약 생성 경로에서는 하루가 끝난 뒤 만들어진 캐시만 재사용한다. 자동 실행이
  * 18시에 만든 오늘치 다이제스트가 다음날 확정본으로 굳어 이후 활동이 누락되는 것을 막는다.
  */
+/**
+ * 그 날의 원본 내역.
+ *
+ * cached 와 final 을 함께 준다. 판정 규칙(isComplete, 오늘 여부)이 여기 있으므로
+ * 여기서 답한다. 화면이 builtAt 을 보고 짐작하게 두면 규칙이 바뀔 때 조용히 어긋난다.
+ *
+ * 둘은 다른 것을 말한다.
+ * - cached: 원본을 읽지 않고 파일에서 꺼냈는가
+ * - final: 그 날이 끝난 뒤에 만들어졌는가. 아니면 뒤에 쌓인 기록이 빠져 있다
+ *
+ * preferCache 는 완결성과 무관하게 캐시를 쓰므로(스캔 비용 회피) 오늘치는 몇 시간
+ * 낡은 것이 나올 수 있다. 그것을 화면이 '캐싱됨'이라고만 적으면 확정본처럼 보인다.
+ */
 export async function ensureDayDigest(
   date: string,
   opts: DigestOptions = {}
-): Promise<DayDigest> {
+): Promise<{ digest: DayDigest; cached: boolean; final: boolean }> {
   if (!opts.force) {
     const cachedDigest = await readJson<DayDigest>(dayDigestPath(date))
     if (cachedDigest && (opts.preferCache || (date < todayKst() && isComplete(cachedDigest)))) {
-      return cachedDigest
+      return { digest: cachedDigest, cached: true, final: isComplete(cachedDigest) }
     }
   }
   const { digests } = await collectDigests(date, date, { excludeCwds: [claudeWorkdir()] })
   const digest = digests.get(date) ?? emptyDigest(date)
   await writeJsonAtomic(dayDigestPath(date), digest)
-  return digest
+  // 방금 읽었어도 오늘치는 확정이 아니다. 오늘은 아직 끝나지 않았다
+  return { digest, cached: false, final: isComplete(digest) }
 }
 
 export async function getCachedDaySummary(date: string): Promise<DaySummary | null> {
@@ -105,22 +119,22 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
  * 구간의 활동 현황. 다이제스트를 만들지 않는 싼 길을 쓴다.
  * 이것은 화면을 열 때마다, 구간을 옮길 때마다 도는 경로다.
  *
- * @param refresh 저장된 활동 인덱스를 무시하고 원본 로그를 다시 훑는다
+ * @param opts 활동 인덱스 사용 방식. activeDatesInRange 로 그대로 넘긴다
  */
 export async function getRangeStatus(
   start: string,
   end: string,
-  refresh = false
+  opts: { refresh?: boolean; indexOnly?: boolean } = {}
 ): Promise<{ status: RangeStatus; cache: ActivityCache }> {
   const today = todayKst()
   const endClamped = end > today ? today : end
   if (start > endClamped) {
     return {
       status: { start, end: endClamped, activeDays: [], summarizedDays: [] },
-      cache: { cachedDays: 0, scannedDays: 0, builtAt: null }
+      cache: { cachedDays: 0, scannedDays: 0, pendingDays: 0, builtAt: null }
     }
   }
-  const { dates, cache } = await activeDatesInRange(start, endClamped, { refresh })
+  const { dates, cache } = await activeDatesInRange(start, endClamped, opts)
   const summarizedDays: string[] = []
   for (const d of dates) {
     if (await getCachedDaySummary(d)) summarizedDays.push(d)
@@ -201,7 +215,7 @@ async function generateDaySummary(
   date: string,
   opts: { force?: boolean; preCollected?: DayDigest }
 ): Promise<DaySummary> {
-  const digest = opts.preCollected ?? (await ensureDayDigest(date))
+  const digest = opts.preCollected ?? (await ensureDayDigest(date)).digest
   if (opts.preCollected) await writeJsonAtomic(dayDigestPath(date), digest)
 
   const hash = digestHash(digest)

@@ -175,6 +175,12 @@ export interface ActivityCache {
   cachedDays: number
   /** 이번에 원본 로그를 훑어 판정한 날짜 수 (오늘은 늘 여기 든다) */
   scannedDays: number
+  /**
+   * 아직 판정하지 않고 넘긴 날짜 수.
+   * 화면이 목록을 먼저 그리는 1차 조회에서만 0이 아니다. 0이 아니면 뒤이어
+   * 2차 조회가 와야 목록이 완성된다.
+   */
+  pendingDays: number
   /** 쓴 인덱스 중 가장 오래된 것을 만든 시각 (ISO). 인덱스를 안 썼으면 null */
   builtAt: string | null
 }
@@ -255,11 +261,14 @@ export interface WorklogApi {
   detectClaude(): Promise<ClaudeInfo>
   testClaude(path: string): Promise<ClaudeInfo>
   /** 구간의 날짜별 요약 목록 (캐시만 조회, 생성 안 함) + 활동 여부 */
-  /** @param refresh 저장된 활동 인덱스를 무시하고 원본 로그를 다시 훑는다 */
+  /**
+   * @param opts.indexOnly 원본을 읽지 않고 아는 것만 즉시 준다. 목록을 먼저 그리고
+   *   오늘치만 뒤이어 채우기 위한 1차 조회다.
+   */
   listRange(
     start: string,
     end: string,
-    refresh?: boolean
+    opts?: { indexOnly?: boolean }
   ): Promise<{ status: RangeStatus; summaries: DaySummary[]; cache: ActivityCache }>
   /**
    * 구간의 미요약 활동일을 하나씩 순차 생성한다. 조합은 하지 않는다.
@@ -271,8 +280,15 @@ export interface WorklogApi {
   /**
    * 원본 추출 내역. AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0).
    * 기본은 캐시 우선이며, force=true면 원본 로그를 다시 스캔한다.
+   *
+   * cached 는 원본을 읽지 않고 파일에서 꺼냈는지, final 은 그 날이 끝난 뒤에
+   * 만들어졌는지다. final 이 아니면 뒤에 쌓인 기록이 빠져 있다.
+   * 화면이 builtAt 을 보고 짐작하면 main 의 판정 규칙이 바뀔 때 조용히 어긋난다.
    */
-  getDayDigest(date: string, force?: boolean): Promise<DayDigest>
+  getDayDigest(
+    date: string,
+    force?: boolean
+  ): Promise<{ digest: DayDigest; cached: boolean; final: boolean }>
   getPeriod(key: string): Promise<PeriodSummary | null>
   /** 주간/월간 요약 생성. 구간의 모든 활동일이 요약돼 있어야 한다 (claude 1회) */
   generatePeriod(req: PeriodRequest, part: PeriodPartKind): Promise<PeriodSummary>

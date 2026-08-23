@@ -86,13 +86,15 @@ export interface ActiveDates {
  *
  * @param opts.refresh 인덱스를 무시하고 원본 로그를 다시 훑는다
  * @param opts.claudeDir 원본 로그 위치. 테스트에서 실제 ~/.claude 를 읽지 않도록 둔다
+ * @param opts.indexOnly 원본을 전혀 읽지 않고 아는 것만 준다. 화면이 먼저 목록을
+ *   그리고 오늘치만 뒤이어 채우도록, 이 호출은 늘 즉시 끝나야 한다.
  */
 export async function activeDatesInRange(
   start: string,
   end: string,
-  opts: { refresh?: boolean; claudeDir?: string } = {}
+  opts: { refresh?: boolean; claudeDir?: string; indexOnly?: boolean } = {}
 ): Promise<ActiveDates> {
-  const { refresh = false, claudeDir } = opts
+  const { refresh = false, claudeDir, indexOnly = false } = opts
   const scanOpts = { excludeCwds: [claudeWorkdir()], ...(claudeDir ? { claudeDir } : {}) }
   const today = todayKst()
   const active = new Set<string>()
@@ -119,7 +121,7 @@ export async function activeDatesInRange(
   // 모르는 날짜가 하나라도 있으면 그 전체 구간을 한 번에 훑는다. 하루만 훑어도
   // 값이 같다(mtime 필터가 파일 단위라 구간을 좁혀도 읽는 파일이 줄지 않는다).
   let scanned = 0
-  if (unknown.length > 0) {
+  if (unknown.length > 0 && !indexOnly) {
     const from = unknown[0]
     const to = unknown[unknown.length - 1]
     const { digests } = await collectDigests(from, to, scanOpts)
@@ -136,7 +138,7 @@ export async function activeDatesInRange(
   }
 
   // 오늘은 아직 끝나지 않았으므로 절대 저장하지 않고 매번 읽는다
-  if (end >= today && start <= today) {
+  if (!indexOnly && end >= today && start <= today) {
     const { digests } = await collectDigests(today, today, scanOpts)
     const dg = digests.get(today)
     if (dg && isActiveDigest(dg)) active.add(today)
@@ -151,9 +153,11 @@ export async function activeDatesInRange(
     }
   }
 
+  // indexOnly 로 그냥 넘긴 것들. 이 수가 0 이 아니면 화면은 아직 완성이 아니다
+  const pending = indexOnly ? unknown.length + (end >= today && start <= today ? 1 : 0) : 0
   return {
     dates: [...active].sort(),
-    cache: { cachedDays: fromCache, scannedDays: scanned, builtAt }
+    cache: { cachedDays: fromCache, scannedDays: scanned, pendingDays: pending, builtAt }
   }
 }
 

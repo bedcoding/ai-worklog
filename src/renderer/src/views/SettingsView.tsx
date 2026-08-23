@@ -119,7 +119,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       </div>
     )
   }
-  if (!form) return <Spinner label="설정을 불러오는 중…" />
+  if (!form) return <Spinner label="설정을 불러오는 중" />
 
   const commit = (next: Settings): void => {
     setSave({ kind: 'saving' })
@@ -238,7 +238,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
               disabled={testing}
               onClick={testClaude}
             >
-              {testing ? '확인 중…' : '연결 테스트'}
+              {testing ? '확인 중' : '연결 테스트'}
               {/* 한 줄이 말풍선 폭(270px)을 넘으면 자동으로 한 번 더 접힌다.
                   줄을 짧게 끊어 두면 의도한 곳에서만 나뉜다. */}
               <Tip
@@ -412,7 +412,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
               </button>
             </>
           ) : (
-            <span className="muted">{save.kind === 'saving' ? '저장 중…' : '저장됨 ✓'}</span>
+            <span className="muted">{save.kind === 'saving' ? '저장 중' : '저장됨 ✓'}</span>
           )}
         </div>
       )}
