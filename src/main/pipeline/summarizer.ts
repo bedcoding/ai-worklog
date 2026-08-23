@@ -13,7 +13,6 @@ import { renderTemplate } from '../prompts'
 import { getSettings } from '../settings'
 import {
   todayKst,
-  kstStartOfDayMs,
   monthRange,
   shortDateKo,
   weekRange,
@@ -51,11 +50,8 @@ function emptyDigest(date: string): DayDigest {
   return buildDigest({ date, projects: new Map(), sources: new Map() }, 0)
 }
 
-const DAY_MS = 86400_000
-
-/** 그 날이 끝난 뒤에 만들어진 다이제스트만 확정본으로 신뢰한다 */
 /**
- * 다이제스트를 만든 뒤 그 소스 파일이 바뀌었는지.
+ * 캐시를 그대로 써도 되는지. 읽은 소스 파일이 하나도 바뀌지 않았을 때만 참이다.
  *
  * '하루가 끝난 뒤에 만들었으면 확정'은 사실이 아니었다. 여러 날에 걸치는 긴 세션의
  * 로그 파일에는 옛 날짜 타임스탬프를 가진 레코드가 나중에 덧붙는다. 실측: 8/22
@@ -63,56 +59,42 @@ const DAY_MS = 86400_000
  * 8/23 레코드보다 뒤에 적힌 8/22 레코드가 1380개였다.
  *
  * 그래서 시각이 아니라 파일을 본다. 소스 파일 몇 개 stat 이라 1ms 도 안 걸린다.
- * (전체 546개 stat 이 40ms, 원본 파싱은 하루치 280ms)
- *
- * sources 가 없는 옛 캐시는 판정할 수 없다. 그때 어떻게 할지는 쓰는 쪽에 달렸다.
- *
- * @param strict 판정할 수 없으면 낡음으로 본다. 요약 생성 경로가 이것을 쓴다.
- *   불완전한 데이터로 요약이 굳는 것이 2.5초 재스캔보다 훨씬 비싸고, 뒤에 claude
- *   호출이 수십 초 붙으므로 그 값도 묻힌다. 화면 조회는 반대다. 확인이 안 된다고
- *   모든 과거 날짜에 경고를 띄우면 아무것도 알려주지 않으면서 시끄럽기만 하다.
+ * sources 가 없는 옛 캐시는 판정할 수 없으므로 쓰지 않는다. 한 번 다시 읽으면
+ * sources 가 붙어 그 뒤로는 이 검사만으로 끝난다.
  */
-async function digestStale(d: DayDigest, strict: boolean): Promise<boolean> {
-  if (!d.sources) {
-    if (strict) return true
-    const builtMs = Date.parse(d.builtAt ?? '')
-    const complete = Number.isFinite(builtMs) && builtMs >= kstStartOfDayMs(d.date) + DAY_MS
-    return !complete
-  }
+async function digestUsable(d: DayDigest): Promise<boolean> {
+  if (!d.sources) return false
   for (const src of d.sources) {
     try {
       const st = await stat(src.path)
-      if (st.mtimeMs !== src.mtimeMs) return true
+      if (st.mtimeMs !== src.mtimeMs) return false
     } catch {
-      // 파일이 사라졌다. 같은 내용을 다시 만들 수 없으므로 낡음으로 보지 않는다.
-      // 낡음으로 보면 재스캔이 결과를 오히려 줄인다.
+      // 파일이 사라졌다. 다시 읽으면 결과가 오히려 줄어들므로 캐시를 그대로 쓴다.
+      // Claude Code 가 자체 보존 기간에 따라 옛 로그를 지운 경우다.
     }
   }
-  return false
+  return true
 }
 
 export interface DigestOptions {
   /** 캐시를 무시하고 원본 로그를 다시 스캔한다 (사용자의 "새로고침") */
   force?: boolean
-  /**
-   * 화면 표시용 조회. 낡았어도 캐시를 그대로 준다. 대신 상태를 함께 알려
-   * 화면이 '원본이 바뀌었다'고 적을 수 있게 한다.
-   * 요약 생성 경로는 이 옵션을 쓰지 않는다.
-   */
-  preferCache?: boolean
+  /** 원본 로그 위치. 테스트에서 실제 ~/.claude(500MB)를 읽지 않도록 둔다 */
+  claudeDir?: string
 }
 
 /**
- * 그 날의 원본 내역과 그 상태.
+ * 그 날의 원본 내역과 그 출처.
  *
- * - scanned: 방금 원본을 읽었다
- * - cached: 캐시에서 왔고 소스 파일이 그대로다
- * - stale: 캐시에서 왔는데 소스 파일이 그 뒤에 바뀌었다
+ * - cached: 읽은 소스 파일이 그대로여서 캐시를 썼다. 다시 읽어도 같다
+ * - scanned: 그렇지 않아 방금 원본을 읽었다
  *
- * 판정 규칙이 여기 있으므로 여기서 답한다. 화면이 builtAt 을 보고 짐작하게 두면
- * 규칙이 바뀔 때 조용히 어긋난다.
+ * 낡은 것을 화면에 주고 사용자가 '새로고침'을 누르게 두지 않는다. 낡음을 정확히
+ * 알 수 있으면 그 자리에서 다시 읽는 것이 맞다. 비용은 그 날짜를 처음 펼칠 때
+ * 한 번뿐이고(렌더러가 메모리에 들고 있다), 다시 읽으면 sources 가 붙어 그 뒤로는
+ * stat 몇 번으로 끝난다.
  */
-export type DigestState = 'scanned' | 'cached' | 'stale'
+export type DigestState = 'scanned' | 'cached'
 
 export async function ensureDayDigest(
   date: string,
@@ -120,15 +102,14 @@ export async function ensureDayDigest(
 ): Promise<{ digest: DayDigest; state: DigestState }> {
   if (!opts.force) {
     const cachedDigest = await readJson<DayDigest>(dayDigestPath(date))
-    if (cachedDigest) {
-      // 화면 조회(preferCache)는 판정 불가를 낡음으로 보지 않는다. 요약 경로는 본다
-      const stale = await digestStale(cachedDigest, !opts.preferCache)
-      // 낡지 않았으면 어느 경로에서든 그대로 쓴다. 낡았으면 화면 조회만 그대로 준다
-      if (!stale) return { digest: cachedDigest, state: 'cached' }
-      if (opts.preferCache) return { digest: cachedDigest, state: 'stale' }
+    if (cachedDigest && (await digestUsable(cachedDigest))) {
+      return { digest: cachedDigest, state: 'cached' }
     }
   }
-  const { digests } = await collectDigests(date, date, { excludeCwds: [claudeWorkdir()] })
+  const { digests } = await collectDigests(date, date, {
+    excludeCwds: [claudeWorkdir()],
+    ...(opts.claudeDir ? { claudeDir: opts.claudeDir } : {})
+  })
   const digest = digests.get(date) ?? emptyDigest(date)
   await writeJsonAtomic(dayDigestPath(date), digest)
   return { digest, state: 'scanned' }
