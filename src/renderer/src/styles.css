@@ -277,19 +277,51 @@ button.btn.steady {
   color: var(--accent);
   font-size: 12px;
 }
-.day-item {
+/* 첫 행 위에는 선을 두지 않는다. 카드 머리와 겹쳐 보인다 */
+.day-item:first-of-type > .day-head {
+  border-top: none;
+}
+/*
+ * 날짜 행을 누르는 요소. 여백과 경계선까지 이 요소가 가져간다.
+ *
+ * 전에는 바깥 .day-item 이 padding 과 cursor: pointer 를 갖고 onClick 은 안쪽 행에만
+ * 있었다. 그래서 위아래 8px 씩(행 사이 16px)과 경계선 위에서 손가락 커서가 뜨는데
+ * 눌러도 펼쳐지지 않았다. 커서가 거짓말을 하면 고장난 것으로 읽힌다.
+ * 경계선도 바깥에 두면 그 1px(175% 배율에서 2물리px)만 핸들러 밖으로 남는다.
+ */
+.day-head {
   border-top: 1px solid var(--border);
-  padding: 8px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  /* 카드 좌우 padding(12px) 만큼 밖으로 빼서 카드 안쪽 끝까지 차지한다.
+     그러지 않으면 좌우 12px 띠가 강조도 안 되고 클릭도 안 되는 죽은 구간으로 남는다.
+     padding 을 12 + 2 로 주어 글자 위치는 그대로 둔다. */
+  margin: 0 -12px;
+  padding: 8px 14px;
   cursor: pointer;
 }
-.day-item:first-of-type {
-  border-top: none;
+/*
+ * 어디까지가 눌리는 범위인지 보이게 한다. 커서 모양만으로는 경계를 알 수 없다.
+ *
+ * --bg 를 쓰지 않는다. 흰 카드 위에서 #f6f7f9 는 채널당 9/255 차이라 사실상 안 보인다.
+ * accent 를 10% 섞으면 라이트에서 #edf0fe(R 이 18 낮다)로 눈에 걸리고, 다크에서도
+ * 카드보다 밝아진다. 파란 기가 도는 쪽이 '눌리는 것'으로 읽히고, 이 앱은 이미
+ * 상호작용 강조에 accent 를 쓴다.
+ *
+ * transition 을 걸지 않는다. 지연 없이 즉시 바뀌어야 범위를 훑어볼 수 있다.
+ */
+.day-head:hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
 }
 /* 펼친 상세는 날짜 행에 그대로 붙어 있어 어디까지가 그 날짜의 내용인지 보이지 않는다.
    배경 톤 + 테두리로 한 덩어리로 묶는다. 다크에서는 --bg가 --card보다 어두워
    톤 관계가 뒤집히지만 여전히 가라앉은 패널로 읽힌다. 어느 테마에서도 분리는 유지된다. */
 .day-detail {
-  margin-top: 8px;
+  /* .day-item 의 padding 을 .day-head 로 옮겼으므로 아래 여백과 좌우 정렬을 여기서 낸다.
+     결과 간격은 전과 같다: 경계선 8px 행 8px 상세 8px 경계선 */
+  margin: 0 2px 8px;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -297,8 +329,6 @@ button.btn.steady {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* .day-item이 cursor: pointer라 상세 안쪽까지 손가락 커서가 된다. 여기는 접기 대상이 아니다 */
-  cursor: default;
 }
 /* 키워드·모델·생성시각은 업무 내용이 아니라 그 요약에 대한 정보다 */
 .day-detail .detail-foot {

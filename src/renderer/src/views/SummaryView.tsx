@@ -399,7 +399,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           return (
             <div key={date} id={`day-${date}`} className="day-item">
               <div
-                className="row spread"
+                className="day-head"
                 onClick={() => setOpenDate(open ? null : date)}
                 role="button"
               >
