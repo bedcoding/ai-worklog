@@ -215,19 +215,25 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
     return () => window.removeEventListener('focus', refreshToday)
   }, [])
 
-  const loadDigest = useCallback(
-    (date: string, force = false): void => {
-      if (!force && digests.has(date)) return
-      setDigestBusy(date)
-      setDigestErr(null)
-      window.api
-        .getDayDigest(date, force)
-        .then((r) => setDigests((prev) => new Map(prev).set(date, r)))
-        .catch((e: unknown) => setDigestErr(errMsg(e)))
-        .finally(() => setDigestBusy(null))
-    },
-    [digests]
-  )
+  /**
+   * 원본 내역을 확보한다. 판단은 main 이 한다.
+   *
+   * 렌더러가 들고 있는 것으로 '이미 읽었으니 건너뛴다'를 정하지 않는다. 그러면 세션
+   * 도중에 소스 로그가 바뀐 것을 놓친다. 지금 이 대화처럼 며칠에 걸치는 세션의 파일은
+   * 계속 자라서 어제 날짜의 내용도 늘어난다.
+   *
+   * 매번 물어도 싸다. 소스가 그대로면 main 이 stat 몇 번(1ms 미만)으로 끝내고,
+   * 바뀌었을 때만 실제로 훑는다.
+   */
+  const loadDigest = useCallback((date: string, force = false): void => {
+    setDigestBusy(date)
+    setDigestErr(null)
+    window.api
+      .getDayDigest(date, force)
+      .then((r) => setDigests((prev) => new Map(prev).set(date, r)))
+      .catch((e: unknown) => setDigestErr(errMsg(e)))
+      .finally(() => setDigestBusy(null))
+  }, [])
 
   const generateDay = (date: string, force?: boolean): void => {
     setBusyDate(date)
@@ -641,10 +647,19 @@ function DayDetail({
     if (hasAi) setSub('ai')
   }, [hasAi])
 
-  // 원본 탭을 처음 열 때만 읽는다. 이미 읽어둔 날짜는 상위 캐시에서 즉시 표시된다
+  /**
+   * 행을 펼치는 순간 원본 내역을 확보한다.
+   *
+   * 원본 탭을 누를 때까지 기다리면, 소스 로그가 바뀐 날짜는 그 탭을 누른 뒤에야
+   * 갱신돼 낡은 것을 한 번 보게 된다. AI 요약은 이미 화면에 있으므로 이 읽기가
+   * 보이는 것을 늦추지 않는다. 토큰도 쓰지 않는다.
+   *
+   * deps 를 비워 펼칠 때 한 번만 부른다. DayDetail 은 접으면 언마운트되므로
+   * 다시 펼치면 다시 부른다. 그때 바뀐 것이 있으면 그때 갱신된다.
+   */
   useEffect(() => {
-    if (sub === 'raw' && !digest && !digestBusy) onLoadDigest()
-  }, [sub, digest, digestBusy, onLoadDigest])
+    onLoadDigest()
+  }, [])
 
   // 화면에 보이는 것과 복사되는 것이 같아야 한다. 키워드가 빠지면 그 줄은
   // 선택도 복사도 안 되는 죽은 텍스트가 된다
