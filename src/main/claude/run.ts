@@ -22,6 +22,12 @@ export interface ClaudeRunOptions {
   model: ModelChoice
   /** claude 실행 cwd. 로그 자기오염 방지를 위해 전용 디렉토리를 쓴다 */
   cwd: string
+  /**
+   * CLI 설정에 박힌 기본 모델명 (예: claude-fable-5).
+   * model 이 'default' 면 --model 을 주지 않으므로 응답에서 어느 것이 본 모델인지
+   * 가릴 단서가 이것뿐이다. 읽지 못했으면 넘기지 않는다.
+   */
+  defaultModelName?: string | null
   timeoutMs?: number
   /**
    * 넘기면 stream-json으로 실행해 글이 만들어지는 대로 조각을 보낸다.
@@ -52,10 +58,43 @@ export interface RunResult {
   model: string | null
 }
 
-/** modelUsage 의 첫 키가 실제 응답 모델이다. 없으면 null */
-function modelOf(envelope: { modelUsage?: Record<string, unknown> }): string | null {
+/**
+ * 요약을 실제로 쓴 모델의 이름.
+ *
+ * modelUsage 는 이 실행에서 쓴 '모든' 모델의 사용량이다. CLI 가 보조 호출을 haiku 로
+ * 돌리므로 키가 둘 이상 오고, 첫 키가 그 보조 모델일 수 있다.
+ * (--model sonnet 실측: claude-haiku-4-5-20251001 과 claude-sonnet-5 두 개가 오고
+ *  첫 키가 haiku 였다. 그래서 소넷으로 만든 요약에 haiku-4.5 가 찍혔다.)
+ *
+ * 출력 토큰이 가장 많은 키를 고르는 방법은 쓸 수 없다. 짧은 답에서는 보조 호출이
+ * 본 답보다 더 많이 낸다 (같은 실측에서 haiku 16, sonnet 3).
+ *
+ * 그래서 우리가 요청한 이름과 맞는 키를 고른다. 가릴 수 없으면 null 을 준다.
+ * 틀린 이름을 적는 것은 아무 이름도 적지 않는 것보다 나쁘다.
+ *
+ * @param want 요청한 모델명 조각. 별칭('sonnet') 이거나 CLI 기본 모델명('claude-fable-5')
+ */
+export function modelOf(
+  envelope: { modelUsage?: Record<string, unknown> },
+  want?: string | null
+): string | null {
   const names = Object.keys(envelope.modelUsage ?? {})
-  return names.length > 0 ? names[0] : null
+  if (names.length === 0) return null
+  // 하나뿐이면 보조 호출이 없었다는 뜻이므로 그것이 답이다
+  if (names.length === 1) return names[0]
+  if (!want) return null
+  return names.find((n) => n.includes(want)) ?? null
+}
+
+/**
+ * 응답의 modelUsage 에서 본 모델을 가려낼 단서.
+ * 별칭을 줬으면 그것으로, 기본으로 뒀으면 CLI 설정의 모델명으로 맞춘다.
+ * 모델명 키에는 [1m] 같은 꼬리표가 없으므로 뗀다.
+ */
+export function wantedModel(model: ModelChoice, defaultModelName?: string | null): string | null {
+  if (model !== 'default') return model
+  const base = defaultModelName?.replace(/\[[^\]]*\]$/, '').trim()
+  return base ? base : null
 }
 
 /** stream-json이 한 줄에 하나씩 내보내는 이벤트. 쓰는 것만 적는다 */
@@ -196,6 +235,8 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
     : ['-p', '--output-format', 'json', '--no-session-persistence']
   if (opts.model !== 'default') args.push('--model', opts.model)
 
+  const want = wantedModel(opts.model, opts.defaultModelName)
+
   return new Promise((resolve, reject) => {
     let child: ChildProcess
     try {
@@ -291,7 +332,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
           reject(new Error(`claude 응답 오류 (${resultLine.subtype ?? 'unknown'})`))
           return
         }
-        resolve({ text: resultLine.result, model: modelOf(resultLine) })
+        resolve({ text: resultLine.result, model: modelOf(resultLine, want) })
         return
       }
       try {
@@ -300,7 +341,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
           reject(new Error(`claude 응답 오류 (${envelope.subtype ?? 'unknown'})`))
           return
         }
-        resolve({ text: envelope.result, model: modelOf(envelope) })
+        resolve({ text: envelope.result, model: modelOf(envelope, want) })
       } catch {
         reject(new Error(`claude 응답을 파싱할 수 없습니다: ${stdout.slice(0, 300)}`))
       }

@@ -125,7 +125,11 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     setSave({ kind: 'saving' })
     chain.current = chain.current.then(async () => {
       try {
-        await window.api.setSettings(next)
+        // span(주간/한달)은 요약 탭이 관리한다. 폼 스냅샷에 실려 있어도 보내지 않는다.
+        // 보내면 설정 탭을 연 순간의 옛 값이, 그 사이 요약 탭에서 바꾼 필터를 덮는다.
+        const toSave: Partial<Settings> = { ...next }
+        delete toSave.span
+        await window.api.setSettings(toSave)
         // 응답으로 폼을 덮지 않는다. 저장하는 동안 사용자가 더 고쳤으면 그것이 사라진다.
         // 폼 전체를 보내므로 main이 되돌려주는 값은 방금 보낸 것과 같다.
         if (lastAuto.current !== next.autoLaunch) {

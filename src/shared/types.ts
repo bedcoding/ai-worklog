@@ -1,3 +1,7 @@
+import type { Span } from './span'
+
+export type { Span }
+
 /**
  * 요약에 쓸 모델. CLI 의 --model 이 받는 별칭을 그대로 쓴다.
  * 'default' 는 --model 을 주지 않는다는 뜻이고, 그때는 CLI 설정을 따른다.
@@ -26,6 +30,11 @@ export interface Settings {
   /** null이면 자동 탐지 */
   claudePath: string | null
   model: ModelChoice
+  /**
+   * 요약 탭에서 마지막으로 고른 구간 단위. 탭을 옮기면 요약 화면이 언마운트돼
+   * 화면 상태만으로는 남지 않고, 앱을 다시 켜도 되돌아간다. 그래서 설정에 남긴다.
+   */
+  span: Span
   autoLaunch: boolean
   dailyAuto: DailyAutoMode
   /** "HH:mm" (KST, 로컬 시각) */

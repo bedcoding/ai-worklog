@@ -85,6 +85,22 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       })
   }, [periodKey, start, end])
 
+  // 마지막으로 고른 구간 단위를 되살린다. 기준 날짜는 되살리지 않는다.
+  // 다시 열었을 때 보고 싶은 것은 지난달이 아니라 지금이다.
+  useEffect(() => {
+    let alive = true
+    window.api
+      .getSettings()
+      .then((s) => {
+        if (alive && s.span !== 'week') setCursor((c) => withSpan(c, s.span))
+      })
+      // 설정을 읽지 못하면 기본값(주간)으로 둔다. 목록 자체는 이것과 무관하게 뜬다
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
   useEffect(load, [load])
   useEffect(() => window.api.onDayUpdated(() => load()), [load])
 
@@ -214,7 +230,13 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           ? '전체 정리 완료'
           : `밀린 ${state.count}일 전체 정리하기`
 
-  const setSpan = (span: Span): void => setCursor(withSpan(cursor, span))
+  // 고른 구간 단위는 설정에 남긴다. 탭을 옮기면 이 화면이 언마운트돼 화면 상태만으로는
+  // 남지 않고, 앱을 다시 켜도 주간으로 되돌아갔다.
+  const setSpan = (span: Span): void => {
+    setCursor(withSpan(cursor, span))
+    // 실패해도 화면은 이미 바뀌었다. 다음에 기억되지 않을 뿐이라 막지 않는다.
+    void window.api.setSettings({ span }).catch(() => {})
+  }
 
   return (
     <>

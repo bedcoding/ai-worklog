@@ -6,7 +6,7 @@ import {
   readJson,
   writeJsonAtomic
 } from '../cache'
-import { locateClaude } from '../claude/locate'
+import { claudeDefaultModel, locateClaude } from '../claude/locate'
 import { extractJson, runClaude, type ClaudeRunOptions, type StreamEvent } from '../claude/run'
 import { renderTemplate } from '../prompts'
 import { getSettings } from '../settings'
@@ -38,6 +38,9 @@ async function claudeOpts(): Promise<ClaudeRunOptions> {
   return {
     claudePath: await locateClaude(s.claudePath),
     model: s.model,
+    // 응답의 modelUsage 에는 보조 호출(haiku)까지 섞여 온다. 'default' 로 두면
+    // --model 을 주지 않으므로, 어느 것이 본 모델인지 가릴 단서가 이 이름뿐이다.
+    defaultModelName: s.model === 'default' ? await claudeDefaultModel() : null,
     cwd: claudeWorkdir()
   }
 }
