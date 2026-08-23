@@ -28,6 +28,8 @@ function resolvePath(...segs: string[]): string {
  */
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const PERIOD_RE = /^\d{4}-(?:\d{2}|W\d{2})$/
+/** 활동 인덱스는 달 단위다. PERIOD_RE 는 주(W34)도 통과시켜서 쓸 수 없다 */
+const YM_RE = /^\d{4}-\d{2}$/
 
 function checked(seg: string, re: RegExp, label: string): string {
   if (!re.test(seg)) throw new Error(`${label} 형식이 올바르지 않습니다: ${JSON.stringify(seg)}`)
@@ -42,6 +44,10 @@ export const dayDigestPath = (date: string): string =>
   resolvePath('days', ymOf(checked(date, DATE_RE, '날짜')), `${date}.digest.json`)
 export const daySummaryPath = (date: string): string =>
   resolvePath('days', ymOf(checked(date, DATE_RE, '날짜')), `${date}.summary.json`)
+/** 지난 날짜의 활동 여부 인덱스. 원본 로그 재스캔을 피하는 용도다 */
+export const activityPath = (ym: string): string =>
+  resolvePath('activity', `${checked(ym, YM_RE, '월 키')}.json`)
+export const activityRoot = (): string => resolvePath('activity')
 export const periodPath = (key: string): string =>
   resolvePath('periods', `${checked(key, PERIOD_RE, '기간 키')}.json`)
 /** claude CLI 실행용 전용 cwd. collector가 이 경로를 수집에서 제외한다 */

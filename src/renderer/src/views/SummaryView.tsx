@@ -5,6 +5,7 @@ import { renderDigestText } from '@shared/digest-text'
 import { rangeStateOf } from '@shared/range-state'
 import { cursorOf, keyOf, labelOf, rangeOf, shift, withSpan, type Cursor, type Span } from '@shared/span'
 import type {
+  ActivityCache,
   BackfillProgress,
   DayDigest,
   DaySummary,
@@ -29,6 +30,16 @@ interface StreamState {
   tokens: number
 }
 
+/**
+ * 활동일 목록의 출처를 한 줄로. 숫자를 그대로 적는다.
+ * '캐시됨' 같은 말만 적으면 무엇이 캐시된 것인지 알 수 없다.
+ */
+function cacheLabel(c: ActivityCache): string {
+  if (c.cachedDays === 0) return `기록 ${c.scannedDays}일치를 원본에서 읽었습니다`
+  if (c.scannedDays === 0) return `기록 ${c.cachedDays}일치를 저장된 것에서 읽었습니다`
+  return `저장된 것 ${c.cachedDays}일 · 원본에서 읽음 ${c.scannedDays}일`
+}
+
 const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1, tokens: 0 }
 
 export default function SummaryView({ progress }: { progress: BackfillProgress | null }): ReactNode {
@@ -36,6 +47,9 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [today, setToday] = useState(() => kstDateOf(Date.now()))
   const [cursor, setCursor] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
   const [status, setStatus] = useState<RangeStatus | null>(null)
+  // 활동일 목록을 어디서 얻었는지. 캐시가 조용히 돌면 목록이 원본과 맞는지 알 수 없다
+  const [cache, setCache] = useState<ActivityCache | null>(null)
+  const [rereading, setRereading] = useState(false)
   // status가 어느 구간의 것인지. 구간을 옮기는 동안 이전 구간의 날짜와 개수가
   // 새 라벨 아래 남아 있으면 화면이 거짓말을 한다 (8월 라벨에 지난주 7일).
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
@@ -60,8 +74,11 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const { start, end } = rangeOf(cursor)
   const periodKey = keyOf(cursor)
 
-  /** @param quiet 스피너를 띄우지 않는다. 이미 목록이 있는데 다시 읽을 때 쓴다 */
-  const load = useCallback((quiet = false): void => {
+  /**
+   * @param quiet 스피너를 띄우지 않는다. 이미 목록이 있는데 다시 읽을 때 쓴다
+   * @param refresh 저장된 활동 인덱스를 무시하고 원본 로그를 다시 훑는다
+   */
+  const load = useCallback((quiet = false, refresh = false): void => {
     const key = periodKey
     const id = ++reqRef.current
     if (!quiet) setLoading(true)
@@ -70,10 +87,11 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       if (id === reqRef.current) setPeriod(p)
     })
     window.api
-      .listRange(start, end)
+      .listRange(start, end, refresh)
       .then((r) => {
         if (id !== reqRef.current) return
         setStatus(r.status)
+        setCache(r.cache)
         setSummaries(new Map(r.summaries.map((s) => [s.date, s])))
         setLoadedKey(key)
       })
@@ -81,7 +99,10 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         if (id === reqRef.current) setError(errMsg(e))
       })
       .finally(() => {
-        if (id === reqRef.current) setLoading(false)
+        if (id === reqRef.current) {
+          setLoading(false)
+          setRereading(false)
+        }
       })
   }, [periodKey, start, end])
 
@@ -296,6 +317,36 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         </button>
         {error && <div className="error">{error}</div>}
       </div>
+
+      {/* 캐시를 숨기지 않는다. 몇 일치를 저장된 것에서 읽었는지 적고,
+          원본을 다시 훑을 길을 같이 둔다. */}
+      {!loading && cache && (
+        <div className="card cache-note">
+          <span className="muted grow ellipsis tip-host">
+            {cacheLabel(cache)}
+            <Tip
+              text={
+                // 한 줄에 한 문장씩. 문장 중간에서 접히면 읽다가 걸린다
+                '지난 날짜의 활동 여부는 하루가 끝나면 바뀌지 않아 저장해 둡니다.\n' +
+                '오늘치는 저장하지 않고 열 때마다 원본을 읽습니다.' +
+                (cache.builtAt ? `\n저장한 시각: ${kstDateTimeKo(cache.builtAt)}` : '')
+              }
+            />
+          </span>
+          <button
+            type="button"
+            className="btn tip-host"
+            disabled={busy || rereading}
+            onClick={() => {
+              setRereading(true)
+              load(true, true)
+            }}
+          >
+            {rereading ? '읽는 중…' : '다시 읽기'}
+            <Tip toLeft text={'저장된 것을 버리고 원본 로그를 다시 훑습니다.'} />
+          </button>
+        </div>
+      )}
 
       <div className="card">
         {loading && <Spinner label="기록을 읽는 중…" />}

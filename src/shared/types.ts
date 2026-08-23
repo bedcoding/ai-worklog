@@ -164,6 +164,21 @@ export interface PeriodSummary {
   detail: PeriodPart | null
 }
 
+/**
+ * 활동일 목록을 어디서 얻었는지.
+ *
+ * 캐시가 조용히 동작하면 화면의 목록이 원본과 맞는지 확인할 방법이 없다.
+ * 몇 일치를 저장된 것에서 읽었고 몇 일치를 원본에서 읽었는지 그대로 알린다.
+ */
+export interface ActivityCache {
+  /** 저장된 인덱스에서 읽은 지난 날짜 수 */
+  cachedDays: number
+  /** 이번에 원본 로그를 훑어 판정한 날짜 수 (오늘은 늘 여기 든다) */
+  scannedDays: number
+  /** 쓴 인덱스 중 가장 오래된 것을 만든 시각 (ISO). 인덱스를 안 썼으면 null */
+  builtAt: string | null
+}
+
 /** 임의 구간(주/월 공용)의 활동 현황. end는 오늘 이후로 넘어가지 않게 잘린다. */
 export interface RangeStatus {
   start: string
@@ -240,7 +255,12 @@ export interface WorklogApi {
   detectClaude(): Promise<ClaudeInfo>
   testClaude(path: string): Promise<ClaudeInfo>
   /** 구간의 날짜별 요약 목록 (캐시만 조회, 생성 안 함) + 활동 여부 */
-  listRange(start: string, end: string): Promise<{ status: RangeStatus; summaries: DaySummary[] }>
+  /** @param refresh 저장된 활동 인덱스를 무시하고 원본 로그를 다시 훑는다 */
+  listRange(
+    start: string,
+    end: string,
+    refresh?: boolean
+  ): Promise<{ status: RangeStatus; summaries: DaySummary[]; cache: ActivityCache }>
   /**
    * 구간의 미요약 활동일을 하나씩 순차 생성한다. 조합은 하지 않는다.
    * 진행률은 onBackfillProgress로 오고 cancelBackfill로 중단할 수 있다.

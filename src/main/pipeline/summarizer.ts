@@ -11,7 +11,7 @@ import { extractJson, runClaude, type ClaudeRunOptions, type StreamEvent } from 
 import { renderTemplate } from '../prompts'
 import { getSettings } from '../settings'
 import {
-  kstDateOf,
+  todayKst,
   kstStartOfDayMs,
   monthRange,
   shortDateKo,
@@ -19,6 +19,7 @@ import {
   weekdayKo
 } from '@shared/dates'
 import type {
+  ActivityCache,
   DayDigest,
   DaySummary,
   PeriodPart,
@@ -28,7 +29,7 @@ import type {
   RangeStatus
 } from '@shared/types'
 import { renderDigestText } from '@shared/digest-text'
-import { activityInRange } from './activity'
+import { activeDatesInRange, activityInRange, recordScanned } from './activity'
 import { collectDigests } from './collector'
 import { buildDigest, digestHash, isActiveDigest } from './digest'
 import { throwIfCancelled, type ProgressFn } from './queue'
@@ -47,10 +48,6 @@ async function claudeOpts(): Promise<ClaudeRunOptions> {
 
 function emptyDigest(date: string): DayDigest {
   return buildDigest({ date, projects: new Map() }, 0)
-}
-
-export function todayKst(): string {
-  return kstDateOf(Date.now())
 }
 
 const DAY_MS = 86400_000
@@ -104,18 +101,31 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
  * 센다. 그러지 않으면 백필이 그 날짜를 건너뛰는데 상태는 미요약으로 남아, 밀린
  * 개수가 영원히 0이 되지 않고 기간 요약 버튼이 열리지 않는다.
  */
-export async function getRangeStatus(start: string, end: string): Promise<RangeStatus> {
+/**
+ * 구간의 활동 현황. 다이제스트를 만들지 않는 싼 길을 쓴다.
+ * 이것은 화면을 열 때마다, 구간을 옮길 때마다 도는 경로다.
+ *
+ * @param refresh 저장된 활동 인덱스를 무시하고 원본 로그를 다시 훑는다
+ */
+export async function getRangeStatus(
+  start: string,
+  end: string,
+  refresh = false
+): Promise<{ status: RangeStatus; cache: ActivityCache }> {
   const today = todayKst()
   const endClamped = end > today ? today : end
   if (start > endClamped) {
-    return { start, end: endClamped, activeDays: [], summarizedDays: [] }
+    return {
+      status: { start, end: endClamped, activeDays: [], summarizedDays: [] },
+      cache: { cachedDays: 0, scannedDays: 0, builtAt: null }
+    }
   }
-  const { dates } = await activityInRange(start, endClamped)
+  const { dates, cache } = await activeDatesInRange(start, endClamped, { refresh })
   const summarizedDays: string[] = []
   for (const d of dates) {
     if (await getCachedDaySummary(d)) summarizedDays.push(d)
   }
-  return { start, end: endClamped, activeDays: dates, summarizedDays }
+  return { status: { start, end: endClamped, activeDays: dates, summarizedDays }, cache }
 }
 
 /**
@@ -141,6 +151,9 @@ export async function backfillRange(
 
   onProgress?.({ done: 0, total: 0, currentDate: null, phase: 'scan' })
   const { dates, digests } = await activityInRange(start, endClamped)
+  // 이미 원본을 훑었다. 그 결과를 남겨 두지 않으면 정리가 끝난 직후의
+  // 목록 조회가 같은 500MB를 다시 읽는다.
+  await recordScanned(digests, start, endClamped)
 
   const todo: string[] = []
   for (const d of dates) {
@@ -156,7 +169,7 @@ export async function backfillRange(
   }
   onProgress?.({ done: todo.length, total: todo.length, currentDate: null, phase: 'summarize' })
 
-  return getRangeStatus(start, end)
+  return (await getRangeStatus(start, end)).status
 }
 
 interface DayJson {
@@ -362,7 +375,7 @@ export async function ensurePeriodPart(
   if (start > today) throw new Error('아직 시작되지 않은 기간입니다')
   const endClamped = end > today ? today : end
 
-  const { dates: activeDates } = await activityInRange(start, endClamped)
+  const { dates: activeDates } = await activeDatesInRange(start, endClamped)
   if (activeDates.length === 0) throw new Error('이 기간에는 Claude Code 활동 기록이 없습니다')
 
   const summaries: DaySummary[] = []

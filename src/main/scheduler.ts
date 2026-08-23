@@ -1,7 +1,7 @@
 import { Notification, dialog, powerMonitor } from 'electron'
-import { kstHHMM, kstStartOfDayMs } from '@shared/dates'
+import { kstHHMM, kstStartOfDayMs, todayKst } from '@shared/dates'
 import { readJson, schedulerStatePath, writeJsonAtomic } from './cache'
-import { ensureDaySummary, todayKst } from './pipeline/summarizer'
+import { ensureDaySummary } from './pipeline/summarizer'
 import { getSettings } from './settings'
 import type { DaySummary, PipelineError } from '@shared/types'
 
