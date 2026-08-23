@@ -1,11 +1,5 @@
-/*
- * --bg 는 카드 뒤에 깔리는 바닥이다. 카드(--card)와 충분히 벌어져야 카드가 떠 보인다.
- * 예전 #f6f7f9 는 흰 카드와 채널당 9/255 차이라 화면 전체가 흰 덩어리로 보였다.
- * 카드 안에 가라앉은 패널(.day-detail, .thinking)과 입력칸도 이 값을 쓰므로
- * 같이 또렷해진다.
- */
 :root {
-  --bg: #eceff4;
+  --bg: #f6f7f9;
   --card: #ffffff;
   --text: #1c1f23;
   --muted: #6b7280;
@@ -18,8 +12,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    /* 다크는 방향이 반대다. 바닥이 카드보다 어두워야 카드가 뜬다 */
-    --bg: #14161a;
+    --bg: #17191d;
     --card: #212429;
     --text: #e8eaed;
     --muted: #9aa2ad;
