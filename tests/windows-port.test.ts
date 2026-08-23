@@ -158,7 +158,7 @@ describe('projectNameOf — 프로젝트명은 마지막 경로 조각만 쓴다
     proj.prompts = [
       { tsMs: Date.parse('2026-07-19T01:00:00Z'), text: '작업', isSessionFirst: true }
     ]
-    const acc: DayAcc = { date: '2026-07-19', projects: new Map([[cwd, proj]]) }
+    const acc: DayAcc = { date: '2026-07-19', projects: new Map([[cwd, proj]]), sources: new Map() }
     expect(buildDigest(acc, 0).projects[0].name).toBe('proj')
   })
 })

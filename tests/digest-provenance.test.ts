@@ -1,14 +1,17 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { todayKst } from '@shared/dates'
 import type { DayDigest } from '@shared/types'
 import { dayDigestPath, initCache, writeJsonAtomic } from '../src/main/cache'
 import { ensureDayDigest } from '../src/main/pipeline/summarizer'
 
-/** 프롬프트 하나만 있는 최소 다이제스트 */
-function digestAt(date: string, builtAt: string): DayDigest {
+/** 소스 파일 하나를 가진 최소 다이제스트 */
+function digestWith(
+  date: string,
+  builtAt: string,
+  sources?: { path: string; mtimeMs: number }[]
+): DayDigest {
   return {
     date,
     projects: [
@@ -25,53 +28,88 @@ function digestAt(date: string, builtAt: string): DayDigest {
     ],
     totals: { sessionCount: 1, promptCount: 1, toolCallCount: 0, tokens: { input: 1, output: 1 } },
     skippedLines: 0,
-    builtAt
+    builtAt,
+    ...(sources ? { sources } : {})
   }
+}
+
+let logFile = ''
+
+/** 로그 파일을 하나 만들고 mtime 을 지정한 시각으로 맞춘다 */
+function makeLog(mtimeMs: number): string {
+  const dir = mkdtempSync(join(tmpdir(), 'worklog-src-'))
+  const f = join(dir, 'sess.jsonl')
+  mkdirSync(join(f, '..'), { recursive: true })
+  writeFileSync(f, '{}\n')
+  utimesSync(f, mtimeMs / 1000, mtimeMs / 1000)
+  return f
 }
 
 beforeEach(() => {
   initCache(mkdtempSync(join(tmpdir(), 'worklog-prov-')))
+  logFile = makeLog(Date.parse('2026-07-15T09:00:00.000Z'))
 })
 
 /**
- * cached 와 final 은 다른 것을 말한다. 이것을 하나로 묶어 '캐싱됨'만 적었더니
- * 오늘치가 몇 시간 낡은 채로 확정본처럼 보였다.
+ * '하루가 끝난 뒤에 만들었으면 확정'은 사실이 아니었다. 8/22 다이제스트를 8/23 00:30
+ * 에 만들었는데도 프롬프트 16개가 빠졌다. 긴 세션의 로그 파일에 옛 날짜 레코드가
+ * 나중에 덧붙기 때문이다. 그래서 시각이 아니라 소스 파일의 mtime 을 본다.
  */
-describe('원본 내역의 출처', () => {
-  it('그 날이 끝난 뒤 만든 캐시는 확정본이다', async () => {
-    // 7/15 의 다이제스트를 7/16 에 만들었다
+describe('원본 내역의 상태 판정', () => {
+  it('소스 파일이 그대로면 캐시를 쓴다', async () => {
     await writeJsonAtomic(
       dayDigestPath('2026-07-15'),
-      digestAt('2026-07-15', '2026-07-16T01:00:00.000Z')
+      digestWith('2026-07-15', '2026-07-16T01:00:00.000Z', [
+        { path: logFile, mtimeMs: Date.parse('2026-07-15T09:00:00.000Z') }
+      ])
     )
     const r = await ensureDayDigest('2026-07-15', { preferCache: true })
-    expect(r.cached).toBe(true)
-    expect(r.final).toBe(true)
+    expect(r.state).toBe('cached')
   })
 
-  it('그 날 도중에 만든 캐시는 확정본이 아니다', async () => {
-    // 7/15 의 다이제스트를 7/15 낮(KST 18시)에 만들었다. 그 뒤 기록이 빠져 있다
+  it('소스 파일이 바뀌었으면 낡음이다. 하루가 지났더라도', async () => {
+    // 8/22 가 정확히 이 경우였다. builtAt 은 하루 끝난 뒤인데 소스가 그 뒤에 바뀌었다
     await writeJsonAtomic(
       dayDigestPath('2026-07-15'),
-      digestAt('2026-07-15', '2026-07-15T09:00:00.000Z')
+      digestWith('2026-07-15', '2026-07-16T01:00:00.000Z', [
+        { path: logFile, mtimeMs: Date.parse('2026-07-15T09:00:00.000Z') }
+      ])
+    )
+    utimesSync(logFile, Date.parse('2026-07-17T00:00:00.000Z') / 1000, Date.parse('2026-07-17T00:00:00.000Z') / 1000)
+
+    const r = await ensureDayDigest('2026-07-15', { preferCache: true })
+    expect(r.state).toBe('stale')
+  })
+
+  it('소스 파일이 사라진 것은 낡음으로 보지 않는다', async () => {
+    // 다시 훑어도 결과가 오히려 줄어든다. Claude Code 가 옛 로그를 지운 경우다
+    await writeJsonAtomic(
+      dayDigestPath('2026-07-15'),
+      digestWith('2026-07-15', '2026-07-16T01:00:00.000Z', [
+        { path: join(logFile, '..', '없는파일.jsonl'), mtimeMs: 1 }
+      ])
     )
     const r = await ensureDayDigest('2026-07-15', { preferCache: true })
-    expect(r.cached).toBe(true)
-    // preferCache 는 완결성을 안 보고 캐시를 쓴다. 그래서 낡은 것이 나올 수 있고,
-    // 화면은 그 사실을 적어야 한다
-    expect(r.final).toBe(false)
+    expect(r.state).toBe('cached')
   })
 
-  it('오늘치는 캐시에서 와도 확정본이 아니다', async () => {
-    // 사용자가 발견한 바로 그 경우다. 행에는 '기록 읽는 중'이 뜨는데
-    // 상세에는 '캐싱됨'이 떠서 서로 어긋나 보였다
-    const today = todayKst()
-    await writeJsonAtomic(dayDigestPath(today), digestAt(today, `${today}T12:35:00.000Z`))
-    const r = await ensureDayDigest(today, { preferCache: true })
-    expect(r.cached).toBe(true)
-    expect(r.final).toBe(false)
+  it('sources 가 없는 옛 캐시는 예전 규칙으로 판정한다', async () => {
+    // 낡았다고 단정하면 옛 날짜를 열 때마다 2.5초 재스캔이 터진다
+    await writeJsonAtomic(
+      dayDigestPath('2026-07-15'),
+      digestWith('2026-07-15', '2026-07-16T01:00:00.000Z')
+    )
+    expect((await ensureDayDigest('2026-07-15', { preferCache: true })).state).toBe('cached')
+
+    // 그 날 도중(KST 18시)에 만든 옛 캐시는 낡음
+    await writeJsonAtomic(
+      dayDigestPath('2026-07-16'),
+      digestWith('2026-07-16', '2026-07-16T09:00:00.000Z')
+    )
+    expect((await ensureDayDigest('2026-07-16', { preferCache: true })).state).toBe('stale')
   })
 
-  // 스캔 경로(force)는 여기서 시험하지 않는다. ensureDayDigest 는 claudeDir 를
-  // 받지 않아 실제 ~/.claude 를 읽게 되고, 테스트가 각자의 로그에 매달린다.
+  // 요약 경로(preferCache 없음)가 판정 불가를 낡음으로 보는 것은 여기서 시험하지
+  // 않는다. 낡음으로 보면 곧바로 재스캔에 들어가는데 ensureDayDigest 는 claudeDir 를
+  // 받지 않아 실제 ~/.claude 를 읽는다. 테스트가 각자의 로그에 매달린다.
 })

@@ -69,6 +69,24 @@ export interface ProjectDigest {
   overflow?: number
 }
 
+/**
+ * 다이제스트를 만들 때 읽은 로그 파일 하나.
+ *
+ * 이것이 필요한 이유. '하루가 지나면 그 날 기록은 더 안 생긴다'가 사실이 아니다.
+ * 여러 날에 걸치는 긴 세션의 로그 파일에는 옛 날짜 타임스탬프를 가진 레코드가
+ * 나중에 덧붙는다. 실측: 8/22 다이제스트를 8/23 00:30 에 만들었는데(하루가 끝난
+ * 뒤다) 프롬프트 16개가 빠졌다. 그 세션 파일에서 8/23 레코드보다 뒤에 적힌 8/22
+ * 레코드가 1380개였다.
+ *
+ * 그래서 만든 시각만으로는 완결성을 알 수 없고, 읽은 파일이 그 뒤에 바뀌었는지를
+ * 봐야 한다. mtime 비교는 파일 몇 개 stat 이라 1ms 도 안 걸린다.
+ */
+export interface DigestSource {
+  path: string
+  /** 읽던 시점의 mtime (epoch ms) */
+  mtimeMs: number
+}
+
 export interface DayDigest {
   /** KST 기준 YYYY-MM-DD */
   date: string
@@ -81,6 +99,12 @@ export interface DayDigest {
   }
   skippedLines: number
   builtAt: string
+  /**
+   * 이 날짜의 레코드가 실제로 나온 로그 파일들. 없으면 옛 캐시다(판정 불가).
+   * 이 날짜에 기여하지 않은 파일은 담지 않는다. 담으면 지난달 다이제스트가
+   * 새 세션이 생길 때마다 낡은 것으로 잡힌다.
+   */
+  sources?: DigestSource[]
 }
 
 /** 렌더러에 digest 원문 대신 넘기는 가벼운 메타 */
@@ -281,14 +305,16 @@ export interface WorklogApi {
    * 원본 추출 내역. AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0).
    * 기본은 캐시 우선이며, force=true면 원본 로그를 다시 스캔한다.
    *
-   * cached 는 원본을 읽지 않고 파일에서 꺼냈는지, final 은 그 날이 끝난 뒤에
-   * 만들어졌는지다. final 이 아니면 뒤에 쌓인 기록이 빠져 있다.
-   * 화면이 builtAt 을 보고 짐작하면 main 의 판정 규칙이 바뀔 때 조용히 어긋난다.
+   * state 는 이것이 어디서 왔는지다. 화면이 builtAt 을 보고 짐작하면
+   * main 의 판정 규칙이 바뀔 때 조용히 어긋난다.
+   * - scanned: 방금 원본을 읽었다
+   * - cached: 캐시에서 왔고 소스 로그 파일이 그대로다
+   * - stale: 캐시에서 왔는데 소스 로그 파일이 그 뒤에 바뀌었다
    */
   getDayDigest(
     date: string,
     force?: boolean
-  ): Promise<{ digest: DayDigest; cached: boolean; final: boolean }>
+  ): Promise<{ digest: DayDigest; state: 'scanned' | 'cached' | 'stale' }>
   getPeriod(key: string): Promise<PeriodSummary | null>
   /** 주간/월간 요약 생성. 구간의 모든 활동일이 요약돼 있어야 한다 (claude 1회) */
   generatePeriod(req: PeriodRequest, part: PeriodPartKind): Promise<PeriodSummary>

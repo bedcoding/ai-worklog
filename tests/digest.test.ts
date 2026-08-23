@@ -15,7 +15,7 @@ function accWith(prompts: { tsMs: number; text: string; isSessionFirst?: boolean
   proj.branches.add('main')
   proj.sessions.add('s1')
   proj.prompts = prompts.map((p) => ({ isSessionFirst: false, ...p }))
-  return { date: '2026-07-19', projects: new Map([['/Users/test/proj', proj]]) }
+  return { date: '2026-07-19', projects: new Map([['/Users/test/proj', proj]]), sources: new Map() }
 }
 
 describe('buildDigest', () => {
@@ -60,7 +60,7 @@ describe('buildDigest', () => {
   })
 
   it('활동 판정과 빈 다이제스트', () => {
-    const empty = buildDigest({ date: '2026-07-19', projects: new Map() }, 0)
+    const empty = buildDigest({ date: '2026-07-19', projects: new Map(), sources: new Map() }, 0)
     expect(isActiveDigest(empty)).toBe(false)
     const active = buildDigest(accWith([{ tsMs: Date.parse('2026-07-19T01:00:00Z'), text: '작업' }]), 0)
     expect(isActiveDigest(active)).toBe(true)
