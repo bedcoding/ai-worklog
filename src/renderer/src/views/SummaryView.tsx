@@ -464,7 +464,9 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         })}
       </div>
 
-      <div className="card">
+      {/* 위의 날짜 목록과 색을 달리한다. 목록은 재료고 이것은 결과물인데,
+          같은 흰 카드에 같은 테두리라 무게가 같아 보였다. */}
+      <div className="card period">
         <h3>{spanWord} 요약</h3>
         {/* loading일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중'이 그
             상태를 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다. */}
