@@ -14,7 +14,7 @@ import type {
   PeriodSummary,
   RangeStatus
 } from '@shared/types'
-import { CopyButton, Elapsed, Spinner, Tip, errMsg, madeByLabel } from '../common'
+import { CopyButton, Elapsed, MadeBy, Spinner, Tip, errMsg } from '../common'
 
 /** 생성 중에만 쓰는 화면 상태. 저장되지 않는다 */
 interface StreamState {
@@ -288,6 +288,15 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const state = rangeStateOf(status)
   const busy = busyDate !== null || backfilling || composing !== null
   const spanWord = shown.span === 'week' ? '주간' : '월간'
+  // 기간 요약 카드 머리의 표식에 담을 말. 없으면 표식 자체를 그리지 않는다.
+  // loading 일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중'이 그 상태를
+  // 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다.
+  const note =
+    state.kind === 'pending'
+      ? `날짜별 요약이 모두 있어야 만들 수 있습니다.\n위 목록에서 빠진 날짜를 먼저 만드세요.`
+      : state.kind === 'empty'
+        ? '이 기간에는 묶을 기록이 없습니다.'
+        : null
   const days = [...(status?.activeDays ?? [])].sort().reverse()
   const todayInRange = today >= shownRange.start && today <= shownRange.end
 
@@ -472,14 +481,19 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       {/* 위의 날짜 목록과 색을 달리한다. 목록은 재료고 이것은 결과물인데,
           같은 흰 카드에 같은 테두리라 무게가 같아 보였다. */}
       <div className="card period">
-        <h3>{spanWord} 요약</h3>
-        {/* loading일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중'이 그
-            상태를 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다. */}
-        {state.kind === 'pending' ? (
-          <div className="muted">날짜별 요약이 모두 있어야 만들 수 있습니다.</div>
-        ) : state.kind === 'empty' ? (
-          <div className="muted">이 기간에는 묶을 기록이 없습니다.</div>
-        ) : null}
+        {/* 왜 아직 못 만드는지는 표식에 감춘다. 카드에 줄로 늘어놓으면 정작
+            결과물인 요약 문장과 무게가 같아진다. 버튼이 이미 잠겨 있어 '못 한다'는
+            것은 화면에 있으니 표식은 '왜'만 맡는다. 말풍선은 한 줄보다 자리가
+            넉넉해서, 접혀 잘리던 둘째 문장을 되살릴 수 있다. */}
+        <div className="row">
+          <h3>{spanWord} 요약</h3>
+          {note && (
+            <span className="mark tip-host" tabIndex={0} aria-label={note}>
+              !
+              <Tip text={note} />
+            </span>
+          )}
+        </div>
         {/* 부분마다 자기 버튼을 옆에 둔다. 카드 머리에 버튼 둘을 몰아 두면 어느
             버튼이 무엇을 만드는지 라벨만으로 말해야 해서 라벨이 길어진다. */}
         <PeriodPartBlock
@@ -563,19 +577,17 @@ function PeriodPartBlock({
           <div className="pre">{part.text}</div>
         ))
       )}
-      {/* generatedAt이 빈 옛 캐시가 있다. 그대로 넘기면 'NaN:NaN'이 찍힌다 */}
+      {/* 만든 내력. 라벨 둘로 갈라 놓는다. generatedAt이 빈 옛 캐시가 있어
+          그대로 넘기면 'NaN:NaN'이 찍힌다. 낡았으면 (!) 표식과 말풍선이 붙는다. */}
       {!working && part?.generatedAt && (
-        <div className="muted">
-          {madeByLabel(part.model, part.modelName)} · {kstDateTimeKo(part.generatedAt)}
-        </div>
-      )}
-      {/* 낡음 표시는 본문 위가 아니라 만든 내력 아래에 둔다. 이것은 요약 내용이
-          아니라 '언제까지 반영된 것인가'에 대한 말이라 생성 시각과 한 덩이다.
-          위에 두면 라벨과 본문이 갈라져 본문이 한 줄 아래로 밀린다.
-          그림 문자(경고 삼각형)를 쓰지 않는다. 이 화면의 유일한 그림 문자여서
-          덧붙인 것처럼 보였다. 앱에서 하나뿐인 빨간 줄이니 색만으로 충분하다. */}
-      {part?.stale && !working && (
-        <div className="stale">{shortDateKo(part.end)}까지만 반영됐습니다. 다시 만드세요.</div>
+        <MadeBy
+          model={part.model}
+          modelName={part.modelName}
+          at={part.generatedAt}
+          {...(part.stale
+            ? { warn: `${shortDateKo(part.end)}까지만 반영됐습니다.\n다시 만드세요.` }
+            : {})}
+        />
       )}
     </div>
   )
@@ -740,10 +752,11 @@ function DayDetail({
                     />
                   </button>
                 </div>
-                <div className="muted">
-                  {madeByLabel(summary.model, summary.modelName)} ·{' '}
-                  {kstDateTimeKo(summary.generatedAt)}
-                </div>
+                <MadeBy
+                  model={summary.model}
+                  modelName={summary.modelName}
+                  at={summary.generatedAt}
+                />
               </div>
             </>
           )
