@@ -439,12 +439,55 @@ button.btn.steady {
   padding-top: 10px;
   border-top: 1px solid var(--border);
 }
-/* 이 요약이 어디까지 반영된 것인지 알리는 줄. 만든 내력(.muted) 바로 아래에 붙는다.
-   앱에서 유일한 빨간 글자라 눈이 여기로 온다. 크기는 내력보다 한 단 낮춰
-   본문 요약보다 커 보이지 않게 한다. */
-.stale {
+/* 만든 내력. 모델과 시각을 라벨 둘로 갈라 놓는다. 가운뎃점으로 이으면 한 줄 산문이
+   되어 어느 쪽이 무엇인지 읽어서 갈라야 한다. */
+.madeby {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/*
+ * 부연이나 예외를 알리는 동그라미 표식. 그 말을 카드에 줄로 늘어놓지 않고 여기 감춘다.
+ * 늘 참인 사실에는 쓰지 않는다. 상시로 자리를 차지하면 정작 결과물인 요약 문장과
+ * 무게가 같아진다.
+ *
+ * 커서는 help 다. 눌러도 아무 일이 없으므로 pointer 를 주면 커서가 거짓말을 한다.
+ * tabIndex 를 받으므로 키보드로도 열린다 (.tip-host:focus-visible).
+ */
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  /* 15px 원 안에서 글자를 가운데 두려면 줄 높이를 죽여야 한다 */
+  line-height: 1;
+  cursor: help;
+}
+/* 조치가 필요한 것. 앱에서 유일한 빨간 표식이라 눈이 여기로 온다 */
+.mark.warn {
+  border-color: var(--danger);
   color: var(--danger);
-  font-size: 11px;
+}
+/* 채워서 열려 있다는 것을 알린다. 글자색은 --card 로 둔다. 라이트에서는 흰 글자,
+   다크에서는 어두운 글자가 되어 어느 테마에서도 읽힌다 (#fff 로 박으면 다크에서
+   밝은 회색 위에 흰 글자가 된다) */
+.mark:hover,
+.mark:focus-visible {
+  background: var(--muted);
+  color: var(--card);
+  outline: none;
+}
+.mark.warn:hover,
+.mark.warn:focus-visible {
+  background: var(--danger);
 }
 /* 모델이 생각하는 내용. 요약 본문이 아니므로 본문과 같은 모양이면 안 된다.
    점선 상자 + 죽인 색 + 왼쪽 띠로 갈라 둔다. 본문은 검은 글자에 막대만 붙는다.

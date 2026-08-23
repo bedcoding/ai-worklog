@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { kstDateTimeKo } from '@shared/dates'
 import type { ModelChoice } from '@shared/types'
 
 /** 설정의 모델 선택값을 사람이 읽는 이름으로 */
@@ -60,6 +61,44 @@ export function Tip({
 }): ReactNode {
   const cls = ['tip', toLeft ? 'to-left' : '', up ? 'up' : ''].filter(Boolean).join(' ')
   return <span className={cls}>{text}</span>
+}
+
+/**
+ * 요약을 만든 내력. 모델과 시각을 라벨 둘로 갈라 놓는다.
+ *
+ * 전에는 'haiku-4.5 · 2026-08-23 21:56' 처럼 가운뎃점으로 이었다. 그러면 한 줄 산문이
+ * 되어 어느 쪽이 모델이고 어느 쪽이 시각인지 읽어서 갈라야 한다. 라벨은 경계가 있어
+ * 눈에 두 덩이로 들어온다.
+ *
+ * warn 을 주면 오른쪽에 (!) 표식이 붙고 사연은 말풍선이 맡는다. 그 문장을 줄로
+ * 늘어놓지 않는다. 늘 참인 사실이 아니라 예외라서, 자리를 상시 차지하면 정작
+ * 결과물인 요약 문장과 무게가 같아진다.
+ */
+export function MadeBy({
+  model,
+  modelName,
+  at,
+  warn
+}: {
+  model: string
+  modelName?: string
+  at: string
+  /** 있으면 (!) 표식과 말풍선을 붙인다 */
+  warn?: string
+}): ReactNode {
+  return (
+    <div className="madeby">
+      <span className="badge">{madeByLabel(model, modelName)}</span>
+      <span className="badge">{kstDateTimeKo(at)}</span>
+      {/* tabIndex 를 주어야 키보드로도 말풍선을 열 수 있다 (.tip-host:focus-visible) */}
+      {warn && (
+        <span className="mark warn tip-host" tabIndex={0} aria-label={warn}>
+          !
+          <Tip up text={warn} />
+        </span>
+      )}
+    </div>
+  )
 }
 
 /** claude --version 출력은 "2.1.234 (Claude Code)" 형태다. 좁은 줄에서는 번호만 쓴다 */
