@@ -277,6 +277,18 @@ button.btn.steady {
   color: var(--accent);
   font-size: 12px;
 }
+/* 날짜 목록 카드만 flex gap 을 없앤다.
+   .card 기본 gap(8px) 이 행 사이에 남으면 그 띠는 어느 행에도 속하지 않아
+   강조도 클릭도 되지 않는다. 선과 선 사이가 통째로 한 행이어야 한다.
+   없앤 8px 은 .day-head 의 padding 을 8 -> 12 로 올려 그대로 메운다
+   (글자 사이 간격: 전 8+8+1+8 = 25px, 후 12+1+12 = 25px). */
+.card.days {
+  gap: 0;
+}
+/* 목록 위에 뜨는 읽는 중 줄. gap 이 없으므로 여백을 직접 낸다 */
+.card.days > .reading-note {
+  margin-bottom: 12px;
+}
 /* 첫 행 위에는 선을 두지 않는다. 카드 머리와 겹쳐 보인다 */
 .day-item:first-of-type > .day-head {
   border-top: none;
@@ -299,7 +311,7 @@ button.btn.steady {
      그러지 않으면 좌우 12px 띠가 강조도 안 되고 클릭도 안 되는 죽은 구간으로 남는다.
      padding 을 12 + 2 로 주어 글자 위치는 그대로 둔다. */
   margin: 0 -12px;
-  padding: 8px 14px;
+  padding: 12px 14px;
   cursor: pointer;
 }
 /*
@@ -320,8 +332,8 @@ button.btn.steady {
    톤 관계가 뒤집히지만 여전히 가라앉은 패널로 읽힌다. 어느 테마에서도 분리는 유지된다. */
 .day-detail {
   /* .day-item 의 padding 을 .day-head 로 옮겼으므로 아래 여백과 좌우 정렬을 여기서 낸다.
-     결과 간격은 전과 같다: 경계선 8px 행 8px 상세 8px 경계선 */
-  margin: 0 2px 8px;
+     아래 여백은 .day-head 의 padding 과 같은 12px 로 맞춘다 */
+  margin: 0 2px 12px;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;

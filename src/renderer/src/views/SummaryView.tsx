@@ -380,7 +380,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       {/* 구간 전체를 다시 읽는 줄은 두지 않는다. 캐싱은 자동이라 누를 일이 없는데
           목록 위에 늘 떠 있으면 자리만 먹는다. 캐시 여부는 각 날짜를 펼쳤을 때
           그 날의 원본 내역 아래에 적는다. */}
-      <div className="card">
+      <div className="card days">
         {/* 목록을 스피너로 덮지 않는다. 아는 행은 이미 그려져 있고, 확인 중인 날짜에만
             그 행에 표시가 붙는다. 아직 아무 행도 없을 때만 무엇을 읽는지 말한다. */}
         {days.length === 0 &&
@@ -391,7 +391,9 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           ))}
         {/* 행은 있는데 아직 확인하지 않은 지난 날짜가 남은 경우. 목록 위에 한 줄만 둔다 */}
         {days.length > 0 && readingRange && (
-          <Spinner label={`아직 확인하지 않은 ${pending}일을 읽는 중`} />
+          <div className="reading-note">
+            <Spinner label={`아직 확인하지 않은 ${pending}일을 읽는 중`} />
+          </div>
         )}
         {days.map((date) => {
           const s = summaries.get(date)
