@@ -1,5 +1,11 @@
+/*
+ * --bg 는 카드 뒤에 깔리는 바닥이다. 카드(--card)와 충분히 벌어져야 카드가 떠 보인다.
+ * 예전 #f6f7f9 는 흰 카드와 채널당 9/255 차이라 화면 전체가 흰 덩어리로 보였다.
+ * 카드 안에 가라앉은 패널(.day-detail, .thinking)과 입력칸도 이 값을 쓰므로
+ * 같이 또렷해진다.
+ */
 :root {
-  --bg: #f6f7f9;
+  --bg: #eceff4;
   --card: #ffffff;
   --text: #1c1f23;
   --muted: #6b7280;
@@ -12,7 +18,8 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #17191d;
+    /* 다크는 방향이 반대다. 바닥이 카드보다 어두워야 카드가 뜬다 */
+    --bg: #14161a;
     --card: #212429;
     --text: #e8eaed;
     --muted: #9aa2ad;
@@ -284,10 +291,26 @@ button.btn.steady {
    (글자 사이 간격: 전 8+8+1+8 = 25px, 후 12+1+12 = 25px). */
 .card.days {
   gap: 0;
+  /* 세로 padding 을 0 으로 둔다. .card 기본 padding(10px) 이 남으면 첫 행 위와
+     마지막 행 아래에 어느 행에도 속하지 않는 띠가 생겨 강조도 클릭도 되지 않는다.
+     좌우는 .day-head 가 margin -12px 로 빼서 쓴다. */
+  padding: 0 12px;
 }
-/* 목록 위에 뜨는 읽는 중 줄. gap 이 없으므로 여백을 직접 낸다 */
+/* 첫 행과 마지막 행의 배경이 카드 모서리를 따라가야 한다.
+   overflow: hidden 으로 자르면 행 안의 말풍선까지 잘린다. 테두리 1px 을 빼 7px. */
+.card.days > .day-item:first-of-type > .day-head {
+  border-radius: 7px 7px 0 0;
+}
+.card.days > .day-item:last-of-type > .day-head {
+  border-radius: 0 0 7px 7px;
+}
+/* 행이 아닌 것들(읽는 중, 기록 없음)은 카드 세로 padding 이 없으므로 스스로 낸다 */
 .card.days > .reading-note {
+  padding-top: 10px;
   margin-bottom: 12px;
+}
+.card.days > .muted {
+  padding: 10px 0;
 }
 /* 첫 행 위에는 선을 두지 않는다. 카드 머리와 겹쳐 보인다 */
 .day-item:first-of-type > .day-head {
@@ -324,6 +347,12 @@ button.btn.steady {
  *
  * transition 을 걸지 않는다. 지연 없이 즉시 바뀌어야 범위를 훑어볼 수 있다.
  */
+/* 날짜는 부가정보다. 본문(업무 내용)보다 작고 덜 튀게 둔다 */
+.day-date {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
 .day-head:hover {
   background: color-mix(in srgb, var(--accent) 10%, var(--card));
 }
