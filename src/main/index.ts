@@ -5,6 +5,7 @@ import trayIconMac from '../../resources/iconTemplate.png?asset'
 import trayIconWin from '../../resources/trayIcon.png?asset'
 import { initCache } from './cache'
 import { isWindowPinned, registerIpc, setWindowPinned } from './ipc'
+import { checkForUpdate, startUpdateChecker, stopUpdateChecker } from './update-check'
 import { POPUP_HEIGHT, POPUP_WIDTH, anchorOf, popupBounds } from './popup-bounds'
 import { cleanupOldDigests } from './retention'
 import { initScheduler } from './scheduler'
@@ -129,6 +130,7 @@ void app.whenReady().then(() => {
   tray.on('click', toggleWindow)
   const contextMenu = Menu.buildFromTemplate([
     { label: '열기', click: toggleWindow },
+    { label: '업데이트 확인', click: () => void checkForUpdate(true) },
     { type: 'separator' },
     {
       label: '종료',
@@ -157,6 +159,8 @@ void app.whenReady().then(() => {
     (err) => win?.webContents.send(IPC.pipelineError, err)
   )
   void cleanupOldDigests()
+  // 자동 업데이트는 하지 않는다. 새 버전이 나왔다는 것만 알리고 받는 것은 사용자가 한다
+  startUpdateChecker()
 })
 
 // 이미 실행 중일 때 앱을 다시 켜면 기존 창을 띄운다
@@ -167,6 +171,7 @@ app.on('second-instance', () => {
 
 app.on('before-quit', () => {
   quitting = true
+  stopUpdateChecker()
 })
 
 app.on('window-all-closed', () => {

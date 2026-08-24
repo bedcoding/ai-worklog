@@ -38,6 +38,8 @@ function checked(seg: string, re: RegExp, label: string): string {
 
 export const settingsPath = (): string => resolvePath('settings.json')
 export const schedulerStatePath = (): string => resolvePath('scheduler-state.json')
+/** 마지막 업데이트 확인 시각과 건너뛴 버전. 사용자가 편집하는 값이 아니라 설정과 나눈다 */
+export const updateStatePath = (): string => resolvePath('update-state.json')
 export const daysRoot = (): string => resolvePath('days')
 export const cacheRoot = (): string => resolvePath()
 export const dayDigestPath = (date: string): string =>
