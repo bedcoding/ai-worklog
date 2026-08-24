@@ -3,8 +3,8 @@ import type { Span } from './span'
 export type { Span }
 
 /**
- * 요약에 쓸 모델. CLI 의 --model 이 받는 별칭을 그대로 쓴다.
- * 'default' 는 --model 을 주지 않는다는 뜻이고, 그때는 CLI 설정을 따른다.
+ * 요약에 쓸 모델. CLI의 --model이 받는 별칭을 그대로 쓴다.
+ * 'default' 는 --model을 주지 않는다는 뜻이고, 그때는 CLI 설정을 따른다.
  */
 export type ModelChoice = 'default' | 'haiku' | 'sonnet' | 'opus' | 'fable'
 
@@ -74,12 +74,12 @@ export interface ProjectDigest {
  *
  * 이것이 필요한 이유. '하루가 지나면 그 날 기록은 더 안 생긴다'가 사실이 아니다.
  * 여러 날에 걸치는 긴 세션의 로그 파일에는 옛 날짜 타임스탬프를 가진 레코드가
- * 나중에 덧붙는다. 실측: 8/22 다이제스트를 8/23 00:30 에 만들었는데(하루가 끝난
+ * 나중에 덧붙는다. 실측: 8/22 다이제스트를 8/23 00:30에 만들었는데(하루가 끝난
  * 뒤다) 프롬프트 16개가 빠졌다. 그 세션 파일에서 8/23 레코드보다 뒤에 적힌 8/22
  * 레코드가 1380개였다.
  *
  * 그래서 만든 시각만으로는 완결성을 알 수 없고, 읽은 파일이 그 뒤에 바뀌었는지를
- * 봐야 한다. mtime 비교는 파일 몇 개 stat 이라 1ms 도 안 걸린다.
+ * 봐야 한다. mtime 비교는 파일 몇 개 stat이라 1ms도 안 걸린다.
  */
 export interface DigestSource {
   path: string
@@ -306,8 +306,8 @@ export interface WorklogApi {
    * 원본 추출 내역. AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0).
    * 기본은 캐시 우선이며, force=true면 원본 로그를 다시 스캔한다.
    *
-   * state 는 이것이 어디서 왔는지다. 화면이 builtAt 을 보고 짐작하면
-   * main 의 판정 규칙이 바뀔 때 조용히 어긋난다.
+   * state는 이것이 어디서 왔는지다. 화면이 builtAt을 보고 짐작하면
+   * main의 판정 규칙이 바뀔 때 조용히 어긋난다.
    * - cached: 읽은 소스 로그 파일이 그대로여서 캐시를 썼다. 다시 읽어도 같다
    * - scanned: 그렇지 않아 방금 원본을 읽었다
    */

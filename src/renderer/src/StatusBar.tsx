@@ -26,7 +26,7 @@ export default function StatusBar({
   const [checking, setChecking] = useState(true)
   const [appVersion, setAppVersion] = useState('')
 
-  // 앱 버전은 실행 중 바뀌지 않는다. nonce 와 무관하게 한 번만 읽는다
+  // 앱 버전은 실행 중 바뀌지 않는다. nonce와 무관하게 한 번만 읽는다
   useEffect(() => {
     let alive = true
     window.api

@@ -28,7 +28,7 @@ interface ContentBlock {
 interface LogRecord {
   type?: string
   isSidechain?: boolean
-  /** Claude Code 가 주입한 메시지 표식. 사람이 타이핑한 프롬프트에는 없다 */
+  /** Claude Code가 주입한 메시지 표식. 사람이 타이핑한 프롬프트에는 없다 */
   isMeta?: boolean
   timestamp?: string
   cwd?: string
@@ -57,13 +57,13 @@ export const cwdKey = (cwd: string, platform: string = process.platform): string
  * 범위의 일별 다이제스트를 만든다.
  * 스캔 깊이는 정확히 2단계다. 그 아래(서브에이전트 워크플로 로그 등)는 보지 않는다.
  *
- * 성능: 레코드를 쓰면 파일 mtime 이 그 시각 이후가 되므로, mtime 이 범위 시작보다
+ * 성능: 레코드를 쓰면 파일 mtime이 그 시각 이후가 되므로, mtime이 범위 시작보다
  * 이전인 파일에는 범위 내 레코드가 있을 수 없다 → mtime 필터로 대부분을 건너뛴다.
  *
  * 다만 그 역은 성립하지 않는다. 파일 내용이 시간 순서로만 쌓이지는 않는다. 여러 날에
  * 걸치는 긴 세션의 파일에는 옛 날짜 타임스탬프를 가진 레코드가 나중에 덧붙는다
  * (실측: 8/23 레코드보다 뒤에 적힌 8/22 레코드 1380개). 그래서 '하루가 지나면 그 날
- * 다이제스트는 확정'이 아니고, 읽은 파일의 mtime 을 남겨 두어야 낡음을 알 수 있다.
+ * 다이제스트는 확정'이 아니고, 읽은 파일의 mtime을 남겨 두어야 낡음을 알 수 있다.
  * 날짜 분류는 세션이 아니라 레코드 단위(자정을 넘는 세션도 올바르게 분리).
  */
 export async function collectDigests(
@@ -150,7 +150,7 @@ export async function collectDigests(
   return { digests, skippedLines }
 }
 
-/** mtime 도 함께 준다. 다이제스트에 남겨 두면 나중에 바뀌었는지 볼 수 있다 */
+/** mtime도 함께 준다. 다이제스트에 남겨 두면 나중에 바뀌었는지 볼 수 있다 */
 interface LogFile {
   path: string
   mtimeMs: number
@@ -190,7 +190,7 @@ async function listJsonlFiles(projectsDir: string, minMtimeMs: number): Promise<
  * user 레코드에서 실제로 타이핑된 프롬프트만 추출한다.
  * - tool_result 블록(도구 출력 반환)은 제외
  * - "<command-name>..." 같은 슬래시 명령 부산물(< 로 시작)은 제외
- * - isMeta 레코드 제외. role 이 user 여도 사람이 친 것이 아니라 Claude Code 가 넣은
+ * - isMeta 레코드 제외. role이 user여도 사람이 친 것이 아니라 Claude Code가 넣은
  *   텍스트다. 이미지를 붙이면 생기는 "[Image: original ...]" 안내문, 스킬 본문 전체,
  *   슬래시 커맨드가 펼쳐진 내용이 여기 해당한다. 걸러내지 않으면 프롬프트 수가 부풀고
  *   (실측 11309건 중 1947건, 17%), 스킬 지침문이 그날 한 일처럼 요약에 섞인다.

@@ -8,7 +8,7 @@ import { activeDatesInRange } from '../src/main/pipeline/activity'
 
 /**
  * 원본 로그를 흉내낸 디렉토리.
- * 실제 ~/.claude 는 500MB 라 테스트에서 읽으면 안 된다.
+ * 실제 ~/.claude는 500MB 라 테스트에서 읽으면 안 된다.
  */
 function fakeLogs(byDate: Record<string, boolean>): string {
   const base = mkdtempSync(join(tmpdir(), 'worklog-activity-'))
@@ -109,7 +109,7 @@ describe('활동 인덱스', () => {
   })
 
   it('원본 로그가 사라져도 요약해 둔 날짜는 목록에 남는다', async () => {
-    // Claude Code 가 옛 세션 로그를 자체 보존 기간에 따라 지운 상황
+    // Claude Code가 옛 세션 로그를 자체 보존 기간에 따라 지운 상황
     const empty = fakeLogs({})
     await writeJsonAtomic(join(daysRoot(), '2026-07', '2026-07-09.summary.json'), {
       date: '2026-07-09',

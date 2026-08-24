@@ -40,7 +40,7 @@ async function claudeOpts(): Promise<ClaudeRunOptions> {
     claudePath: await locateClaude(s.claudePath),
     model: s.model,
     // 응답의 modelUsage 에는 보조 호출(haiku)까지 섞여 온다. 'default' 로 두면
-    // --model 을 주지 않으므로, 어느 것이 본 모델인지 가릴 단서가 이 이름뿐이다.
+    // --model을 주지 않으므로, 어느 것이 본 모델인지 가릴 단서가 이 이름뿐이다.
     defaultModelName: s.model === 'default' ? await claudeDefaultModel() : null,
     cwd: claudeWorkdir()
   }
@@ -55,12 +55,12 @@ function emptyDigest(date: string): DayDigest {
  *
  * '하루가 끝난 뒤에 만들었으면 확정'은 사실이 아니었다. 여러 날에 걸치는 긴 세션의
  * 로그 파일에는 옛 날짜 타임스탬프를 가진 레코드가 나중에 덧붙는다. 실측: 8/22
- * 다이제스트를 8/23 00:30 에 만들었는데도 프롬프트 16개가 빠졌고, 그 세션 파일에서
+ * 다이제스트를 8/23 00:30에 만들었는데도 프롬프트 16개가 빠졌고, 그 세션 파일에서
  * 8/23 레코드보다 뒤에 적힌 8/22 레코드가 1380개였다.
  *
- * 그래서 시각이 아니라 파일을 본다. 소스 파일 몇 개 stat 이라 1ms 도 안 걸린다.
- * sources 가 없는 옛 캐시는 판정할 수 없으므로 쓰지 않는다. 한 번 다시 읽으면
- * sources 가 붙어 그 뒤로는 이 검사만으로 끝난다.
+ * 그래서 시각이 아니라 파일을 본다. 소스 파일 몇 개 stat이라 1ms도 안 걸린다.
+ * sources가 없는 옛 캐시는 판정할 수 없으므로 쓰지 않는다. 한 번 다시 읽으면
+ * sources가 붙어 그 뒤로는 이 검사만으로 끝난다.
  */
 async function digestUsable(d: DayDigest): Promise<boolean> {
   if (!d.sources) return false
@@ -70,7 +70,7 @@ async function digestUsable(d: DayDigest): Promise<boolean> {
       if (st.mtimeMs !== src.mtimeMs) return false
     } catch {
       // 파일이 사라졌다. 다시 읽으면 결과가 오히려 줄어들므로 캐시를 그대로 쓴다.
-      // Claude Code 가 자체 보존 기간에 따라 옛 로그를 지운 경우다.
+      // Claude Code가 자체 보존 기간에 따라 옛 로그를 지운 경우다.
     }
   }
   return true
@@ -91,7 +91,7 @@ export interface DigestOptions {
  *
  * 낡은 것을 화면에 주고 사용자가 '새로고침'을 누르게 두지 않는다. 낡음을 정확히
  * 알 수 있으면 그 자리에서 다시 읽는 것이 맞다. 비용은 그 날짜를 처음 펼칠 때
- * 한 번뿐이고(렌더러가 메모리에 들고 있다), 다시 읽으면 sources 가 붙어 그 뒤로는
+ * 한 번뿐이고(렌더러가 메모리에 들고 있다), 다시 읽으면 sources가 붙어 그 뒤로는
  * stat 몇 번으로 끝난다.
  */
 export type DigestState = 'scanned' | 'cached'
@@ -131,7 +131,7 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
  * 구간의 활동 현황. 다이제스트를 만들지 않는 싼 길을 쓴다.
  * 이것은 화면을 열 때마다, 구간을 옮길 때마다 도는 경로다.
  *
- * @param opts 활동 인덱스 사용 방식. activeDatesInRange 로 그대로 넘긴다
+ * @param opts 활동 인덱스 사용 방식. activeDatesInRange로 그대로 넘긴다
  */
 /**
  * 그 요약이 지금의 원본과 맞는가.
@@ -246,7 +246,7 @@ async function generateDaySummary(
   date: string,
   opts: { force?: boolean; preCollected?: DayDigest }
 ): Promise<DaySummary> {
-  // preferCache 를 주지 않는다. 낡은 캐시면 다시 훑는다. 뒤에 claude 호출이 수십 초
+  // preferCache를 주지 않는다. 낡은 캐시면 다시 훑는다. 뒤에 claude 호출이 수십 초
   // 붙으므로 2.5초 재스캔은 묻히고, 불완전한 데이터로 요약이 굳는 것이 훨씬 비싸다.
   const digest = opts.preCollected ?? (await ensureDayDigest(date)).digest
   if (opts.preCollected) await writeJsonAtomic(dayDigestPath(date), digest)
