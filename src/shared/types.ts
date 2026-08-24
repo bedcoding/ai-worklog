@@ -260,6 +260,7 @@ export const IPC = {
   periodStream: 'period:stream',
   backfillCancel: 'backfill:cancel',
   clipboardWrite: 'clipboard:write',
+  appGetVersion: 'app:getVersion',
   appSetAutoLaunch: 'app:setAutoLaunch',
   windowPinGet: 'window:pinGet',
   windowPinSet: 'window:pinSet',
@@ -328,6 +329,8 @@ export interface WorklogApi {
   /** 창 고정 여부. 고정 중에는 포커스를 잃어도 창이 닫히지 않는다 */
   getWindowPinned(): Promise<boolean>
   setWindowPinned(pinned: boolean): Promise<boolean>
+  /** 이 앱의 버전. 자동 업데이트가 없으므로 사용자가 스스로 최신인지 알아야 한다 */
+  getAppVersion(): Promise<string>
   onBackfillProgress(cb: (p: BackfillProgress) => void): () => void
   onPipelineError(cb: (e: PipelineError) => void): () => void
   /** 자동실행 등으로 main이 요약을 갱신했을 때 */

@@ -136,6 +136,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.clipboardWrite, (_e, text: string) =>
     clipboard.writeText(process.platform === 'win32' ? text.replace(/\r?\n/g, '\r\n') : text)
   )
+  ipcMain.handle(IPC.appGetVersion, () => app.getVersion())
+
   ipcMain.handle(IPC.appSetAutoLaunch, (_e, enabled: boolean) =>
     app.setLoginItemSettings({ openAtLogin: enabled })
   )

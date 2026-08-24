@@ -679,6 +679,14 @@ button.statusbar:hover {
   border-radius: 50%;
   flex: none;
 }
+/* 오른쪽 끝에 붙인다. 왼쪽 문구가 길어지면 그쪽이 말줄임되고 버전은 남는다 */
+.statusbar .appver {
+  margin-left: auto;
+  padding-left: 8px;
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .statusbar .dot.ok {
   background: var(--ok);
 }
