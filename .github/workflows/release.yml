@@ -8,8 +8,6 @@ on:
 jobs:
   build-mac:
     runs-on: macos-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,20 +15,23 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # src/ 정적 검사라 플랫폼 독립적 — 한 잡에서만 돌린다
+      # src/ 정적 검사라 플랫폼 독립적이다. 한 잡에서만 돌린다
       - run: npm run check:no-network
       - run: npm test
       - run: npm run build
-      - run: npx electron-builder --mac --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 업로드는 release 잡이 전담한다. 빌드 잡은 파일만 만든다
+      - run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            dist-release/*.dmg
+            dist-release/*-mac.zip
+          if-no-files-found: error
 
   build-win:
-    # 같은 태그의 draft 릴리스에 두 러너가 동시에 publish하면 릴리스 생성이 경쟁한다
-    needs: build-mac
+    # build-mac 과 병렬로 돈다. 더 이상 릴리스 생성을 두고 경쟁하지 않는다
     runs-on: windows-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,6 +48,33 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: npx electron-builder --win --publish always
+      - run: npx electron-builder --win --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win
+          path: dist-release/*.exe
+          if-no-files-found: error
+
+  release:
+    # 릴리스를 만드는 곳은 여기 하나뿐이다. 두 빌드가 모두 끝난 뒤에만 돈다.
+    # electron-builder 의 --publish 로 각 잡이 올리면 "릴리스가 없으면 만든다"가
+    # 동시에 실행되어 같은 태그로 릴리스가 두 개 생긴다(v0.1.0 에서 실제로 발생).
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      # blockmap 과 latest*.yml 은 electron-updater 의 차등 업데이트용이다.
+      # 이 앱은 네트워크 호출이 0건이라 자동 업데이트가 없으므로 올리지 않는다
+      - name: 릴리스 생성
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WorkLog $GITHUB_REF_NAME" \
+            --generate-notes \
+            artifacts/mac/* artifacts/win/*
