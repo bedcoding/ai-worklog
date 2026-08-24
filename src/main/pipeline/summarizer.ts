@@ -133,6 +133,18 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
  *
  * @param opts 활동 인덱스 사용 방식. activeDatesInRange 로 그대로 넘긴다
  */
+/**
+ * 그 요약이 지금의 원본과 맞는가.
+ *
+ * 요약에는 만들 때 쓴 다이제스트의 해시가 들어 있다. 원본 로그가 늘었거나 파싱 규칙이
+ * 바뀌면 해시가 달라지므로, 파일이 있다는 것만으로 끝났다고 볼 수 없다.
+ * 다이제스트가 없으면 판단할 근거가 없다. 그 경우는 맞는 것으로 둔다.
+ */
+function summaryMatches(cached: DaySummary, digest: DayDigest | null | undefined): boolean {
+  if (!digest) return true
+  return cached.digestHash === digestHash(digest)
+}
+
 export async function getRangeStatus(
   start: string,
   end: string,
@@ -149,7 +161,11 @@ export async function getRangeStatus(
   const { dates, cache } = await activeDatesInRange(start, endClamped, opts)
   const summarizedDays: string[] = []
   for (const d of dates) {
-    if (await getCachedDaySummary(d)) summarizedDays.push(d)
+    const cached = await getCachedDaySummary(d)
+    if (!cached) continue
+    // 원본을 새로 읽는 것은 이 함수의 계약이 아니다. 이미 있는 다이제스트 캐시와만 대조한다
+    const digest = await readJson<DayDigest>(dayDigestPath(d))
+    if (summaryMatches(cached, digest)) summarizedDays.push(d)
   }
   return { status: { start, end: endClamped, activeDays: dates, summarizedDays }, cache }
 }
@@ -161,8 +177,9 @@ export async function getRangeStatus(
  * 불렀다. 비싼 단계(날짜 수만큼)와 싼 단계(1번)를 갈라놓으면 누르기 전에 비용을
  * 볼 수 있고, 중간에 중단하는 것도 의미가 생긴다.
  *
- * 캐시가 있는 날짜는 건너뛴다. 오늘치가 낡았을 수 있지만 그건 '오늘 하루 정리하기'가
- * 강제 재생성으로 담당한다. 그래야 여기서 도는 횟수가 화면에 적힌 숫자와 일치한다.
+ * 요약이 있고 그 해시가 지금 원본과 같은 날짜는 건너뛴다. 파일만 보고 건너뛰면 파싱
+ * 규칙이 바뀌어도 옛 요약이 영원히 남는다. 오늘치가 낡았을 수 있지만 그건 '오늘 하루
+ * 정리하기'가 강제 재생성으로 담당한다.
  */
 export async function backfillRange(
   start: string,
@@ -183,7 +200,9 @@ export async function backfillRange(
 
   const todo: string[] = []
   for (const d of dates) {
-    if (!(await getCachedDaySummary(d))) todo.push(d)
+    const cached = await getCachedDaySummary(d)
+    // 방금 원본을 훑어 만든 다이제스트가 있다. 여기서의 대조가 가장 정확하다
+    if (!cached || !summaryMatches(cached, digests.get(d))) todo.push(d)
   }
 
   for (let i = 0; i < todo.length; i++) {
