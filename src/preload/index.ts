@@ -25,6 +25,7 @@ const api: WorklogApi = {
   onPeriodStream: subscribe(IPC.periodStream),
   cancelBackfill: () => ipcRenderer.invoke(IPC.backfillCancel),
   copyToClipboard: (text) => ipcRenderer.invoke(IPC.clipboardWrite, text),
+  getAppVersion: () => ipcRenderer.invoke(IPC.appGetVersion),
   setAutoLaunch: (enabled) => ipcRenderer.invoke(IPC.appSetAutoLaunch, enabled),
   getWindowPinned: () => ipcRenderer.invoke(IPC.windowPinGet),
   setWindowPinned: (pinned) => ipcRenderer.invoke(IPC.windowPinSet, pinned),
