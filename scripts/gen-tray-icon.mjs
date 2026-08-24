@@ -83,8 +83,8 @@ const EYE_GAP = 0.13 // 두 눈 좌우 간격 (박스 기준)
 const MOUTH_W = 0.28
 const MOUTH_H = 18 // 입 두께 = box / MOUTH_H
 // 눈·입 높이는 '눈-입 수직 간격 = 눈 높이'가 되도록 맞춘 값이다.
-// 16/24/32/48px 에서 각각 2:2, 3:3, 4:4, 6:6 으로 떨어진다.
-// MOUTH_Y 를 0.69 미만으로 내리면 16px 에서 반올림 때문에 간격이 1px 로 줄어 눈과 입이 붙는다.
+// 16/24/32/48px에서 각각 2:2, 3:3, 4:4, 6:6으로 떨어진다.
+// MOUTH_Y를 0.69 미만으로 내리면 16px에서 반올림 때문에 간격이 1px로 줄어 눈과 입이 붙는다.
 const EYE_Y = 0.34 // 눈 높이 (문서 높이 기준)
 const MOUTH_Y = 0.69
 
@@ -167,7 +167,7 @@ function makeTrayPng(size) {
   })
 }
 
-/** 앱 아이콘 — 검정 원 + 흰 외곽선 문서 (todo-alarm 과 같은 틀) */
+/** 앱 아이콘 — 검정 원 + 흰 외곽선 문서 (todo-alarm과 같은 틀) */
 function makeAppIconPng(size) {
   const box = Math.round(size * 0.54)
   const off = Math.round((size - box) / 2)

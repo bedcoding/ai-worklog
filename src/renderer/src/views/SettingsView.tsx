@@ -200,7 +200,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     <form
       className="settings"
       onSubmit={(e) => {
-        // 입력칸에서 Enter 를 누르면 기본 동작이 폼 제출이다. 기다리던 저장을 지금 보낸다
+        // 입력칸에서 Enter를 누르면 기본 동작이 폼 제출이다. 기다리던 저장을 지금 보낸다
         e.preventDefault()
         flush()
       }}
@@ -272,7 +272,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
           <label>
             실제 실행되는 파일
             {/* input은 잘려도 …이 붙지 않아 잘린 것인지 알 수 없다. 상자 모양만 빌리고
-                말풍선은 상자 안에 두되 잘리는 쪽(.ellipsis) 밖에 둔다 */}
+                말풍선은 상자 안에 두되 잘리는 쪽(.ellipsis)밖에 둔다 */}
             <span className="readonly-box tip-host">
               <span className="ellipsis path-tail">{claude.path}</span>
               <Tip text={claude.path} />
@@ -397,7 +397,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       </div>
 
       {/* 자동 저장은 눈에 보이지 않으면 저장됐는지 알 수 없다. 스크롤 위치와 무관하게
-          보이도록 sticky 로 띄운다. 예전의 저장 버튼은 프롬프트 입력칸 세 개 아래에
+          보이도록 sticky로 띄운다. 예전의 저장 버튼은 프롬프트 입력칸 세 개 아래에
           있어서, 위에서 모델을 고르고도 저장하지 못한 채 지나갔다.
 
           다만 이것은 아래 내용을 덮으므로 평상시에는 아예 없다. */}

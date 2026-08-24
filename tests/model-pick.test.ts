@@ -3,8 +3,8 @@ import { modelOf, wantedModel } from '../src/main/claude/run'
 
 /**
  * 실제 CLI 응답에서 그대로 옮긴 modelUsage.
- * `--model sonnet` 으로 '숫자 7만 출력해라' 를 돌린 결과다.
- * 보조 호출이 haiku 로 나가고, 그 키가 먼저 온다.
+ * `--model sonnet`으로 '숫자 7만 출력해라' 를 돌린 결과다.
+ * 보조 호출이 haiku로 나가고, 그 키가 먼저 온다.
  */
 const SONNET_RUN = {
   modelUsage: {
@@ -15,7 +15,7 @@ const SONNET_RUN = {
 
 describe('modelOf', () => {
   it('보조 호출이 첫 키여도 요청한 모델을 고른다', () => {
-    // 첫 키를 그냥 쓰던 탓에 소넷으로 만든 요약에 haiku-4.5 가 찍혔다
+    // 첫 키를 그냥 쓰던 탓에 소넷으로 만든 요약에 haiku-4.5가 찍혔다
     expect(Object.keys(SONNET_RUN.modelUsage)[0]).toBe('claude-haiku-4-5-20251001')
     expect(modelOf(SONNET_RUN, 'sonnet')).toBe('claude-sonnet-5')
   })
@@ -51,7 +51,7 @@ describe('modelOf', () => {
     expect(modelOf(SONNET_RUN, 'claude-gpt-9')).toBeNull()
   })
 
-  it('modelUsage 가 없으면 null', () => {
+  it('modelUsage가 없으면 null', () => {
     expect(modelOf({})).toBeNull()
     expect(modelOf({ modelUsage: {} })).toBeNull()
   })

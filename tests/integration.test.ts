@@ -1,6 +1,6 @@
 /**
  * 실제 ~/.claude 로그와 실제 claude CLI를 사용하는 통합 테스트.
- * CI에서는 돌지 않는다 — 로컬에서 INTEGRATION=1 로 실행:
+ * CI에서는 돌지 않는다 — 로컬에서 INTEGRATION=1로 실행:
  *   INTEGRATION=1 npx vitest run tests/integration.test.ts
  */
 import { mkdtempSync } from 'node:fs'

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { classifyLine, splitLines } from '../src/main/claude/run'
 
-// 실제 claude 2.1.234 가 --output-format stream-json --include-partial-messages 로
-// 내보낸 줄을 그대로 옮겼다. 내 짐작이 아니라 CLI 가 실제로 주는 모양이어야 한다.
+// 실제 claude 2.1.234가 --output-format stream-json --include-partial-messages로
+// 내보낸 줄을 그대로 옮겼다. 내 짐작이 아니라 CLI가 실제로 주는 모양이어야 한다.
 const DELTA =
   '{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"안녕하세요. \\""}},"session_id":"300c4c96","parent_tool_use_id":null,"uuid":"7f494dbd"}'
 const THINKING =
@@ -79,7 +79,7 @@ describe('splitLines', () => {
   })
 
   it('실제 조각을 청크 중간에서 잘라도 본문이 온전하다', () => {
-    // DELTA 를 아무 데서나 둘로 쪼개도 합쳐진 뒤 같은 결과가 나와야 한다
+    // DELTA를 아무 데서나 둘로 쪼개도 합쳐진 뒤 같은 결과가 나와야 한다
     const cut = Math.floor(DELTA.length / 2)
     let carry = ''
     const texts: string[] = []

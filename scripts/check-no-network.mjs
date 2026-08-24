@@ -37,7 +37,7 @@ function walk(dir) {
       continue
     }
     if (!entry.isFile()) continue
-    // CRLF 체크아웃에서도 동일하게 동작하도록 \r?\n 으로 자른다
+    // CRLF 체크아웃에서도 동일하게 동작하도록 \r?\n으로 자른다
     const lines = readFileSync(p, 'utf8').split(/\r?\n/)
     const rel = relative(ROOT, p).replace(/\\/g, '/')
     const allowedUrls = ALLOWED[rel]

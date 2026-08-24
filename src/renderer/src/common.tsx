@@ -24,7 +24,7 @@ export function shortModel(name: string): string {
     .replace(/^claude-/, '')
     .replace(/\[[^\]]*\]$/, '')
     .replace(/-\d{8}$/, '')
-  // haiku-4-5 처럼 버전이 하이픈으로 갈린 것만 점으로 되돌린다
+  // haiku-4-5처럼 버전이 하이픈으로 갈린 것만 점으로 되돌린다
   return base.replace(/-(\d+)-(\d+)$/, '-$1.$2')
 }
 
@@ -70,7 +70,7 @@ export function Tip({
  * 되어 어느 쪽이 모델이고 어느 쪽이 시각인지 읽어서 갈라야 한다. 라벨은 경계가 있어
  * 눈에 두 덩이로 들어온다.
  *
- * warn 을 주면 오른쪽에 (!) 표식이 붙고 사연은 말풍선이 맡는다. 그 문장을 줄로
+ * warn을 주면 오른쪽에 (!) 표식이 붙고 사연은 말풍선이 맡는다. 그 문장을 줄로
  * 늘어놓지 않는다. 늘 참인 사실이 아니라 예외라서, 자리를 상시 차지하면 정작
  * 결과물인 요약 문장과 무게가 같아진다.
  */
@@ -91,7 +91,7 @@ export function MadeBy({
       <span className="badge">{madeByLabel(model, modelName)}</span>
       {/* 낡았으면 시각 라벨 자체를 빨갛게 물들이고 거기에 말풍선을 붙인다. 옆에 (!)를
           따로 띄우면 글리프가 하나 더 늘 뿐이고, 정작 문제인 것은 이 시각이다.
-          tabIndex 를 주어야 키보드로도 열린다 (.tip-host:focus-visible). */}
+          tabIndex를 주어야 키보드로도 열린다 (.tip-host:focus-visible). */}
       {warn ? (
         <span className="badge warn tip-host" tabIndex={0} aria-label={warn}>
           {kstDateTimeKo(at)}
@@ -144,7 +144,7 @@ export function CopyButton({
  * 진행 중임을 알리는 줄.
  *
  * 라벨에 '…'을 붙이지 않는다. 폭을 더 먹으면서도 멈춰 있어서, 정말 도는 중인지는
- * 알려주지 못한다. 도는 원이 그 일을 하고 폭은 10px 로 고정이다.
+ * 알려주지 못한다. 도는 원이 그 일을 하고 폭은 10px로 고정이다.
  * (⏳ 이모지도 같은 이유로 뺐다. 그림만 모래시계일 뿐 움직이지 않는다.)
  */
 export function Spinner({ label }: { label: string }): ReactNode {

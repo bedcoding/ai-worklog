@@ -1,8 +1,8 @@
 /**
- * 버전 문자열 비교. a 가 크면 1, 작으면 -1, 같으면 0.
+ * 버전 문자열 비교. a가 크면 1, 작으면 -1, 같으면 0.
  *
  * 문자열로 그냥 비교하면 "0.9.0" > "0.11.0" 이 되어 새 버전을 놓친다.
- * 자리마다 숫자로 본다. 앞의 "v" 는 있어도 없어도 된다(태그는 v0.1.2, app.getVersion 은 0.1.2).
+ * 자리마다 숫자로 본다. 앞의 "v" 는 있어도 없어도 된다(태그는 v0.1.2, app.getVersion은 0.1.2).
  */
 export function compareVersions(a: string, b: string): number {
   const parse = (v: string): number[] =>

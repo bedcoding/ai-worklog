@@ -60,7 +60,7 @@ async function readIndex(ym: string): Promise<ActivityIndex | null> {
   return idx
 }
 
-/** start..end 를 하루씩 (양 끝 포함) */
+/** start..end를 하루씩 (양 끝 포함) */
 function datesBetween(start: string, end: string): string[] {
   const out: string[] = []
   for (let d = start; d <= end; d = addDays(d, 1)) out.push(d)
@@ -85,7 +85,7 @@ export interface ActiveDates {
  * 파일을 걸러서, 7월을 보면 546개를 읽고 오늘만 보면 1개를 읽는다.
  *
  * @param opts.refresh 인덱스를 무시하고 원본 로그를 다시 훑는다
- * @param opts.claudeDir 원본 로그 위치. 테스트에서 실제 ~/.claude 를 읽지 않도록 둔다
+ * @param opts.claudeDir 원본 로그 위치. 테스트에서 실제 ~/.claude를 읽지 않도록 둔다
  * @param opts.indexOnly 원본을 전혀 읽지 않고 아는 것만 준다. 화면이 먼저 목록을
  *   그리고 오늘치만 뒤이어 채우도록, 이 호출은 늘 즉시 끝나야 한다.
  */
@@ -153,7 +153,7 @@ export async function activeDatesInRange(
     }
   }
 
-  // indexOnly 로 그냥 넘긴 것들. 이 수가 0 이 아니면 화면은 아직 완성이 아니다
+  // indexOnly로 그냥 넘긴 것들. 이 수가 0이 아니면 화면은 아직 완성이 아니다
   const pending = indexOnly ? unknown.length + (end >= today && start <= today ? 1 : 0) : 0
   return {
     dates: [...active].sort(),

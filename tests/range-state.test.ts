@@ -13,7 +13,7 @@ describe('rangeStateOf', () => {
   })
 
   it('활동일이 없으면 empty 다', () => {
-    // 미요약 0일이라는 점은 ready 와 같지만, 정리한 것이 아니라 정리할 것이 없었다
+    // 미요약 0일이라는 점은 ready와 같지만, 정리한 것이 아니라 정리할 것이 없었다
     expect(rangeStateOf(status([], []))).toEqual({ kind: 'empty' })
   })
 
@@ -30,7 +30,7 @@ describe('rangeStateOf', () => {
   })
 
   it('활동일에 없는 요약은 개수에 영향을 주지 않는다', () => {
-    // 구간을 좁히면 캐시에는 구간 밖 날짜가 남는다. 그것으로 pending 이 음수가 되면 안 된다
+    // 구간을 좁히면 캐시에는 구간 밖 날짜가 남는다. 그것으로 pending이 음수가 되면 안 된다
     const s = status(['2026-08-23'], ['2026-08-01', '2026-08-02', '2026-08-23'])
     expect(rangeStateOf(s)).toEqual({ kind: 'ready' })
   })

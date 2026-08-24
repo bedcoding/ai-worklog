@@ -28,7 +28,7 @@ function resolvePath(...segs: string[]): string {
  */
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const PERIOD_RE = /^\d{4}-(?:\d{2}|W\d{2})$/
-/** 활동 인덱스는 달 단위다. PERIOD_RE 는 주(W34)도 통과시켜서 쓸 수 없다 */
+/** 활동 인덱스는 달 단위다. PERIOD_RE는 주(W34)도 통과시켜서 쓸 수 없다 */
 const YM_RE = /^\d{4}-\d{2}$/
 
 function checked(seg: string, re: RegExp, label: string): string {
