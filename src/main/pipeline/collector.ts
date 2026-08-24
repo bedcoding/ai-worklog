@@ -28,6 +28,8 @@ interface ContentBlock {
 interface LogRecord {
   type?: string
   isSidechain?: boolean
+  /** Claude Code 가 주입한 메시지 표식. 사람이 타이핑한 프롬프트에는 없다 */
+  isMeta?: boolean
   timestamp?: string
   cwd?: string
   gitBranch?: string
@@ -188,9 +190,14 @@ async function listJsonlFiles(projectsDir: string, minMtimeMs: number): Promise<
  * user 레코드에서 실제로 타이핑된 프롬프트만 추출한다.
  * - tool_result 블록(도구 출력 반환)은 제외
  * - "<command-name>..." 같은 슬래시 명령 부산물(< 로 시작)은 제외
+ * - isMeta 레코드 제외. role 이 user 여도 사람이 친 것이 아니라 Claude Code 가 넣은
+ *   텍스트다. 이미지를 붙이면 생기는 "[Image: original ...]" 안내문, 스킬 본문 전체,
+ *   슬래시 커맨드가 펼쳐진 내용이 여기 해당한다. 걸러내지 않으면 프롬프트 수가 부풀고
+ *   (실측 11309건 중 1947건, 17%), 스킬 지침문이 그날 한 일처럼 요약에 섞인다.
  */
 function extractUserText(rec: LogRecord): string | null {
   if (rec.message?.role !== 'user') return null
+  if (rec.isMeta) return null
   const content = rec.message.content
   let text: string
   if (typeof content === 'string') {

@@ -105,6 +105,33 @@ describe('collectDigests', () => {
     expect(digests.get('2026-07-19')?.projects[0].prompts[0].text).toBe('진짜 프롬프트')
   })
 
+  it('isMeta 레코드는 프롬프트에서 제외한다', async () => {
+    const base = makeFixture({
+      'p1/s1.jsonl': [
+        user('2026-07-19T10:00:00.000Z', '진짜 프롬프트'),
+        // 이미지를 붙이면 Claude Code 가 넣는 안내문
+        user('2026-07-19T10:01:00.000Z', '[Image: original 4064x2324, displayed at 2000x1144.]', {
+          isMeta: true
+        }),
+        // 스킬 본문이 통째로 주입된 것
+        user('2026-07-19T10:02:00.000Z', 'Approach this as the design lead at a small studio', {
+          isMeta: true,
+          sourceToolUseID: 'toolu_abc'
+        }),
+        // 슬래시 커맨드가 펼쳐진 내용
+        user('2026-07-19T10:03:00.000Z', '# /plugin:setup 한 번만 실행하는 셋업 커맨드입니다', {
+          isMeta: true
+        })
+      ]
+    })
+    const { digests } = await collectDigests('2026-07-19', '2026-07-19', { claudeDir: base })
+    const day = digests.get('2026-07-19')
+    expect(day?.totals.promptCount).toBe(1)
+    expect(day?.projects[0].prompts[0].text).toBe('진짜 프롬프트')
+    // 프롬프트에서만 빠질 뿐 그 세션에 속한 레코드인 것은 맞다
+    expect(day?.totals.sessionCount).toBe(1)
+  })
+
   it('excludeCwds의 프로젝트는 수집하지 않는다', async () => {
     const base = makeFixture({
       'p1/s1.jsonl': [user('2026-07-19T10:00:00.000Z', '앱 자체 실행', { cwd: '/app/workdir' })]
