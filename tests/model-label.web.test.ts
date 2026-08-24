@@ -29,7 +29,7 @@ describe('modelLabel', () => {
   })
 
   it('기본으로 두면 실제 모델명을 밝힌다', () => {
-    // 이것이 없어서 Fable 5 로 요약되는 줄 모르고 지냈다
+    // 이것이 없어서 Fable 5로 요약되는 줄 모르고 지냈다
     expect(modelLabel('default', 'claude-fable-5[1m]')).toBe('fable-5 (CLI 기본)')
   })
 

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ELECTRON_VITE = join(ROOT, 'node_modules', 'electron-vite', 'bin', 'electron-vite.js')
 
-// -w 가 없으면 메인·preload 를 처음 한 번만 빌드한다. 렌더러는 HMR 로 살아 있는데
+// -w가 없으면 메인·preload를 처음 한 번만 빌드한다. 렌더러는 HMR로 살아 있는데
 // 메인은 켤 때의 코드로 계속 돌아, 고친 파이프라인이 적용된 줄 알고 헤매게 된다.
 spawn(process.execPath, [ELECTRON_VITE, 'dev', '-w'], {
   stdio: 'inherit',

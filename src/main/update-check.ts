@@ -1,7 +1,7 @@
 /**
  * 최신 릴리스 버전 확인.
  *
- * 이 파일은 앱에서 유일하게 네트워크를 쓰는 곳이다. scripts/check-no-network.mjs 가
+ * 이 파일은 앱에서 유일하게 네트워크를 쓰는 곳이다. scripts/check-no-network.mjs가
  * 나머지 src/ 전체에서 네트워크 호출을 금지하고 이 파일만 예외로 둔다. 예외를 한 곳에
  * 묶어 두어야 "무엇이 밖으로 나가는가"를 이 파일만 읽고 판단할 수 있다.
  *
@@ -41,7 +41,7 @@ async function writeState(patch: Partial<UpdateState>): Promise<void> {
   await writeJsonAtomic(updateStatePath(), { ...(await readState()), ...patch })
 }
 
-/** 서버에서 받은 최신 태그. 실패하면 null 이고, 그때는 주기를 리셋하지 않는다 */
+/** 서버에서 받은 최신 태그. 실패하면 null이고, 그때는 주기를 리셋하지 않는다 */
 async function fetchLatest(): Promise<{ tag: string; page: string } | null> {
   try {
     const res = await net.fetch(API, { headers: { Accept: 'application/vnd.github+json' } })
@@ -53,7 +53,7 @@ async function fetchLatest(): Promise<{ tag: string; page: string } | null> {
       page: typeof json.html_url === 'string' ? json.html_url : PAGE
     }
   } catch {
-    // 오프라인이거나 API 가 죽었다. 자동 확인이라면 조용히 넘어간다
+    // 오프라인이거나 API가 죽었다. 자동 확인이라면 조용히 넘어간다
     return null
   }
 }

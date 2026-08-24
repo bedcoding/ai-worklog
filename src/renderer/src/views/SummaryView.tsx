@@ -50,10 +50,10 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   /**
    * 화면에 그려도 되는 구간. 데이터가 도착할 때만 앞으로 간다.
    *
-   * cursor 를 그대로 그리면 라벨은 즉시 새 구간인데 목록·요약은 아직 옛 구간이라,
+   * cursor를 그대로 그리면 라벨은 즉시 새 구간인데 목록·요약은 아직 옛 구간이라,
    * 그 사이를 비워 두거나(카드가 접힌다) 옛 값을 남겨야(8월 라벨에 지난주 7일) 한다.
    * 셋을 이 스냅샷 하나에서 뽑으면 한 번에 바뀌어 깜빡임이 없다.
-   * 주간/한달 버튼과 화살표는 cursor 를 그대로 써서 누른 즉시 반응한다.
+   * 주간/한달 버튼과 화살표는 cursor를 그대로 써서 누른 즉시 반응한다.
    */
   const [shown, setShown] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
   const [summaries, setSummaries] = useState<Map<string, DaySummary>>(new Map())
@@ -68,15 +68,15 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [openDate, setOpenDate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음).
-  // state 는 main 이 판정해 준 값이다. builtAt 을 보고 짐작하면 규칙이 바뀔 때 어긋난다.
+  // state는 main이 판정해 준 값이다. builtAt을 보고 짐작하면 규칙이 바뀔 때 어긋난다.
   const [digests, setDigests] = useState<Map<string, DayRaw>>(new Map())
   const [digestBusy, setDigestBusy] = useState<string | null>(null)
   const [digestErr, setDigestErr] = useState<string | null>(null)
 
   // 구간을 빠르게 전환할 때 이전 구간의 응답이 늦게 도착해 덮어쓰는 것을 막는다
   const reqRef = useRef(0)
-  // 그려지는 것과 화면의 버튼이 누르는 것은 모두 shown 에서 뽑는다.
-  // cursor 는 요청을 만들 때만 쓴다. status 는 늘 shown 의 것이다 (apply 에서 함께 바꾼다).
+  // 그려지는 것과 화면의 버튼이 누르는 것은 모두 shown에서 뽑는다.
+  // cursor는 요청을 만들 때만 쓴다. status는 늘 shown의 것이다 (apply에서 함께 바꾼다).
   const shownRange = rangeOf(shown)
 
   /**
@@ -104,7 +104,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
      * 라벨·목록·기간 요약을 한 번에 바꾼다.
      *
      * 예전에는 셋이 서로 다른 시점에 바뀌어 화면이 깜빡였다. 커서를 옮기면 그 렌더에서
-     * 곧바로 라벨만 새 구간이 되고, 목록은 loadedKey 가 아직 옛 값이라 빈 배열이 되어
+     * 곧바로 라벨만 새 구간이 되고, 목록은 loadedKey가 아직 옛 값이라 빈 배열이 되어
      * 카드가 접혔다 펴졌다. 기간 요약은 옛 구간 글을 들고 있어 새 제목 밑에 남았다.
      */
     const apply = (
@@ -199,7 +199,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
    *
    * 한 번에 하나만 펼치는 아코디언이라, 새 날짜를 누르면 앞서 펼쳐 둔 상세가 함께
    * 접힌다. 그것이 화면 위쪽에 있었으면 그만큼 내용이 줄어 방금 누른 행이 위로 밀려
-   * 나간다. 실제로 8/16 을 눌렀는데 8/16 이 화면 밖으로 올라가고 그 아래가 보였다.
+   * 나간다. 실제로 8/16을 눌렀는데 8/16이 화면 밖으로 올라가고 그 아래가 보였다.
    *
    * 브라우저의 스크롤 앵커링이 이것을 보정하려 하지만, 어느 요소가 앵커로 뽑히는지에
    * 따라 결과가 달라져서 어떤 때는 되고 어떤 때는 안 된다. 그래서 직접 맞춘다.
@@ -216,13 +216,13 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   }, [])
 
   /**
-   * 원본 내역을 확보한다. 판단은 main 이 한다.
+   * 원본 내역을 확보한다. 판단은 main이 한다.
    *
    * 렌더러가 들고 있는 것으로 '이미 읽었으니 건너뛴다'를 정하지 않는다. 그러면 세션
    * 도중에 소스 로그가 바뀐 것을 놓친다. 지금 이 대화처럼 며칠에 걸치는 세션의 파일은
    * 계속 자라서 어제 날짜의 내용도 늘어난다.
    *
-   * 매번 물어도 싸다. 소스가 그대로면 main 이 stat 몇 번(1ms 미만)으로 끝내고,
+   * 매번 물어도 싸다. 소스가 그대로면 main이 stat 몇 번(1ms 미만)으로 끝내고,
    * 바뀌었을 때만 실제로 훑는다.
    */
   const loadDigest = useCallback((date: string, force = false): void => {
@@ -606,7 +606,7 @@ function Working({ stream }: { stream: StreamState }): ReactNode {
     if (el) el.scrollTop = el.scrollHeight
   }, [stream.thinking])
 
-  // 첫 응답이 오기 전에는 claude 가 무엇을 하는지 알 방법이 없다. '기록을 읽는 중'
+  // 첫 응답이 오기 전에는 claude가 무엇을 하는지 알 방법이 없다. '기록을 읽는 중'
   // 같은 말은 로컬에서 뭔가 하는 것처럼 들려 거짓이다. 보냈고 기다린다고만 말한다.
   // 실측으로 이 구간이 1분까지 간다. 상한을 함께 적어야 무한정으로 읽히지 않는다.
   const working = stream.text
@@ -676,7 +676,7 @@ function DayDetail({
    * 갱신돼 낡은 것을 한 번 보게 된다. AI 요약은 이미 화면에 있으므로 이 읽기가
    * 보이는 것을 늦추지 않는다. 토큰도 쓰지 않는다.
    *
-   * deps 를 비워 펼칠 때 한 번만 부른다. DayDetail 은 접으면 언마운트되므로
+   * deps를 비워 펼칠 때 한 번만 부른다. DayDetail은 접으면 언마운트되므로
    * 다시 펼치면 다시 부른다. 그때 바뀐 것이 있으면 그때 갱신된다.
    */
   useEffect(() => {
@@ -742,7 +742,7 @@ function DayDetail({
                   >
                     {busy ? '생성 중' : '다시 생성'}
                     {/* 같은 카드의 '새로고침'과 성격이 반대다. 그쪽은 원본을 다시 읽고
-                        이쪽은 claude 를 부른다. 어느 쪽이 쿼터를 쓰는지 적어 둔다. */}
+                        이쪽은 claude를 부른다. 어느 쪽이 쿼터를 쓰는지 적어 둔다. */}
                     <Tip
                       toLeft
                       up

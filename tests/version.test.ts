@@ -8,8 +8,8 @@ describe('버전 비교', () => {
     expect(compareVersions('0.9.0', '0.11.0')).toBe(-1)
   })
 
-  it('앞의 v 는 있어도 없어도 같다', () => {
-    // 태그는 v0.1.2, app.getVersion() 은 0.1.2 로 온다
+  it('앞의 v는 있어도 없어도 같다', () => {
+    // 태그는 v0.1.2, app.getVersion()은 0.1.2로 온다
     expect(compareVersions('v0.1.2', '0.1.2')).toBe(0)
     expect(compareVersions('v0.1.3', '0.1.2')).toBe(1)
   })

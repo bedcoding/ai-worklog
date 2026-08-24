@@ -84,7 +84,7 @@ async function resolveShim(p: string): Promise<string | null> {
   // 1) 형제 네이티브 바이너리
   const sibling = join(dir, `${basename(p, rawExt)}.exe`)
   if (await isRunnable(sibling)) return sibling
-  // 2) 이 셰임이 속한 npm prefix의 패키지 내부 바이너리
+  // 2)이 셰임이 속한 npm prefix의 패키지 내부 바이너리
   const npmLayout = join(dir, NPM_PKG_BIN)
   if (await isRunnable(npmLayout)) return npmLayout
   // 3) 최후: 셰임 본문에서 타깃 추출 (.cmd는 %dp0%, sh 셰임은 $basedir)
@@ -198,11 +198,11 @@ export async function locateClaude(override?: string | null): Promise<string> {
  * 콜백을 호출하지 않아 프로세스를 죽인다. 절대 콜백형으로 되돌리지 말 것.
  */
 /**
- * CLI 설정에 박힌 기본 모델. --model 을 주지 않을 때 실제로 쓰이는 값이다.
+ * CLI 설정에 박힌 기본 모델. --model을 주지 않을 때 실제로 쓰이는 값이다.
  *
- * 앱은 전용 cwd(claude-workdir)에서 claude 를 부르므로 프로젝트별 설정이 끼어들지
+ * 앱은 전용 cwd(claude-workdir)에서 claude를 부르므로 프로젝트별 설정이 끼어들지
  * 않는다. 그래서 사용자 설정 파일 하나만 보면 된다.
- * 읽지 못하면 null 이다. 모르는 것을 아는 척하지 않는다.
+ * 읽지 못하면 null이다. 모르는 것을 아는 척하지 않는다.
  */
 export async function claudeDefaultModel(): Promise<string | null> {
   try {

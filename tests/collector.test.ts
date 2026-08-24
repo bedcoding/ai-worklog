@@ -109,7 +109,7 @@ describe('collectDigests', () => {
     const base = makeFixture({
       'p1/s1.jsonl': [
         user('2026-07-19T10:00:00.000Z', '진짜 프롬프트'),
-        // 이미지를 붙이면 Claude Code 가 넣는 안내문
+        // 이미지를 붙이면 Claude Code가 넣는 안내문
         user('2026-07-19T10:01:00.000Z', '[Image: original 4064x2324, displayed at 2000x1144.]', {
           isMeta: true
         }),
