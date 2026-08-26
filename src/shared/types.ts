@@ -245,6 +245,29 @@ export interface PipelineError {
   retryable: boolean
 }
 
+/**
+ * 자동 실행 한 번의 결과.
+ *
+ * 성공은 조용하고 실패는 그 순간 창을 놓치면 흔적이 없었다. 매일 도는 일이 제대로
+ * 도는지 알려면 결과가 남아야 한다.
+ */
+export interface SchedulerRun {
+  /** 시작 시각 (ISO) */
+  at: string
+  /** 요약 대상 날짜 (KST, YYYY-MM-DD) */
+  date: string
+  /**
+   * ok: 요약 생성 / empty: 활동 없음 / skipped: 사용자가 건너뛰기 / error: 실패.
+   * empty 를 ok 와 가르는 이유는, 활동이 없어 요약이 비는 것과 실패해서 없는 것이
+   * 화면에서 같아 보이면 안 되기 때문이다.
+   */
+  outcome: 'ok' | 'empty' | 'skipped' | 'error'
+  /** 걸린 시간(ms). 실패면 거기까지 */
+  ms: number
+  /** outcome 이 error 일 때만 */
+  error?: string
+}
+
 export const IPC = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
@@ -261,6 +284,7 @@ export const IPC = {
   backfillCancel: 'backfill:cancel',
   clipboardWrite: 'clipboard:write',
   appGetVersion: 'app:getVersion',
+  schedulerHistory: 'scheduler:history',
   appSetAutoLaunch: 'app:setAutoLaunch',
   windowPinGet: 'window:pinGet',
   windowPinSet: 'window:pinSet',
@@ -331,6 +355,8 @@ export interface WorklogApi {
   setWindowPinned(pinned: boolean): Promise<boolean>
   /** 이 앱의 버전. 자동 업데이트가 없으므로 사용자가 스스로 최신인지 알아야 한다 */
   getAppVersion(): Promise<string>
+  /** 자동 실행 이력 (최신순) */
+  getSchedulerHistory(): Promise<SchedulerRun[]>
   onBackfillProgress(cb: (p: BackfillProgress) => void): () => void
   onPipelineError(cb: (e: PipelineError) => void): () => void
   /** 자동실행 등으로 main이 요약을 갱신했을 때 */

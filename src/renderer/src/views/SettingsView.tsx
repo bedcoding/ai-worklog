@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { Settings } from '@shared/types'
+import type { Settings, SchedulerRun } from '@shared/types'
 import { Spinner, Tip, errMsg, shortModel, shortVersion } from '../common'
 
 /**
@@ -332,6 +332,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             />
           </label>
         </div>
+        <RunHistory />
         <label>
           <span>
             원본 추출 캐시 보관 기간 (개월, 0 = 무제한){' '}
@@ -418,4 +419,68 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
       )}
     </form>
   )
+}
+
+
+/** 자동 실행 결과 한 줄. 매일 도는 일이 제대로 도는지 여기서만 보인다 */
+function RunHistory(): ReactNode {
+  const [runs, setRuns] = useState<SchedulerRun[]>([])
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    window.api
+      .getSchedulerHistory()
+      .then((r) => alive && setRuns(r))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  if (runs.length === 0) {
+    return <div className="runline muted">자동 실행 기록이 아직 없습니다</div>
+  }
+
+  const last = runs[0]
+  const failed = last.outcome === 'error'
+  return (
+    <>
+      <div
+        className={`runline${failed ? ' bad' : ''}${runs.length > 1 ? ' clickable' : ''}`}
+        onClick={runs.length > 1 ? () => setOpen((v) => !v) : undefined}
+      >
+        마지막 실행: {runLabel(last)}
+        {runs.length > 1 && <span className="runmore">{open ? '접기' : `이전 ${runs.length - 1}회`}</span>}
+      </div>
+      {open && (
+        <div className="runlist">
+          {runs.slice(1).map((r) => (
+            <div key={r.at} className={r.outcome === 'error' ? 'bad' : undefined}>
+              {runLabel(r)}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+/** "8/26 10:00 성공 (45초)" 꼴 */
+function runLabel(r: SchedulerRun): string {
+  const d = new Date(r.at)
+  const when = Number.isNaN(d.getTime())
+    ? r.date
+    : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const took = r.ms >= 1000 ? ` (${Math.round(r.ms / 1000)}초)` : ''
+  switch (r.outcome) {
+    case 'ok':
+      return `${when} 성공${took}`
+    case 'empty':
+      return `${when} 활동 없음`
+    case 'skipped':
+      return `${when} 건너뜀`
+    default:
+      return `${when} 실패: ${r.error ?? '알 수 없는 오류'}`
+  }
 }
