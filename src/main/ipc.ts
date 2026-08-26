@@ -18,7 +18,7 @@ import {
 } from './pipeline/summarizer'
 import { cancelBackfill, resetCancel, type ProgressFn } from './pipeline/queue'
 import { DEFAULT_PROMPTS } from './prompts'
-import { reschedule } from './scheduler'
+import { reschedule, getSchedulerHistory } from './scheduler'
 import { getSettings, getSettingsForEdit, setSettings } from './settings'
 
 /**
@@ -137,6 +137,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     clipboard.writeText(process.platform === 'win32' ? text.replace(/\r?\n/g, '\r\n') : text)
   )
   ipcMain.handle(IPC.appGetVersion, () => app.getVersion())
+
+  ipcMain.handle(IPC.schedulerHistory, () => getSchedulerHistory())
 
   ipcMain.handle(IPC.appSetAutoLaunch, (_e, enabled: boolean) =>
     app.setLoginItemSettings({ openAtLogin: enabled })

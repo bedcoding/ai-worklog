@@ -1,9 +1,13 @@
 import { Notification, dialog, powerMonitor } from 'electron'
 import { kstHHMM, kstStartOfDayMs, todayKst } from '@shared/dates'
 import { readJson, schedulerStatePath, writeJsonAtomic } from './cache'
+import {
+  nextSchedulerState,
+  type SchedulerState
+} from './scheduler-history'
 import { ensureDaySummary } from './pipeline/summarizer'
 import { getSettings } from './settings'
-import type { DaySummary, PipelineError } from '@shared/types'
+import type { DaySummary, PipelineError, SchedulerRun } from '@shared/types'
 
 /**
  * 매일 자동실행 스케줄러.
@@ -12,8 +16,22 @@ import type { DaySummary, PipelineError } from '@shared/types'
  *   발화 판정도 KST로 통일해야 KST 밖 타임존에서 하루가 어긋나지 않는다.
  * - 슬립/재부팅으로 시각을 놓친 경우, 깨어날 때 그날 몫을 따라잡는다.
  */
-interface SchedulerState {
-  lastAutoRunDate?: string
+/**
+ * 실행 결과를 남긴다. 상태 파일을 통째로 덮어쓰면 이력이 날아가므로 기존 것을 읽어 합친다.
+ */
+async function recordRun(run: SchedulerRun, markDone: boolean): Promise<void> {
+  try {
+    const prev = (await readJson<SchedulerState>(schedulerStatePath())) ?? {}
+    await writeJsonAtomic(schedulerStatePath(), nextSchedulerState(prev, run, markDone))
+  } catch {
+    // 이력을 남기지 못한 것이 요약 자체를 실패로 만들면 안 된다
+  }
+}
+
+/** 설정 화면이 읽는다 */
+export async function getSchedulerHistory(): Promise<SchedulerRun[]> {
+  const state = await readJson<SchedulerState>(schedulerStatePath())
+  return state?.recent ?? []
 }
 
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -127,12 +145,17 @@ async function fire(): Promise<void> {
     clearTimeout(timer)
     timer = null
   }
+  const startedMs = Date.now()
+  const startedAt = new Date(startedMs).toISOString()
+  // 이력을 남길 대상 날짜. 발화 전에 빠져나간 경우(off, 이미 실행함)는 비워 둔다
+  let target = ''
   try {
     const s = await getSettings()
     if (s.dailyAuto === 'off') return
     const today = todayKst()
     const state = await readJson<SchedulerState>(schedulerStatePath())
     if (state?.lastAutoRunDate === today) return
+    target = today
 
     if (s.dailyAuto === 'confirm') {
       const { response } = await dialog.showMessageBox({
@@ -146,13 +169,24 @@ async function fire(): Promise<void> {
       })
       if (response !== 0) {
         // 건너뛰기도 실행으로 기록해 같은 날 반복해서 묻지 않는다
-        await writeJsonAtomic(schedulerStatePath(), { lastAutoRunDate: today })
+        await recordRun(
+          { at: startedAt, date: today, outcome: 'skipped', ms: Date.now() - startedMs },
+          true
+        )
         return
       }
     }
 
     const summary = await ensureDaySummary(today)
-    await writeJsonAtomic(schedulerStatePath(), { lastAutoRunDate: today })
+    await recordRun(
+      {
+        at: startedAt,
+        date: today,
+        outcome: summary.empty ? 'empty' : 'ok',
+        ms: Date.now() - startedMs
+      },
+      true
+    )
     showNotification(
       summary.empty
         ? '오늘은 Claude Code 활동 기록이 없습니다'
@@ -160,7 +194,15 @@ async function fire(): Promise<void> {
     )
     onSummaryDone?.(summary)
   } catch (e) {
-    showNotification(`자동 요약 실패: ${e instanceof Error ? e.message : String(e)}`)
+    const message = e instanceof Error ? e.message : String(e)
+    // markDone=false. 실패한 날은 catch-up 이 다시 시도해야 한다
+    if (target) {
+      await recordRun(
+        { at: startedAt, date: target, outcome: 'error', ms: Date.now() - startedMs, error: message },
+        false
+      )
+    }
+    showNotification(`자동 요약 실패: ${message}`)
   } finally {
     running = false
   }
