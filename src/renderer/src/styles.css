@@ -680,6 +680,37 @@ button.statusbar:hover {
   flex: none;
 }
 /* 오른쪽 끝에 붙인다. 왼쪽 문구가 길어지면 그쪽이 말줄임되고 버전은 남는다 */
+/* 자동 실행 결과 한 줄. 평소에는 조용하고 실패했을 때만 눈에 들어와야 한다 */
+.runline {
+  margin-top: -2px;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.runline.bad {
+  color: var(--danger);
+}
+.runline.clickable {
+  cursor: pointer;
+}
+.runline .runmore {
+  margin-left: auto;
+  text-decoration: underline;
+  opacity: 0.8;
+}
+.runlist {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 2px;
+}
+.runlist .bad {
+  color: var(--danger);
+}
 .statusbar .appver {
   margin-left: auto;
   padding-left: 8px;

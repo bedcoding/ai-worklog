@@ -26,6 +26,7 @@ const api: WorklogApi = {
   cancelBackfill: () => ipcRenderer.invoke(IPC.backfillCancel),
   copyToClipboard: (text) => ipcRenderer.invoke(IPC.clipboardWrite, text),
   getAppVersion: () => ipcRenderer.invoke(IPC.appGetVersion),
+  getSchedulerHistory: () => ipcRenderer.invoke(IPC.schedulerHistory),
   setAutoLaunch: (enabled) => ipcRenderer.invoke(IPC.appSetAutoLaunch, enabled),
   getWindowPinned: () => ipcRenderer.invoke(IPC.windowPinGet),
   setWindowPinned: (pinned) => ipcRenderer.invoke(IPC.windowPinSet, pinned),
