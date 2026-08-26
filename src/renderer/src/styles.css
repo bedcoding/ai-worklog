@@ -603,6 +603,12 @@ form.settings label {
   font-size: 12px;
   font-weight: 600;
 }
+/* 폼 항목의 제목이지만 입력칸이 없는 것(결과 표시 등). label 과 같은 층위로 보여야
+   한 카드 안에서 제목의 무게가 어긋나지 않는다 */
+form.settings .fieldhead {
+  font-size: 12px;
+  font-weight: 600;
+}
 /* 체크박스는 라벨이 옆에 와야 한다. 위의 세로 배치를 되돌린다 */
 form.settings label.checkbox {
   flex-direction: row;
@@ -681,8 +687,15 @@ button.statusbar:hover {
 }
 /* 오른쪽 끝에 붙인다. 왼쪽 문구가 길어지면 그쪽이 말줄임되고 버전은 남는다 */
 /* 자동 실행 결과 한 줄. 평소에는 조용하고 실패했을 때만 눈에 들어와야 한다 */
+/* 설정이 아니라 결과다. 설정 항목들 사이에 끼면 어디에 속한 값인지 모호해지므로
+   카드 맨 아래에 소제목과 함께 따로 둔다. 위 항목과는 조금 더 벌린다. */
+.runbox {
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 .runline {
-  margin-top: -2px;
   font-size: 11px;
   color: var(--muted);
   display: flex;
@@ -708,6 +721,7 @@ button.statusbar:hover {
   gap: 2px;
   padding-left: 2px;
 }
+
 .runlist .bad {
   color: var(--danger);
 }

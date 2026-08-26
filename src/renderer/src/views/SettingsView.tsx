@@ -332,7 +332,6 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             />
           </label>
         </div>
-        <RunHistory />
         <label>
           <span>
             원본 추출 캐시 보관 기간 (개월, 0 = 무제한){' '}
@@ -351,6 +350,7 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
             onBlur={flush}
           />
         </label>
+        <RunHistory />
       </div>
 
       <div className="card">
@@ -439,19 +439,27 @@ function RunHistory(): ReactNode {
   }, [])
 
   if (runs.length === 0) {
-    return <div className="runline muted">자동 실행 기록이 아직 없습니다</div>
+    return (
+      <div className="runbox">
+        <div className="fieldhead">최근 기록</div>
+        <div className="runline">아직 실행된 적이 없습니다</div>
+      </div>
+    )
   }
 
   const last = runs[0]
   const failed = last.outcome === 'error'
   return (
-    <>
+    <div className="runbox">
+      <div className="fieldhead">최근 기록</div>
       <div
         className={`runline${failed ? ' bad' : ''}${runs.length > 1 ? ' clickable' : ''}`}
         onClick={runs.length > 1 ? () => setOpen((v) => !v) : undefined}
       >
-        마지막 실행: {runLabel(last)}
-        {runs.length > 1 && <span className="runmore">{open ? '접기' : `이전 ${runs.length - 1}회`}</span>}
+        {runLabel(last)}
+        {runs.length > 1 && (
+          <span className="runmore">{open ? '접기' : `이전 ${runs.length - 1}회`}</span>
+        )}
       </div>
       {open && (
         <div className="runlist">
@@ -462,7 +470,7 @@ function RunHistory(): ReactNode {
           ))}
         </div>
       )}
-    </>
+    </div>
   )
 }
 
