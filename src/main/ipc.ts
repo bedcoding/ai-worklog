@@ -1,4 +1,4 @@
-import { app, clipboard, ipcMain, type BrowserWindow } from 'electron'
+import { app, clipboard, dialog, ipcMain, type BrowserWindow } from 'electron'
 import {
   IPC,
   type BackfillProgress,
@@ -90,12 +90,26 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
   )
   // 날짜 수만큼 claude를 부르는 유일한 경로다. 기간 요약과 취소 플래그를 공유한다.
-  ipcMain.handle(IPC.rangeBackfill, async (_e, start: string, end: string) => {
+  ipcMain.handle(IPC.rangeBackfill, async (_e, start: string, end: string, force?: boolean) => {
+    // 되돌릴 수 없고 날짜 수만큼 claude 를 부른다. 누른 것이 맞는지 한 번 묻는다
+    if (force) {
+      const { response } = await dialog.showMessageBox({
+        type: 'warning',
+        title: 'WorkLog',
+        message: '이 기간의 요약을 모두 다시 만들까요?',
+        detail:
+          '이미 만들어 둔 요약을 덮어씁니다. 되돌릴 수 없고, 날짜 수만큼 claude 를 부릅니다.',
+        buttons: ['다시 만들기', '취소'],
+        defaultId: 1,
+        cancelId: 1
+      })
+      if (response !== 0) return null
+    }
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
     longRunning = true
     resetCancel()
     try {
-      return await backfillRange(start, end, progress)
+      return await backfillRange(start, end, progress, force)
     } finally {
       longRunning = false
       progressIdle()
