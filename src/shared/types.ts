@@ -10,6 +10,8 @@ export type ModelChoice = 'default' | 'haiku' | 'sonnet' | 'opus' | 'fable'
 
 /** 매일 자동실행 모드: 끄기 / 컨펌 후 실행 / 조용히 실행 */
 export type DailyAutoMode = 'off' | 'confirm' | 'silent'
+/** 자동 실행이 요약할 날 */
+export type DailySubject = 'today' | 'yesterday'
 
 /** 사용자가 설정 탭에서 자유롭게 편집하는 프롬프트 템플릿 */
 export interface PromptTemplates {
@@ -39,6 +41,13 @@ export interface Settings {
   dailyAuto: DailyAutoMode
   /** "HH:mm" (KST, 로컬 시각) */
   dailyTime: string
+  /**
+   * 자동 실행이 요약할 날.
+   *
+   * 저녁에 돌리면 오늘이 맞지만, 아침에 돌리면 그날은 몇 시간치뿐이라 사실상 빈다.
+   * 보통 어제 한 일을 오늘 아침에 보고하므로 시각에 따라 자연스러운 대상이 다르다.
+   */
+  dailySubject: DailySubject
   /**
    * 원본 추출(digest) 캐시 보관 기간(개월). 0이면 무제한.
    * AI 요약 캐시는 용량이 미미해 영구 보관하며,
@@ -254,6 +263,12 @@ export interface PipelineError {
 export interface SchedulerRun {
   /** 시작 시각 (ISO) */
   at: string
+  /**
+   * 실행한 날 (KST). 하루 한 번만 돌게 하는 기준이다.
+   * 요약 대상(date)과 다를 수 있어 따로 둔다. 어제치를 요약해도 '오늘 실행했다'가
+   * 남아야 같은 날 다시 돌지 않는다.
+   */
+  ranOn: string
   /** 요약 대상 날짜 (KST, YYYY-MM-DD) */
   date: string
   /**
