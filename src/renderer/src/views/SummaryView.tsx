@@ -430,6 +430,25 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
             </button>
           </div>
         </div>
+        {/* 돋보기 바로 밑에서 열린다. 별도 카드로 두면 위아래 카드와 간격이 같아
+            어느 쪽에도 속하지 않은 것처럼 떠 보인다 */}
+        {searchOpen && (
+          <div className="searchrow">
+            <input
+              type="search"
+              autoFocus
+              value={query}
+              placeholder="요약 검색 (제목, 항목, 키워드)"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setQuery('')
+                  setSearchOpen(false)
+                }
+              }}
+            />
+          </div>
+        )}
         {todayInRange && (
           <button
             type="button"
@@ -467,26 +486,6 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           목록 위에 늘 떠 있으면 자리만 먹는다. 캐시 여부는 각 날짜를 펼쳤을 때
           그 날의 원본 내역 아래에 적는다. */}
       <div className="card days">
-        {searchOpen && (
-          <div className="searchbar">
-            <input
-              type="search"
-              autoFocus
-              value={query}
-              placeholder="요약 검색 (제목, 항목, 키워드)"
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setQuery('')
-                  setSearchOpen(false)
-                }
-              }}
-            />
-            <span className="muted">
-              {q ? `${days.length}일` : `${allDays.length}일`}
-            </span>
-          </div>
-        )}
         {q && days.length === 0 && <div className="muted">찾는 내용이 없습니다.</div>}
         {/* 목록을 스피너로 덮지 않는다. 아는 행은 이미 그려져 있고, 확인 중인 날짜에만
             그 행에 표시가 붙는다. 아직 아무 행도 없을 때만 무엇을 읽는지 말한다. */}
