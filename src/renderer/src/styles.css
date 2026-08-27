@@ -718,15 +718,16 @@ button.btn.icon.on {
   border-color: var(--accent);
   color: #fff;
 }
-/* 거를 대상 바로 위에 둔다. 목록 카드의 첫 줄이라 위 여백을 따로 주지 않는다 */
-.searchbar {
+/* 돋보기를 품은 카드 안, 그 바로 아래 줄이다.
+   별도 카드로 빼면 위아래 카드와 간격이 같아져 어느 쪽에도 속하지 않은 것처럼 뜬다.
+   목록 카드 안에도 둘 수 없다. 그쪽은 첫 행이 카드 끝까지 닿도록 세로 padding 이 0 이라
+   입력칸이 천장에 붙고, div 하나가 앞에 끼면서 .day-item:first-of-type 이 첫 행에서
+   벗어나 없어야 할 경계선이 생긴다 */
+.searchrow {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
 }
-.searchbar input {
+.searchrow input {
   flex: 1;
   min-width: 0;
   padding: 5px 8px;
@@ -736,10 +737,6 @@ button.btn.icon.on {
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
-}
-.searchbar .muted {
-  flex: none;
-  font-size: 11px;
 }
 /* 제목에 없고 항목에만 걸린 날짜. 왜 걸렸는지 그 자리에서 보여 준다 */
 .day-hits {
