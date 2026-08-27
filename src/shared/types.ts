@@ -338,7 +338,8 @@ export interface WorklogApi {
    * 구간의 미요약 활동일을 하나씩 순차 생성한다. 조합은 하지 않는다.
    * 진행률은 onBackfillProgress로 오고 cancelBackfill로 중단할 수 있다.
    */
-  backfillRange(start: string, end: string): Promise<RangeStatus>
+  /** force 면 이미 있는 요약까지 다시 만든다. 취소하면 null */
+  backfillRange(start: string, end: string, force?: boolean): Promise<RangeStatus | null>
   /** 특정 날짜 요약 생성 (force면 캐시 무시) */
   generateDay(date: string, force?: boolean): Promise<DaySummary>
   /**

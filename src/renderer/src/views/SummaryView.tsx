@@ -16,6 +16,48 @@ import type {
 } from '@shared/types'
 import { CopyButton, Elapsed, MadeBy, Spinner, Tip, errMsg } from '../common'
 
+/* 기존 기간 이동이 ◀ ▶ 글리프를 쓰므로 색이 붙는 이모지는 쓰지 않는다.
+   currentColor 라 라이트와 다크에서 각각 그 줄의 색을 따른다 */
+const SEARCH_ICON = (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+    <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M7.9 7.9 11 11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+)
+
+/** 요약에서 검색어에 걸리는 항목. 왜 이 날짜가 걸렸는지 화면에서 보여 주려고 쓴다 */
+function hitItems(s: DaySummary | undefined, q: string): { project: string; work: string }[] {
+  if (!s?.items || !q) return []
+  const k = q.toLowerCase()
+  return s.items
+    .filter((i) => `${i.work ?? ''} ${i.project ?? ''}`.toLowerCase().includes(k))
+    .map((i) => ({ project: i.project ?? '', work: i.work ?? '' }))
+}
+
+/** 제목, 항목, 키워드 어느 하나라도 걸리면 그 날짜를 남긴다 */
+function matchesQuery(s: DaySummary | undefined, q: string): boolean {
+  if (!q) return true
+  if (!s) return false
+  const k = q.toLowerCase()
+  if ((s.headline ?? '').toLowerCase().includes(k)) return true
+  if ((s.keywords ?? []).some((w) => w.toLowerCase().includes(k))) return true
+  return hitItems(s, q).length > 0
+}
+
+/** 걸린 부분만 물들인다. 없으면 원문 그대로 */
+function Highlight({ text, q }: { text: string; q: string }): ReactNode {
+  if (!q) return <>{text}</>
+  const i = text.toLowerCase().indexOf(q.toLowerCase())
+  if (i < 0) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark>{text.slice(i, i + q.length)}</mark>
+      {text.slice(i + q.length)}
+    </>
+  )
+}
+
 /** 생성 중에만 쓰는 화면 상태. 저장되지 않는다 */
 interface StreamState {
   /** 요약 본문 조각을 이어붙인 것 */
@@ -257,12 +299,13 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       })
   }
 
-  const runBackfill = (): void => {
+  const runBackfill = (force = false): void => {
     setBackfilling(true)
     setError(null)
     window.api
-      .backfillRange(shownRange.start, shownRange.end)
-      .then((s) => setStatus(s))
+      .backfillRange(shownRange.start, shownRange.end, force)
+      // null 은 확인 창에서 취소한 것이다. 그대로 두면 목록이 빈 것으로 그려진다
+      .then((s) => s && setStatus(s))
       .catch((e: unknown) => setError(errMsg(e)))
       .finally(() => {
         setBackfilling(false)
@@ -285,6 +328,9 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       })
   }
 
+  // 검색은 화면에 이미 있는 요약만 거른다. 원본 로그는 건드리지 않는다
+  const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const state = rangeStateOf(status)
   const busy = busyDate !== null || backfilling || composing !== null
   const spanWord = shown.span === 'week' ? '주간' : '월간'
@@ -297,7 +343,10 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       : state.kind === 'empty'
         ? '이 기간에는 묶을 기록이 없습니다.'
         : null
-  const days = [...(status?.activeDays ?? [])].sort().reverse()
+  const allDays = [...(status?.activeDays ?? [])].sort().reverse()
+  const q = query.trim()
+  // 요약이 아직 없는 날짜는 검색 중에 감춘다. 걸릴 내용 자체가 없다
+  const days = q ? allDays.filter((d) => matchesQuery(summaries.get(d), q)) : allDays
   const todayInRange = today >= shownRange.start && today <= shownRange.end
 
   // 지금 만들고 있는 날짜. 하루만 만들 때도, 전체 정리로 여러 날을 훑을 때도
@@ -322,7 +371,8 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
       : state.kind === 'empty'
         ? '정리할 기록 없음'
         : state.kind === 'ready'
-          ? '전체 정리 완료'
+          ? // 밀린 것이 없을 때만 다시 만들기를 권한다. 남아 있으면 그것부터가 맞다
+            '전체 다시 정리하기'
           : `밀린 ${state.count}일 전체 정리하기`
 
   // 고른 구간 단위는 설정에 남긴다. 탭을 옮기면 이 화면이 언마운트돼 화면 상태만으로는
@@ -337,6 +387,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
     <>
       <div className="card">
         <div className="row spread">
+          <div className="row">
           <div className="seg">
             <button
               type="button"
@@ -354,6 +405,20 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
             >
               한달
             </button>
+          </div>
+          <button
+            type="button"
+            className={`btn icon${searchOpen ? ' on' : ''}`}
+            aria-label="요약 검색"
+            aria-pressed={searchOpen}
+            onClick={() => {
+              const next = !searchOpen
+              setSearchOpen(next)
+              if (!next) setQuery('')
+            }}
+          >
+            {SEARCH_ICON}
+          </button>
           </div>
           <div className="row">
             <button type="button" className="btn" disabled={busy} onClick={() => setCursor(shift(cursor, -1))}>
@@ -380,14 +445,20 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         <button
           type="button"
           className="btn tip-host"
-          disabled={busy || state.kind !== 'pending'}
-          onClick={runBackfill}
+          disabled={busy || (state.kind !== 'pending' && state.kind !== 'ready')}
+          onClick={() => runBackfill(state.kind === 'ready')}
         >
           {backfillLabel}
           {/* 말풍선에는 라벨이 말하지 않는 것만 둔다. 남은 날짜 수는 이미 라벨에 있고,
               중단은 누른 뒤에 위쪽 막대에서 알려 준다. 누르기 전에 알아야 할 것은
               비용 하나다. 나머지 상태는 라벨만으로 충분해 말풍선을 띄우지 않는다. */}
           {state.kind === 'pending' && <Tip toLeft text={`claude를 ${state.count}번 부릅니다.`} />}
+          {state.kind === 'ready' && (
+            <Tip
+              toLeft
+              text={`이미 만든 요약을 덮어씁니다.\nclaude를 ${allDays.length}번 부릅니다.`}
+            />
+          )}
         </button>
         {error && <div className="error">{error}</div>}
       </div>
@@ -396,6 +467,27 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
           목록 위에 늘 떠 있으면 자리만 먹는다. 캐시 여부는 각 날짜를 펼쳤을 때
           그 날의 원본 내역 아래에 적는다. */}
       <div className="card days">
+        {searchOpen && (
+          <div className="searchbar">
+            <input
+              type="search"
+              autoFocus
+              value={query}
+              placeholder="요약 검색 (제목, 항목, 키워드)"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setQuery('')
+                  setSearchOpen(false)
+                }
+              }}
+            />
+            <span className="muted">
+              {q ? `${days.length}일` : `${allDays.length}일`}
+            </span>
+          </div>
+        )}
+        {q && days.length === 0 && <div className="muted">찾는 내용이 없습니다.</div>}
         {/* 목록을 스피너로 덮지 않는다. 아는 행은 이미 그려져 있고, 확인 중인 날짜에만
             그 행에 표시가 붙는다. 아직 아무 행도 없을 때만 무엇을 읽는지 말한다. */}
         {days.length === 0 &&
@@ -413,6 +505,11 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
         {days.map((date) => {
           const s = summaries.get(date)
           const open = openDate === date
+          // 제목에 없고 항목에만 걸린 날짜는 왜 걸렸는지 보이지 않는다. 그 줄을 붙여 준다
+          const hits =
+            q && !(s?.headline ?? '').toLowerCase().includes(q.toLowerCase())
+              ? hitItems(s, q).slice(0, 3)
+              : []
           return (
             <div key={date} id={`day-${date}`} className="day-item">
               <div
@@ -424,7 +521,11 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
                 {/* 업무 내용이 이 줄의 본문이다. 예전에는 이것이 회색이고 날짜가 검은
                     굵은 글씨여서 무게가 뒤집혀 있었다. 활동이 없는 날만 회색으로 둔다. */}
                 <span className={`grow ellipsis${s?.empty ? ' muted' : ''}`}>
-                  {s?.empty ? '활동 없음' : (s?.headline ?? s?.fallbackText?.slice(0, 40) ?? '')}
+                  {s?.empty ? (
+                    '활동 없음'
+                  ) : (
+                    <Highlight text={s?.headline ?? s?.fallbackText?.slice(0, 40) ?? ''} q={q} />
+                  )}
                 </span>
                 {readingToday && date === today ? (
                   // 오늘은 하루가 끝나지 않아 저장하지 않는다. 열 때마다 원본을 읽는다
@@ -460,6 +561,16 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
                   </button>
                 )}
               </div>
+              {hits.length > 0 && (
+                <div className="day-hits">
+                  {hits.map((h, i) => (
+                    <div key={i}>
+                      <span className="muted">[{h.project}]</span>{' '}
+                      <Highlight text={h.work} q={q} />
+                    </div>
+                  ))}
+                </div>
+              )}
               {open && (
                 <DayDetail
                   date={date}

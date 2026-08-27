@@ -184,7 +184,9 @@ export async function getRangeStatus(
 export async function backfillRange(
   start: string,
   end: string,
-  onProgress?: ProgressFn
+  onProgress?: ProgressFn,
+  /** 요약이 이미 있고 원본도 그대로인 날짜까지 다시 만든다. 프롬프트나 모델을 바꾼 뒤 쓴다 */
+  force = false
 ): Promise<RangeStatus> {
   const today = todayKst()
   const endClamped = end > today ? today : end
@@ -200,6 +202,10 @@ export async function backfillRange(
 
   const todo: string[] = []
   for (const d of dates) {
+    if (force) {
+      todo.push(d)
+      continue
+    }
     const cached = await getCachedDaySummary(d)
     // 방금 원본을 훑어 만든 다이제스트가 있다. 여기서의 대조가 가장 정확하다
     if (!cached || !summaryMatches(cached, digests.get(d))) todo.push(d)
@@ -210,7 +216,10 @@ export async function backfillRange(
     const date = todo[i]
     onProgress?.({ done: i, total: todo.length, currentDate: date, phase: 'summarize' })
     const digest = digests.get(date)
-    await ensureDaySummary(date, digest ? { preCollected: digest } : {})
+    await ensureDaySummary(date, {
+      ...(digest ? { preCollected: digest } : {}),
+      ...(force ? { force: true } : {})
+    })
   }
   onProgress?.({ done: todo.length, total: todo.length, currentDate: null, phase: 'summarize' })
 

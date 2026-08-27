@@ -7,6 +7,8 @@
   --accent: #4f6ef7;
   --accent-text: #ffffff;
   --danger: #d64545;
+  /* 검색어 강조. 노랑을 그대로 쓰면 다크에서 튄다 */
+  --mark-bg: #ffe9a8;
   --ok: #2f9e5f;
   color-scheme: light dark;
 }
@@ -18,6 +20,9 @@
     --muted: #9aa2ad;
     --border: #33373d;
     --accent: #6b84ff;
+    /* 라이트의 연노랑을 그대로 쓰면 어두운 면 위에서 홀로 타오른다.
+       면에 가까운 채도로 낮추고 글자색은 그대로 둔다 */
+    --mark-bg: #6b5a1e;
   }
 }
 * {
@@ -472,6 +477,12 @@ button.btn.steady {
   /* 15px 원 안에서 글자를 가운데 두려면 줄 높이를 죽여야 한다 */
   line-height: 1;
   cursor: help;
+  /* 광학 보정. align-items: center 는 이 원을 옆 h3 의 라인박스 중심에 맞추는데,
+     라인박스는 폰트 line-height 만큼 커서 아래에 디센더 공간이 비어 있다. 한글 글자는
+     그 안에서 위로 치우쳐 있으므로 좌표상 정중앙이 눈에는 처져 보인다. 원이 13px 글자보다
+     큰 15px 이라 그 어긋남이 더 눈에 띈다. */
+  position: relative;
+  top: -2px;
 }
 /* 채워서 열려 있다는 것을 알린다. 글자색은 --card로 둔다. 라이트에서는 흰 글자,
    다크에서는 어두운 글자가 되어 어느 테마에서도 읽힌다 (#fff로 박으면 다크에서
@@ -689,6 +700,62 @@ button.statusbar:hover {
 /* 자동 실행 결과 한 줄. 평소에는 조용하고 실패했을 때만 눈에 들어와야 한다 */
 /* 설정이 아니라 결과다. 설정 항목들 사이에 끼면 어디에 속한 값인지 모호해지므로
    카드 맨 아래에 소제목과 함께 따로 둔다. 위 항목과는 조금 더 벌린다. */
+/* 기간 이동(◀ ▶) 과 같은 button.btn 이다. 세로 padding 을 지우면 높이를 만들던 것이
+   사라져 납작해지므로 padding 을 남기고, 글자가 아니라 svg 라서 inline-flex 로 가운데 둔다.
+   선택자를 button.btn.icon 으로 맞춘 것은 특이성 때문이다. .btn.icon 으로 쓰면 클래스가
+   둘이라 button.btn 의 padding 을 이겨 버린다.
+   5px 인 이유는 옆 seg 와 높이를 맞추기 위해서다. 실측으로 seg 25.5px, button.btn 27.5px
+   이라 위아래 1px 씩 덜면 seg 와 같아진다. 붙어 있는 둘이 한 덩어리로 읽혀야 한다
+   (◀ ▶ 는 줄 반대편이라 원래도 seg 보다 2px 컸고 그것은 눈에 띄지 않는다). */
+button.btn.icon {
+  padding: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+button.btn.icon.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+/* 거를 대상 바로 위에 둔다. 목록 카드의 첫 줄이라 위 여백을 따로 주지 않는다 */
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.searchbar input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+.searchbar .muted {
+  flex: none;
+  font-size: 11px;
+}
+/* 제목에 없고 항목에만 걸린 날짜. 왜 걸렸는지 그 자리에서 보여 준다 */
+.day-hits {
+  padding: 0 12px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text);
+}
+mark {
+  background: var(--mark-bg);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
 .runbox {
   margin-top: 2px;
   display: flex;
