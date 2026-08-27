@@ -1,5 +1,5 @@
 import { Notification, dialog, powerMonitor } from 'electron'
-import { kstHHMM, kstStartOfDayMs, todayKst } from '@shared/dates'
+import { addDays, kstHHMM, kstStartOfDayMs, todayKst } from '@shared/dates'
 import { readJson, schedulerStatePath, writeJsonAtomic } from './cache'
 import {
   nextSchedulerState,
@@ -12,6 +12,8 @@ import type { DaySummary, PipelineError, SchedulerRun } from '@shared/types'
 /**
  * 매일 자동실행 스케줄러.
  * - dailyAuto: 'off' | 'confirm'(실행 전 확인 창) | 'silent'(조용히 실행)
+ * - dailySubject: 'today' | 'yesterday'. 무엇을 요약할지. 하루 한 번만 돈다는 판정은
+ *   실행한 날로 하고, 요약 대상은 이 설정으로 따로 정한다.
  * - dailyTime: KST 기준 "HH:mm". 실행 기록(lastAutoRunDate)이 KST 날짜이므로
  *   발화 판정도 KST로 통일해야 KST 밖 타임존에서 하루가 어긋나지 않는다.
  * - 슬립/재부팅으로 시각을 놓친 경우, 깨어날 때 그날 몫을 따라잡는다.
@@ -155,14 +157,16 @@ async function fire(): Promise<void> {
     const today = todayKst()
     const state = await readJson<SchedulerState>(schedulerStatePath())
     if (state?.lastAutoRunDate === today) return
-    target = today
+    // 하루 한 번 판정은 오늘로, 요약 대상은 설정으로 따로 정한다
+    target = s.dailySubject === 'yesterday' ? addDays(today, -1) : today
 
     if (s.dailyAuto === 'confirm') {
+      const subject = s.dailySubject === 'yesterday' ? '어제' : '오늘'
       const { response } = await dialog.showMessageBox({
         type: 'question',
         title: 'WorkLog',
-        message: '오늘 업무 요약을 생성하시겠습니까?',
-        detail: 'Claude Code 사용 기록으로 오늘 하루 업무 요약을 만듭니다.',
+        message: `${subject} 업무 요약을 생성하시겠습니까?`,
+        detail: `Claude Code 사용 기록으로 ${subject}(${target}) 업무 요약을 만듭니다.`,
         buttons: ['지금 생성', '오늘은 건너뛰기'],
         defaultId: 0,
         cancelId: 1
@@ -170,27 +174,29 @@ async function fire(): Promise<void> {
       if (response !== 0) {
         // 건너뛰기도 실행으로 기록해 같은 날 반복해서 묻지 않는다
         await recordRun(
-          { at: startedAt, date: today, outcome: 'skipped', ms: Date.now() - startedMs },
+          { at: startedAt, ranOn: today, date: target, outcome: 'skipped', ms: Date.now() - startedMs },
           true
         )
         return
       }
     }
 
-    const summary = await ensureDaySummary(today)
+    const summary = await ensureDaySummary(target)
     await recordRun(
       {
         at: startedAt,
-        date: today,
+        ranOn: today,
+        date: target,
         outcome: summary.empty ? 'empty' : 'ok',
         ms: Date.now() - startedMs
       },
       true
     )
+    const label = s.dailySubject === 'yesterday' ? '어제' : '오늘'
     showNotification(
       summary.empty
-        ? '오늘은 Claude Code 활동 기록이 없습니다'
-        : `오늘 업무 요약 완료. ${summary.headline ?? '일일보기 탭에서 확인하세요'}`
+        ? `${label}(${target})는 Claude Code 활동 기록이 없습니다`
+        : `${label} 업무 요약 완료. ${summary.headline ?? '요약 탭에서 확인하세요'}`
     )
     onSummaryDone?.(summary)
   } catch (e) {
@@ -198,7 +204,14 @@ async function fire(): Promise<void> {
     // markDone=false. 실패한 날은 catch-up 이 다시 시도해야 한다
     if (target) {
       await recordRun(
-        { at: startedAt, date: target, outcome: 'error', ms: Date.now() - startedMs, error: message },
+        {
+          at: startedAt,
+          ranOn: todayKst(),
+          date: target,
+          outcome: 'error',
+          ms: Date.now() - startedMs,
+          error: message
+        },
         false
       )
     }

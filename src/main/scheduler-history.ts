@@ -28,7 +28,10 @@ export function nextSchedulerState(
 ): SchedulerState {
   return {
     ...prev,
-    ...(markDone ? { lastAutoRunDate: run.date } : {}),
+    // 요약 대상이 아니라 실행한 날을 남긴다. 어제치를 요약했다고 어제를 남기면
+    // '오늘은 아직 안 돌았다'로 판정되어 같은 날 계속 다시 돈다.
+    // ranOn 이 없는 옛 기록은 둘이 같던 시절의 것이다
+    ...(markDone ? { lastAutoRunDate: run.ranOn ?? run.date } : {}),
     recent: [run, ...(prev.recent ?? [])].slice(0, MAX_RECENT)
   }
 }

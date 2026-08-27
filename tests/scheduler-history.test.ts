@@ -2,8 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { SchedulerRun } from '@shared/types'
 import { MAX_RECENT, nextSchedulerState } from '../src/main/scheduler-history'
 
+/** 실행일과 대상이 같은 경우 (dailySubject: 'today') */
 function run(date: string, outcome: SchedulerRun['outcome'] = 'ok'): SchedulerRun {
-  return { at: `${date}T01:00:00.000Z`, date, outcome, ms: 1000 }
+  return { at: `${date}T01:00:00.000Z`, ranOn: date, date, outcome, ms: 1000 }
+}
+
+/** 어제치를 오늘 요약한 경우 (dailySubject: 'yesterday') */
+function runYesterday(ranOn: string, date: string): SchedulerRun {
+  return { at: `${ranOn}T01:00:00.000Z`, ranOn, date, outcome: 'ok', ms: 1000 }
 }
 
 describe('자동 실행 이력', () => {
@@ -43,6 +49,21 @@ describe('자동 실행 이력', () => {
     expect(next.recent).toHaveLength(MAX_RECENT)
     expect(next.recent?.[0].date).toBe('2026-08-26')
     expect(next.recent?.some((r) => r.date === '2026-07-14')).toBe(false)
+  })
+
+  it('어제치를 요약해도 실행일은 오늘로 남는다', () => {
+    // 요약 대상(어제)을 남기면 "오늘은 아직 안 돌았다"로 판정되어
+    // 같은 날 15분마다 계속 다시 돈다
+    const next = nextSchedulerState({}, runYesterday('2026-08-26', '2026-08-25'), true)
+    expect(next.lastAutoRunDate).toBe('2026-08-26')
+    expect(next.recent?.[0].date).toBe('2026-08-25')
+  })
+
+  it('ranOn 이 없는 옛 기록은 date 를 실행일로 본다', () => {
+    // 대상 설정이 생기기 전에는 둘이 늘 같았다
+    const legacy = { at: '2026-08-20T01:00:00.000Z', date: '2026-08-20', outcome: 'ok', ms: 1 }
+    const next = nextSchedulerState({}, legacy as SchedulerRun, true)
+    expect(next.lastAutoRunDate).toBe('2026-08-20')
   })
 
   it('상태 파일의 다른 필드를 지우지 않는다', () => {

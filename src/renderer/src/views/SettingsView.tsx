@@ -331,6 +331,25 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
               onBlur={flush}
             />
           </label>
+          <label>
+            <span>
+              요약 대상{' '}
+              <Hint
+                text={
+                  '아침에 실행한다면 어제를 고르세요.\n오늘을 고르면 그때까지의 몇 시간치만 요약됩니다.'
+                }
+              />
+            </span>
+            <select
+              value={form.dailySubject}
+              onChange={(e) =>
+                patch({ dailySubject: e.target.value as Settings['dailySubject'] }, true)
+              }
+            >
+              <option value="today">오늘</option>
+              <option value="yesterday">어제</option>
+            </select>
+          </label>
         </div>
         <label>
           <span>
@@ -474,21 +493,27 @@ function RunHistory(): ReactNode {
   )
 }
 
-/** "8/26 10:00 성공 (45초)" 꼴 */
+/**
+ * "8/26 10:00 성공 (45초)" 꼴.
+ * 요약한 날이 실행한 날과 다르면 무엇을 요약했는지 밝힌다. 어제치를 돌려 놓고
+ * 실행 시각만 보이면 어느 날 기록인지 알 수 없다.
+ */
 function runLabel(r: SchedulerRun): string {
   const d = new Date(r.at)
   const when = Number.isNaN(d.getTime())
     ? r.date
     : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const ranOn = r.ranOn ?? r.date
+  const subject = r.date === ranOn ? '' : ` ${r.date.slice(5).replace('-', '/')}분`
   const took = r.ms >= 1000 ? ` (${Math.round(r.ms / 1000)}초)` : ''
   switch (r.outcome) {
     case 'ok':
-      return `${when} 성공${took}`
+      return `${when}${subject} 성공${took}`
     case 'empty':
-      return `${when} 활동 없음`
+      return `${when}${subject} 활동 없음`
     case 'skipped':
-      return `${when} 건너뜀`
+      return `${when}${subject} 건너뜀`
     default:
-      return `${when} 실패: ${r.error ?? '알 수 없는 오류'}`
+      return `${when}${subject} 실패: ${r.error ?? '알 수 없는 오류'}`
   }
 }
