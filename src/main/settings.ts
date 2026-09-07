@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyTime: '18:00',
   // 기본 실행 시각이 저녁이라 오늘이 맞다. 아침으로 옮기는 사람은 어제로 바꾸면 된다
   dailySubject: 'today',
+  excludeWeekdays: [],
   retentionMonths: 12,
   prompts: DEFAULT_PROMPTS
 }

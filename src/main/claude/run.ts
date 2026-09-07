@@ -1,4 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { AUTH_FAILURE_MESSAGE, isAuthFailure } from '@shared/claude-error'
+import { noteRunFailure, noteRunSuccess } from '../auth-state'
 import type { ModelChoice } from '@shared/types'
 
 /**
@@ -173,6 +175,27 @@ const RETRY_DELAYS_MS = [2_000, 8_000]
 /** 재시도해도 절대 성공하지 않는 실행 오류. 즉시 중단해 사용자를 10초 기다리게 하지 않는다 */
 const PERMANENT_ERRORS = new Set(['EINVAL', 'ENOENT', 'EFTYPE', 'EACCES'])
 
+/** 로그인이 풀려서 죽은 실행. 재시도로는 풀리지 않으므로 표식을 달아 둔다 */
+interface AuthError extends Error {
+  authFailure?: true
+}
+
+/**
+ * 종료 코드가 0이 아닐 때 원인 문구를 고른다.
+ *
+ * stderr만 보던 때가 있었는데, 인증 실패 문구는 stdout으로 나온다. 그래서 화면에는
+ * 'claude 종료 코드 1: ' 뒤가 비어 있었고 무엇을 해야 하는지 알 수 없었다.
+ */
+function failureFrom(code: number | null, stderr: string, stdout: string): AuthError {
+  const detail = (stderr.trim() || stdout.trim()).slice(0, 500)
+  if (isAuthFailure(detail)) {
+    const e: AuthError = new Error(AUTH_FAILURE_MESSAGE)
+    e.authFailure = true
+    return e
+  }
+  return new Error(`claude 종료 코드 ${code}: ${detail}`)
+}
+
 /** 강제 종료 후에도 close가 오지 않을 때 Promise를 반드시 settle시키는 유예 시간 */
 const HARD_KILL_GRACE_MS = 5_000
 
@@ -207,16 +230,24 @@ export async function runClaude(prompt: string, opts: ClaudeRunOptions): Promise
     try {
       // 재시도는 처음부터 다시 쓴다. 앞 시도의 조각을 남겨 두면 두 글이 이어붙는다
       if (attempt > 0) opts.onStream?.({ kind: 'reset' })
-      return await runOnce(prompt, opts)
+      const ok = await runOnce(prompt, opts)
+      noteRunSuccess()
+      return ok
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e))
       const code = (lastError as NodeJS.ErrnoException).code
+      // 로그인이 풀린 것은 기다려도 풀리지 않는다. 10초를 버리고 같은 곳에서 죽는다
+      if ((lastError as AuthError).authFailure) {
+        noteRunFailure(lastError.message)
+        throw lastError
+      }
       if (code && PERMANENT_ERRORS.has(code)) throw lastError
       if (attempt < RETRY_DELAYS_MS.length) {
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]))
       }
     }
   }
+  noteRunFailure(lastError.message)
   throw lastError
 }
 
@@ -258,6 +289,17 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
 
     let stdout = ''
     let stderr = ''
+    /**
+     * stdout 앞부분. 실패 원인을 찾는 데만 쓴다.
+     *
+     * 스트리밍일 때 stdout은 JSON 줄로 쌓이므로 통째로 들고 있을 수 없다. 그런데
+     * 인증 실패는 JSON이 아닌 평문 한 줄로 오고 그때는 그 줄이 출력의 전부다.
+     * 앞 500자만 남겨 두면 어느 쪽이든 원인을 잃지 않는다.
+     */
+    let rawHead = ''
+    const keepHead = (d: string): void => {
+      if (rawHead.length < 500) rawHead += d.slice(0, 500 - rawHead.length)
+    }
     /** 스트리밍일 때의 최종 결과 줄. 이것이 없으면 글이 끝까지 오지 않은 것이다 */
     let resultLine: StreamLine | null = null
     let timedOut = false
@@ -285,7 +327,10 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
     child.stderr?.on('data', (d: string) => (stderr += d))
 
     if (!streaming) {
-      child.stdout?.on('data', (d: string) => (stdout += d))
+      child.stdout?.on('data', (d: string) => {
+        stdout += d
+        keepHead(d)
+      })
     } else {
       let carry = ''
       const handle = (line: string): void => {
@@ -296,6 +341,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
         else if (ev.kind === 'tokens') opts.onStream?.({ kind: 'tokens', count: ev.count })
       }
       child.stdout?.on('data', (d: string) => {
+        keepHead(d)
         const split = splitLines(carry, d)
         carry = split.carry
         for (const line of split.lines) handle(line)
@@ -318,7 +364,7 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
         return
       }
       if (code !== 0) {
-        reject(new Error(`claude 종료 코드 ${code}: ${stderr.slice(0, 500)}`))
+        reject(failureFrom(code, stderr, rawHead))
         return
       }
       // 스트리밍이든 아니든 최종 결과는 같은 봉투에서 읽는다. 조각은 화면용이고

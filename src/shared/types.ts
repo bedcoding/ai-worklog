@@ -49,6 +49,17 @@ export interface Settings {
    */
   dailySubject: DailySubject
   /**
+   * 요약에서 뺄 요일. 0(일) ~ 6(토). 빈 배열이면 모든 요일을 본다.
+   *
+   * 사람이 쉬는 날에도 자동화가 claude를 부르면 그 기계 프롬프트가 그날의 업무로
+   * 요약된다. isMeta로는 걸러지지 않는다. 그것은 Claude Code가 주입한 표식인데,
+   * 외부 프로그램이 보낸 것은 사람이 친 것과 구별되지 않기 때문이다.
+   *
+   * 활동 인덱스에는 반영하지 않고 목록을 내보낼 때만 거른다. 설정을 되돌리면
+   * 원본을 다시 훑지 않고 그 날들이 그대로 돌아와야 한다.
+   */
+  excludeWeekdays: number[]
+  /**
    * 원본 추출(digest) 캐시 보관 기간(개월). 0이면 무제한.
    * AI 요약 캐시는 용량이 미미해 영구 보관하며,
    * ~/.claude 원본 로그는 이 앱이 절대 삭제하지 않는다.
@@ -303,10 +314,12 @@ export const IPC = {
   appSetAutoLaunch: 'app:setAutoLaunch',
   windowPinGet: 'window:pinGet',
   windowPinSet: 'window:pinSet',
+  authGet: 'auth:get',
   // main → renderer push
   backfillProgress: 'backfill:progress',
   pipelineError: 'pipeline:error',
-  dayUpdated: 'day:updated'
+  dayUpdated: 'day:updated',
+  authState: 'auth:state'
 } as const
 
 export interface PeriodRequest {
@@ -368,6 +381,8 @@ export interface WorklogApi {
   setAutoLaunch(enabled: boolean): Promise<void>
   /** 창 고정 여부. 고정 중에는 포커스를 잃어도 창이 닫히지 않는다 */
   getWindowPinned(): Promise<boolean>
+  /** claude 로그인이 풀렸는가. 창을 열 때 한 번 읽고, 이후는 onAuthState로 받는다 */
+  getAuthFailed(): Promise<boolean>
   setWindowPinned(pinned: boolean): Promise<boolean>
   /** 이 앱의 버전. 자동 업데이트가 없으므로 사용자가 스스로 최신인지 알아야 한다 */
   getAppVersion(): Promise<string>
@@ -377,4 +392,5 @@ export interface WorklogApi {
   onPipelineError(cb: (e: PipelineError) => void): () => void
   /** 자동실행 등으로 main이 요약을 갱신했을 때 */
   onDayUpdated(cb: (s: DaySummary) => void): () => void
+  onAuthState(cb: (failed: boolean) => void): () => void
 }

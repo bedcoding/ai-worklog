@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { AUTH_FAILURE_MESSAGE } from '@shared/claude-error'
 import type { BackfillProgress, PipelineError } from '@shared/types'
 import StatusBar from './StatusBar'
 import { Tip } from './common'
@@ -19,6 +20,8 @@ export default function App(): ReactNode {
   const [claudeNonce, setClaudeNonce] = useState(0)
   const [pinned, setPinned] = useState(false)
   const [pipelineError, setPipelineError] = useState<PipelineError | null>(null)
+  const [authFailed, setAuthFailed] = useState(false)
+  const [authDismissed, setAuthDismissed] = useState(false)
 
   useEffect(
     () => window.api.onBackfillProgress((p) => setProgress(p.phase === 'idle' ? null : p)),
@@ -28,6 +31,26 @@ export default function App(): ReactNode {
   // main이 보내는 파이프라인 오류(자동 요약 실패, 알림 표시 불가 등)를 표시한다.
   // 수신자가 없으면 main의 '조용히 넘기지 않는다'가 실제로는 아무 데도 보이지 않는다.
   useEffect(() => window.api.onPipelineError(setPipelineError), [])
+
+  /**
+   * 로그인이 풀렸는지는 창이 닫혀 있는 동안에도 바뀐다. 열 때 한 번 읽고 그 뒤로는
+   * push를 받는다. 다시 풀리면 닫아 둔 배너를 되살린다.
+   */
+  useEffect(() => {
+    let alive = true
+    void window.api
+      .getAuthFailed()
+      .then((v) => alive && setAuthFailed(v))
+      .catch(() => {})
+    const off = window.api.onAuthState((v) => {
+      setAuthFailed(v)
+      if (v) setAuthDismissed(false)
+    })
+    return () => {
+      alive = false
+      off()
+    }
+  }, [])
 
   // 핀 상태는 main이 갖고 있다 (blur 처리 주체가 main이기 때문). 초기값을 읽어 표시를 맞춘다.
   useEffect(() => {
@@ -68,6 +91,20 @@ export default function App(): ReactNode {
           />
         </button>
       </nav>
+      {/*
+        로그인 문제는 다른 오류보다 위에 둔다. 이것이 풀리기 전까지는 나머지가 전부
+        같은 이유로 실패하므로, 아래에 쌓인 실패들을 먼저 읽게 하면 헛짚게 된다.
+      */}
+      {authFailed && !authDismissed && (
+        <div className="progress-wrap">
+          <div className="row spread">
+            <span className="error grow">{AUTH_FAILURE_MESSAGE}</span>
+            <button type="button" className="btn" onClick={() => setAuthDismissed(true)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
       {pipelineError && (
         <div className="progress-wrap">
           <div className="row spread">
@@ -92,7 +129,7 @@ export default function App(): ReactNode {
           <SettingsView onSaved={() => setClaudeNonce((n) => n + 1)} />
         </div>
       </main>
-      <StatusBar nonce={claudeNonce} onOpenSettings={() => setTab('settings')} />
+      <StatusBar authFailed={authFailed} nonce={claudeNonce} onOpenSettings={() => setTab('settings')} />
     </div>
   )
 }

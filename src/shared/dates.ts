@@ -87,7 +87,12 @@ const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토']
 
 /** 'YYYY-MM-DD' → '월'/'화'/... */
 export function weekdayKo(date: string): string {
-  return WEEKDAYS_KO[new Date(`${date}T00:00:00Z`).getUTCDay()]
+  return WEEKDAYS_KO[weekdayIndex(date)]
+}
+
+/** 'YYYY-MM-DD' → 0(일) ~ 6(토). 날짜는 KST로 정규화돼 있으므로 UTC로 읽는다 */
+export function weekdayIndex(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay()
 }
 
 /** 'YYYY-MM-DD' → '7/1(화)' */
