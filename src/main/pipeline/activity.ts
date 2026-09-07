@@ -1,10 +1,31 @@
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { activityPath, claudeWorkdir, daysRoot, readJson, writeJsonAtomic } from '../cache'
-import { addDays, todayKst, ymOf } from '@shared/dates'
+import { addDays, todayKst, weekdayIndex, ymOf } from '@shared/dates'
+import { getSettings } from '../settings'
 import type { ActivityCache, DayDigest, DaySummary } from '@shared/types'
 import { collectDigests } from './collector'
 import { isActiveDigest } from './digest'
+
+/**
+ * 설정에서 뺀 요일을 걸러낸다.
+ *
+ * 활동 인덱스에 반영하지 않고 여기에서만 거르는 것은 의도한 것이다. 인덱스에 넣으면
+ * 설정을 되돌렸을 때 그 날들이 '활동 없음'으로 굳어, 원본을 다시 훑기 전까지
+ * 돌아오지 않는다.
+ */
+async function dropExcludedWeekdays(dates: string[]): Promise<string[]> {
+  let excluded: number[] = []
+  try {
+    excluded = (await getSettings()).excludeWeekdays ?? []
+  } catch {
+    // 설정을 읽지 못한 것이 목록 전체를 비우면 안 된다. 거르지 않고 그대로 준다
+    return dates
+  }
+  if (excluded.length === 0) return dates
+  const skip = new Set(excluded)
+  return dates.filter((d) => !skip.has(weekdayIndex(d)))
+}
 
 export interface Activity {
   /** 활동이 있는 KST 날짜 (오름차순) */
@@ -32,7 +53,7 @@ export async function activityInRange(start: string, end: string): Promise<Activ
       if (date >= start && date <= end) active.add(date)
     }
   }
-  return { dates: [...active].sort(), digests }
+  return { dates: await dropExcludedWeekdays([...active].sort()), digests }
 }
 
 /**
@@ -156,7 +177,7 @@ export async function activeDatesInRange(
   // indexOnly로 그냥 넘긴 것들. 이 수가 0이 아니면 화면은 아직 완성이 아니다
   const pending = indexOnly ? unknown.length + (end >= today && start <= today ? 1 : 0) : 0
   return {
-    dates: [...active].sort(),
+    dates: await dropExcludedWeekdays([...active].sort()),
     cache: { cachedDays: fromCache, scannedDays: scanned, pendingDays: pending, builtAt }
   }
 }

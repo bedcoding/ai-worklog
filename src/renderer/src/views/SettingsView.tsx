@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Settings, SchedulerRun } from '@shared/types'
 import { Spinner, Tip, errMsg, shortModel, shortVersion } from '../common'
 
+/** 0(일) ~ 6(토). Settings.excludeWeekdays의 인덱스와 같은 순서여야 한다 */
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
+
 /**
  * 설명을 상시 노출하지 않고 호버로 넘긴다. 좁은 창에서 설명 줄이 화면을 크게 먹는다.
  * 다만 표식이 없으면 설명이 있다는 것 자체를 알 수 없으므로 ⓘ 는 남긴다.
@@ -171,6 +174,13 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
     }
     setSave({ kind: 'saving' })
     timer.current = setTimeout(flush, TYPING_DELAY)
+  }
+
+  /** 요일 하나를 제외 목록에 넣거나 뺀다. 즉시 저장한다 (타이핑이 아니라 클릭이다) */
+  const toggleWeekday = (i: number): void => {
+    const cur = form.excludeWeekdays ?? []
+    const next = cur.includes(i) ? cur.filter((d) => d !== i) : [...cur, i].sort()
+    patch({ excludeWeekdays: next }, true)
   }
 
   const testClaude = (): void => {
@@ -350,6 +360,32 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
               <option value="yesterday">어제</option>
             </select>
           </label>
+        </div>
+        <div className="fieldhead">
+          <span>
+            요약에서 제외할 요일{' '}
+            <Hint
+              text={
+                '고른 요일은 요약 목록에서도 빠집니다.\n사람이 쉬는 날에도 자동화가 claude를\n부르면 그 기록이 업무로 요약되는 것을 막습니다.'
+              }
+            />
+          </span>
+          <div className="weekdays">
+            {WEEKDAYS.map((ko, i) => {
+              const off = (form.excludeWeekdays ?? []).includes(i)
+              return (
+                <button
+                  key={ko}
+                  type="button"
+                  className={off ? 'off' : ''}
+                  aria-pressed={off}
+                  onClick={() => toggleWeekday(i)}
+                >
+                  {ko}
+                </button>
+              )
+            })}
+          </div>
         </div>
         <label>
           <span>

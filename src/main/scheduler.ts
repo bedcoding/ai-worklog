@@ -1,5 +1,5 @@
 import { Notification, dialog, powerMonitor } from 'electron'
-import { addDays, kstHHMM, kstStartOfDayMs, todayKst } from '@shared/dates'
+import { addDays, kstHHMM, kstStartOfDayMs, todayKst, weekdayIndex } from '@shared/dates'
 import { primeFromHistory } from './auth-state'
 import { readJson, schedulerStatePath, writeJsonAtomic } from './cache'
 import {
@@ -164,6 +164,16 @@ async function fire(): Promise<void> {
     if (state?.lastAutoRunDate === today) return
     // 하루 한 번 판정은 오늘로, 요약 대상은 설정으로 따로 정한다
     target = s.dailySubject === 'yesterday' ? addDays(today, -1) : today
+
+    // 뺀 요일이면 묻지도 만들지도 않는다. 실행으로 기록해 두어야 catch-up이
+    // 자정까지 같은 날을 다시 집어 들지 않는다
+    if ((s.excludeWeekdays ?? []).includes(weekdayIndex(target))) {
+      await recordRun(
+        { at: startedAt, ranOn: today, date: target, outcome: 'skipped', ms: Date.now() - startedMs },
+        true
+      )
+      return
+    }
 
     if (s.dailyAuto === 'confirm') {
       const subject = s.dailySubject === 'yesterday' ? '어제' : '오늘'

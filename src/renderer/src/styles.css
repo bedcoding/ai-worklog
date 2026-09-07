@@ -617,6 +617,11 @@ form.settings label {
 /* 폼 항목의 제목이지만 입력칸이 없는 것(결과 표시 등). label 과 같은 층위로 보여야
    한 카드 안에서 제목의 무게가 어긋나지 않는다 */
 form.settings .fieldhead {
+  /* label과 같은 배치여야 한다. 카드 gap(12px)이 제목과 그 아래 내용 사이까지
+     벌려 놓으면 무엇에 딸린 제목인지 읽히지 않는다 */
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   font-size: 12px;
   font-weight: 600;
 }
@@ -891,4 +896,34 @@ h4 {
   font-weight: 600;
   letter-spacing: 0.3px;
   color: var(--muted);
+}
+
+/* 요약에서 뺄 요일 고르기. 7칸이 폭을 고르게 나눠 갖는다.
+   고른 것이 '제외'라서 눌린 쪽을 강조하지 않고 흐리게 만든다. 달력에서 지운 날처럼
+   보여야 하고, 강조하면 그 요일만 요약한다는 뜻으로 읽힌다. */
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.weekdays button {
+  padding: 5px 0;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+.weekdays button:hover {
+  border-color: var(--accent);
+}
+.weekdays button.off {
+  background: var(--bg);
+  color: var(--muted);
+  text-decoration: line-through;
+  border-style: dashed;
+  /* 취소선과 회색만으로는 옆 칸과 구분이 약했다. 눌린 것이 아니라 꺼진 것으로
+     읽혀야 하므로 밝기 자체를 떨어뜨린다 */
+  opacity: 0.55;
 }
