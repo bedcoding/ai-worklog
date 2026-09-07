@@ -22,6 +22,7 @@ export default function App(): ReactNode {
   const [pipelineError, setPipelineError] = useState<PipelineError | null>(null)
   const [authFailed, setAuthFailed] = useState(false)
   const [authDismissed, setAuthDismissed] = useState(false)
+  const [longRunning, setLongRunning] = useState(false)
 
   useEffect(
     () => window.api.onBackfillProgress((p) => setProgress(p.phase === 'idle' ? null : p)),
@@ -46,6 +47,23 @@ export default function App(): ReactNode {
       setAuthFailed(v)
       if (v) setAuthDismissed(false)
     })
+    return () => {
+      alive = false
+      off()
+    }
+  }, [])
+
+  /**
+   * 긴 작업 여부는 main이 진실이다. 요약 탭은 탭을 옮기면 언마운트돼 진행 중이라는
+   * 사실을 잃는데, 여기서 들고 있으면 돌아와도 잠금이 유지된다.
+   */
+  useEffect(() => {
+    let alive = true
+    void window.api
+      .getLongRunning()
+      .then((v) => alive && setLongRunning(v))
+      .catch(() => {})
+    const off = window.api.onLongRunning(setLongRunning)
     return () => {
       alive = false
       off()
@@ -119,7 +137,7 @@ export default function App(): ReactNode {
       <main className="content">
         {/* 진행 상황은 여기서 한 번만 받아 아래로 내린다. 목록이 어느 날짜를
             만들고 있는지 표시해야 하므로 배너만 알고 있으면 부족하다. */}
-        {tab === 'summary' && <SummaryView progress={progress} />}
+        {tab === 'summary' && <SummaryView longRunning={longRunning} progress={progress} />}
         {/* 설정은 언마운트하지 않는다. 저장 전 탭을 옮겨도 입력이 남아 있어야 한다 */}
         <div
           style={{
