@@ -799,6 +799,10 @@ mark {
 .statusbar .dot.ok {
   background: var(--ok);
 }
+/* 로그인이 풀린 상태. 초록불과 같은 자리에서 색만 바뀌어야 눈이 먼저 간다 */
+.statusbar .dot.bad {
+  background: var(--danger);
+}
 .ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;

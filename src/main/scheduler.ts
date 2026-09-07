@@ -1,5 +1,6 @@
 import { Notification, dialog, powerMonitor } from 'electron'
 import { addDays, kstHHMM, kstStartOfDayMs, todayKst } from '@shared/dates'
+import { primeFromHistory } from './auth-state'
 import { readJson, schedulerStatePath, writeJsonAtomic } from './cache'
 import {
   nextSchedulerState,
@@ -60,6 +61,10 @@ export function initScheduler(
 ): void {
   onSummaryDone = notify
   onError = reportError
+  // 창을 열기 전에 실패했을 수 있다. 마지막 실행이 로그인 문제였으면 그때부터 알린다
+  void getSchedulerHistory()
+    .then((runs) => primeFromHistory(runs[0]?.error))
+    .catch(() => {})
   // 'resume'만으로는 부족하다. 윈도우 11의 Modern Standby(S0)는 화면만 꺼진 채
   // 유지되어 resume이 발화하지 않는 기기가 많고, 실사용의 대부분은 '슬립'이 아니라 '화면 잠금'이다.
   powerMonitor.on('resume', () => {
@@ -216,6 +221,9 @@ async function fire(): Promise<void> {
       )
     }
     showNotification(`자동 요약 실패: ${message}`)
+    // 알림은 실행 시각에 한 번 뜨고 만다. 새벽이나 자리를 비운 사이에 실패하면
+    // 아무도 보지 못하므로, 창을 열었을 때 남아 있는 배너로도 알린다.
+    onError?.({ scope: 'day', date: target, message: `자동 요약 실패: ${message}`, retryable: true })
   } finally {
     running = false
   }

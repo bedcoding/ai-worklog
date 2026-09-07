@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { AUTH_FAILURE_SHORT } from '@shared/claude-error'
 import type { ClaudeInfo, ModelChoice } from '@shared/types'
 import { errMsg, modelLabel, shortVersion } from './common'
 
@@ -14,9 +15,15 @@ import { errMsg, modelLabel, shortVersion } from './common'
  * 전체 경로는 설정 탭의 '실제 실행되는 파일'에서 본다.
  */
 export default function StatusBar({
+  authFailed,
   nonce,
   onOpenSettings
 }: {
+  /**
+   * 로그인이 풀렸는가. detectClaude로는 알 수 없다. 그것은 --version만 보므로
+   * 로그인이 죽어 있어도 초록불이 켜졌고, 그 거짓 안심이 원인을 찾는 데 방해가 됐다.
+   */
+  authFailed: boolean
   nonce: number
   onOpenSettings: () => void
 }): ReactNode {
@@ -79,6 +86,12 @@ export default function StatusBar({
     <div className="statusbar">
       {checking ? (
         <span className="muted">claude 연결 확인 중</span>
+      ) : authFailed ? (
+        // 실행 파일은 찾았으니 경로 문제가 아니다. 설정으로 보내지 않고 할 일만 적는다
+        <>
+          <span className="dot bad" />
+          <span className="ellipsis error">{AUTH_FAILURE_SHORT}</span>
+        </>
       ) : (
         <>
           <span className="dot ok" />

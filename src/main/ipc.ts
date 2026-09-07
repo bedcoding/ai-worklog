@@ -6,6 +6,7 @@ import {
   type PeriodRequest,
   type Settings
 } from '@shared/types'
+import { isAuthFailed, onAuthStateChange } from './auth-state'
 import { claudeDefaultModel, claudeVersion, locateClaude } from './claude/locate'
 import {
   backfillRange,
@@ -161,4 +162,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.windowPinSet, (_e, pinned: boolean) =>
     setWindowPinned(getWindow(), pinned)
   )
+  ipcMain.handle(IPC.authGet, () => isAuthFailed())
+
+  // 창이 닫혀 있을 때 바뀐 것은 창을 열 때 getAuthFailed로 따라잡는다
+  onAuthStateChange((failed) => push(IPC.authState, failed))
 }

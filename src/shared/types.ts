@@ -303,10 +303,12 @@ export const IPC = {
   appSetAutoLaunch: 'app:setAutoLaunch',
   windowPinGet: 'window:pinGet',
   windowPinSet: 'window:pinSet',
+  authGet: 'auth:get',
   // main → renderer push
   backfillProgress: 'backfill:progress',
   pipelineError: 'pipeline:error',
-  dayUpdated: 'day:updated'
+  dayUpdated: 'day:updated',
+  authState: 'auth:state'
 } as const
 
 export interface PeriodRequest {
@@ -368,6 +370,8 @@ export interface WorklogApi {
   setAutoLaunch(enabled: boolean): Promise<void>
   /** 창 고정 여부. 고정 중에는 포커스를 잃어도 창이 닫히지 않는다 */
   getWindowPinned(): Promise<boolean>
+  /** claude 로그인이 풀렸는가. 창을 열 때 한 번 읽고, 이후는 onAuthState로 받는다 */
+  getAuthFailed(): Promise<boolean>
   setWindowPinned(pinned: boolean): Promise<boolean>
   /** 이 앱의 버전. 자동 업데이트가 없으므로 사용자가 스스로 최신인지 알아야 한다 */
   getAppVersion(): Promise<string>
@@ -377,4 +381,5 @@ export interface WorklogApi {
   onPipelineError(cb: (e: PipelineError) => void): () => void
   /** 자동실행 등으로 main이 요약을 갱신했을 때 */
   onDayUpdated(cb: (s: DaySummary) => void): () => void
+  onAuthState(cb: (failed: boolean) => void): () => void
 }

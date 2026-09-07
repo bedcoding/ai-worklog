@@ -29,10 +29,12 @@ const api: WorklogApi = {
   getSchedulerHistory: () => ipcRenderer.invoke(IPC.schedulerHistory),
   setAutoLaunch: (enabled) => ipcRenderer.invoke(IPC.appSetAutoLaunch, enabled),
   getWindowPinned: () => ipcRenderer.invoke(IPC.windowPinGet),
+  getAuthFailed: () => ipcRenderer.invoke(IPC.authGet),
   setWindowPinned: (pinned) => ipcRenderer.invoke(IPC.windowPinSet, pinned),
   onBackfillProgress: subscribe(IPC.backfillProgress),
   onPipelineError: subscribe(IPC.pipelineError),
-  onDayUpdated: subscribe(IPC.dayUpdated)
+  onDayUpdated: subscribe(IPC.dayUpdated),
+  onAuthState: subscribe(IPC.authState)
 }
 
 contextBridge.exposeInMainWorld('api', api)
