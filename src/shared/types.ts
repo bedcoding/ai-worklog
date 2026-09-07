@@ -315,11 +315,13 @@ export const IPC = {
   windowPinGet: 'window:pinGet',
   windowPinSet: 'window:pinSet',
   authGet: 'auth:get',
+  busyGet: 'busy:get',
   // main → renderer push
   backfillProgress: 'backfill:progress',
   pipelineError: 'pipeline:error',
   dayUpdated: 'day:updated',
-  authState: 'auth:state'
+  authState: 'auth:state',
+  busyState: 'busy:state'
 } as const
 
 export interface PeriodRequest {
@@ -383,6 +385,13 @@ export interface WorklogApi {
   getWindowPinned(): Promise<boolean>
   /** claude 로그인이 풀렸는가. 창을 열 때 한 번 읽고, 이후는 onAuthState로 받는다 */
   getAuthFailed(): Promise<boolean>
+  /**
+   * main에서 긴 작업(전체 정리, 기간 요약)이 도는가.
+   *
+   * 화면이 든 플래그로는 알 수 없다. 요약 탭은 탭을 옮기면 언마운트돼 진행 중이라는
+   * 사실을 잃는다. 돌아왔을 때 잠금을 되살리려면 main에게 물어야 한다.
+   */
+  getLongRunning(): Promise<boolean>
   setWindowPinned(pinned: boolean): Promise<boolean>
   /** 이 앱의 버전. 자동 업데이트가 없으므로 사용자가 스스로 최신인지 알아야 한다 */
   getAppVersion(): Promise<string>
@@ -393,4 +402,5 @@ export interface WorklogApi {
   /** 자동실행 등으로 main이 요약을 갱신했을 때 */
   onDayUpdated(cb: (s: DaySummary) => void): () => void
   onAuthState(cb: (failed: boolean) => void): () => void
+  onLongRunning(cb: (running: boolean) => void): () => void
 }

@@ -39,11 +39,31 @@ export function setWindowPinned(win: BrowserWindow | null, pinned: boolean): boo
 
 /** 기간 생성은 전역 취소 플래그를 쓰므로 한 번에 하나만 실행한다 */
 let longRunning = false
+/** 이 상태를 화면에도 알린다. 창이 없으면 알릴 곳이 없으므로 null로 둔다 */
+let pushBusy: ((v: boolean) => void) | null = null
+
+/**
+ * 긴 작업이 도는지를 한 곳에서 바꾸고 화면에 알린다.
+ *
+ * 화면이 스스로 아는 것만으로는 부족하다. 요약 탭은 설정 탭으로 옮기면 언마운트돼
+ * 진행 중이라는 사실을 잃어버리고, 돌아오면 잠겨 있어야 할 버튼이 풀려 있다.
+ * 그 버튼을 누르면 '다른 요약이 생성 중입니다'로 거부당한다. 실제로 겪은 경로다.
+ */
+function setLongRunning(v: boolean): void {
+  if (longRunning === v) return
+  longRunning = v
+  pushBusy?.(v)
+}
+
+export function isLongRunning(): boolean {
+  return longRunning
+}
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
   const push = (channel: string, payload: unknown): void => {
     getWindow()?.webContents.send(channel, payload)
   }
+  pushBusy = (v: boolean) => push(IPC.busyState, v)
   const progress: ProgressFn = (p: BackfillProgress) => push(IPC.backfillProgress, p)
   const progressIdle = (): void =>
     progress({ done: 0, total: 0, currentDate: null, phase: 'idle' })
@@ -107,12 +127,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       if (response !== 0) return null
     }
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
-    longRunning = true
+    setLongRunning(true)
     resetCancel()
     try {
       return await backfillRange(start, end, progress, force)
     } finally {
-      longRunning = false
+      setLongRunning(false)
       progressIdle()
     }
   })
@@ -130,7 +150,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   // 이미 만들어 둔 일별 요약을 묶기만 한다 (claude 1회). 미요약 날짜가 있으면 거부된다.
   ipcMain.handle(IPC.periodGenerate, async (_e, req: PeriodRequest, part: PeriodPartKind) => {
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
-    longRunning = true
+    setLongRunning(true)
     try {
       return await ensurePeriodPart(req, part, (e) =>
         push(IPC.periodStream, {
@@ -141,7 +161,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
         })
       )
     } finally {
-      longRunning = false
+      setLongRunning(false)
     }
   })
 
@@ -163,6 +183,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     setWindowPinned(getWindow(), pinned)
   )
   ipcMain.handle(IPC.authGet, () => isAuthFailed())
+  ipcMain.handle(IPC.busyGet, () => longRunning)
 
   // 창이 닫혀 있을 때 바뀐 것은 창을 열 때 getAuthFailed로 따라잡는다
   onAuthStateChange((failed) => push(IPC.authState, failed))

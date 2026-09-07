@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { kstDateOf, kstDateTimeKo, shortDateKo } from '@shared/dates'
+import { isBackfillRunning, isBusy, isOtherRunning } from '@shared/busy'
 import { groupByProject, renderGroupedItems } from '@shared/day-items'
 import { renderDigestText } from '@shared/digest-text'
 import { rangeStateOf } from '@shared/range-state'
@@ -80,7 +81,14 @@ interface DayRaw {
 
 const IDLE_STREAM: StreamState = { text: '', thinking: '', startedAt: 0, attempt: 1, tokens: 0 }
 
-export default function SummaryView({ progress }: { progress: BackfillProgress | null }): ReactNode {
+export default function SummaryView({
+  longRunning,
+  progress
+}: {
+  /** main에서 긴 작업이 도는가. 탭을 옮겨도 살아남는 유일한 신호다 */
+  longRunning: boolean
+  progress: BackfillProgress | null
+}): ReactNode {
   // 자정을 넘겨도 "오늘"이 어제로 굳지 않도록 창이 열릴 때마다 재평가한다
   const [today, setToday] = useState(() => kstDateOf(Date.now()))
   const [cursor, setCursor] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
@@ -104,6 +112,9 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [busyDate, setBusyDate] = useState<string | null>(null)
   const [backfilling, setBackfilling] = useState(false)
   const [composing, setComposing] = useState<PeriodPartKind | null>(null)
+  // 잠금 판정에 쓰는 입력을 한 곳에 모은다. 판정 자체는 shared/busy 에 있고 테스트가 붙어 있다
+  const busyInput = { busyDate, backfilling, hasProgress: progress !== null, composing, longRunning }
+  const backfillRunning = isBackfillRunning(busyInput)
   // 만들어지는 중인 상태. 저장되는 것은 아니고 화면에만 흐른다.
   // startedAt이 있으면 초가 올라간다. 모델이 조용한 구간에도 화면이 살아 있어야 한다.
   const [stream, setStream] = useState<StreamState>(IDLE_STREAM)
@@ -231,7 +242,7 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   // 전체 정리 중에 한 날짜가 끝나면 목록을 다시 읽는다. 끝난 행이 계속 '요약 생성'으로
   // 남아 있으면 불이 켜진 한 줄 말고는 아무 일도 없는 것처럼 보인다.
   // 조용히 읽는다. 스피너를 띄우면 날짜마다 목록 위에서 한 번씩 번쩍인다.
-  const doneCount = backfilling ? (progress?.done ?? 0) : -1
+  const doneCount = backfillRunning ? (progress?.done ?? 0) : -1
   useEffect(() => {
     if (doneCount > 0) load(true)
   }, [doneCount, load])
@@ -332,13 +343,15 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const state = rangeStateOf(status)
-  const busy = busyDate !== null || backfilling || composing !== null
+  const busy = isBusy(busyInput)
   const spanWord = shown.span === 'week' ? '주간' : '월간'
   // 기간 요약 카드 머리의 표식에 담을 말. 없으면 표식 자체를 그리지 않는다.
   // loading 일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중'이 그 상태를
   // 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다.
-  const note =
-    state.kind === 'pending'
+  const otherRunning = isOtherRunning(busyInput)
+  const note = otherRunning
+    ? '다른 요약이 만들어지는 중입니다.\n끝나면 다시 누를 수 있습니다.'
+    : state.kind === 'pending'
       ? `날짜별 요약이 모두 있어야 만들 수 있습니다.\n위 목록에서 빠진 날짜를 먼저 만드세요.`
       : state.kind === 'empty'
         ? '이 기간에는 묶을 기록이 없습니다.'
@@ -361,8 +374,8 @@ export default function SummaryView({ progress }: { progress: BackfillProgress |
   // 누른 버튼이 진행 상황을 직접 말한다. 위쪽 막대에만 있으면 방금 누른 자리와
   // 상태가 뜨는 자리가 멀다. 줄을 새로 만들지 않고 라벨에 붙여 높이가 흔들리지 않게 한다.
   // scan 단계에서는 아직 총 개수를 모른다.
-  const scanned = backfilling && progress?.phase === 'summarize' && progress.total > 0
-  const backfillLabel = backfilling
+  const scanned = backfillRunning && progress?.phase === 'summarize' && progress.total > 0
+  const backfillLabel = backfillRunning
     ? scanned && progress
       ? `전체 정리 중 ${progress.done}/${progress.total}`
       : '전체 정리 중'

@@ -30,11 +30,13 @@ const api: WorklogApi = {
   setAutoLaunch: (enabled) => ipcRenderer.invoke(IPC.appSetAutoLaunch, enabled),
   getWindowPinned: () => ipcRenderer.invoke(IPC.windowPinGet),
   getAuthFailed: () => ipcRenderer.invoke(IPC.authGet),
+  getLongRunning: () => ipcRenderer.invoke(IPC.busyGet),
   setWindowPinned: (pinned) => ipcRenderer.invoke(IPC.windowPinSet, pinned),
   onBackfillProgress: subscribe(IPC.backfillProgress),
   onPipelineError: subscribe(IPC.pipelineError),
   onDayUpdated: subscribe(IPC.dayUpdated),
-  onAuthState: subscribe(IPC.authState)
+  onAuthState: subscribe(IPC.authState),
+  onLongRunning: subscribe(IPC.busyState)
 }
 
 contextBridge.exposeInMainWorld('api', api)
