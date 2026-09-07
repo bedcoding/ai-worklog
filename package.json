@@ -1,6 +1,6 @@
 {
   "name": "ai-worklog",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Claude Code 사용 내역으로 일일·주간·월간 업무 요약을 자동 생성하는 macOS·Windows 트레이 앱",
   "main": "./out/main/index.cjs",
   "author": "bedcoding",
