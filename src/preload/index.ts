@@ -27,7 +27,6 @@ const api: WorklogApi = {
   copyToClipboard: (text) => ipcRenderer.invoke(IPC.clipboardWrite, text),
   getAppVersion: () => ipcRenderer.invoke(IPC.appGetVersion),
   getSchedulerHistory: () => ipcRenderer.invoke(IPC.schedulerHistory),
-  setAutoLaunch: (enabled) => ipcRenderer.invoke(IPC.appSetAutoLaunch, enabled),
   getWindowPinned: () => ipcRenderer.invoke(IPC.windowPinGet),
   getAuthFailed: () => ipcRenderer.invoke(IPC.authGet),
   getLongRunning: () => ipcRenderer.invoke(IPC.busyGet),

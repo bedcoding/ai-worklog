@@ -59,20 +59,13 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
    * 매번 폼 전체를 보내므로 마지막에 보낸 것이 디스크의 진실이 되어야 한다.
    */
   const chain = useRef<Promise<void>>(Promise.resolve())
-  /** 마지막으로 OS에 반영한 자동 시작 값. 바뀔 때만 로그인 항목을 건드린다 */
-  const lastAuto = useRef<boolean | null>(null)
 
   useEffect(() => {
     let alive = true
     setLoadError(null)
     window.api
       .getSettings()
-      .then((s) => {
-        if (!alive) return
-        // 디스크에서 읽은 값을 기준선으로 둔다. 이후 이 값이 바뀔 때만 로그인 항목을 고친다
-        lastAuto.current = s.autoLaunch
-        setForm(s)
-      })
+      .then((s) => alive && setForm(s))
       // 실패를 삼키면 안 된다. 폼을 기본값으로 채우면 그 스냅샷이 그대로 저장돼
       // 실제 설정을 덮어쓴다. 폼을 아예 그리지 않고 재시도를 제공한다.
       .catch((e: unknown) => alive && setLoadError(errMsg(e)))
@@ -135,10 +128,6 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         await window.api.setSettings(toSave)
         // 응답으로 폼을 덮지 않는다. 저장하는 동안 사용자가 더 고쳤으면 그것이 사라진다.
         // 폼 전체를 보내므로 main이 되돌려주는 값은 방금 보낸 것과 같다.
-        if (lastAuto.current !== next.autoLaunch) {
-          lastAuto.current = next.autoLaunch
-          await window.api.setAutoLaunch(next.autoLaunch)
-        }
         setSave({ kind: 'saved' })
         onSaved?.()
       } catch (e: unknown) {
@@ -215,19 +204,6 @@ export default function SettingsView({ onSaved }: { onSaved?: () => void }): Rea
         flush()
       }}
     >
-      {/* 트레이 앱은 켜져 있어야 아래의 매일 자동 요약이 돈다. 그 전제를 맨 위에 둔다 */}
-      <div className="card">
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={form.autoLaunch}
-            onChange={(e) => patch({ autoLaunch: e.target.checked }, true)}
-          />
-          로그인 시 앱 자동 시작
-          <Hint text={'꺼두면 앱을 직접 실행한 동안에만\n자동 요약이 동작합니다.'} />
-        </label>
-      </div>
-
       <div className="card">
         {/* 카드 동작 버튼은 머리 오른쪽에 둔다. 프롬프트 템플릿의 '기본값 복원'과 같은 자리.
             ✓ 버전은 버튼 옆에 남긴다. 이게 없으면 눌러도 화면이 안 바뀌어 실행됐는지 알 수 없다. */}

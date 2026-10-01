@@ -37,7 +37,6 @@ export interface Settings {
    * 화면 상태만으로는 남지 않고, 앱을 다시 켜도 되돌아간다. 그래서 설정에 남긴다.
    */
   span: Span
-  autoLaunch: boolean
   dailyAuto: DailyAutoMode
   /** "HH:mm" (KST, 로컬 시각) */
   dailyTime: string
@@ -311,7 +310,6 @@ export const IPC = {
   clipboardWrite: 'clipboard:write',
   appGetVersion: 'app:getVersion',
   schedulerHistory: 'scheduler:history',
-  appSetAutoLaunch: 'app:setAutoLaunch',
   windowPinGet: 'window:pinGet',
   windowPinSet: 'window:pinSet',
   authGet: 'auth:get',
@@ -380,7 +378,6 @@ export interface WorklogApi {
   onPeriodStream(cb: (e: PeriodStreamEvent) => void): () => void
   cancelBackfill(): Promise<void>
   copyToClipboard(text: string): Promise<void>
-  setAutoLaunch(enabled: boolean): Promise<void>
   /** 창 고정 여부. 고정 중에는 포커스를 잃어도 창이 닫히지 않는다 */
   getWindowPinned(): Promise<boolean>
   /** claude 로그인이 풀렸는가. 창을 열 때 한 번 읽고, 이후는 onAuthState로 받는다 */
