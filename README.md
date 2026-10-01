@@ -9,6 +9,11 @@ Claude Code는 모든 대화를 이미 내 PC에 기록하고 있습니다. Work
 - **일일 요약**: "오늘 하루 정리하기" 클릭 → 오늘 어떤 프로젝트에서 무슨 작업을 했는지 요약
 - **주간/월간 요약**: 일별 요약을 조합하거나, 원본 대화 기록에서 통째로 생성
 
+<p>
+  <img src="docs/screenshot-summary.png" width="360" alt="주간 목록과 주간 요약">
+  <img src="docs/screenshot-day.png" width="360" alt="날짜를 펼친 AI 요약">
+</p>
+
 ## 특징
 
 - **API 비용 없음**: 요약은 내 PC에 설치된 `claude` CLI를 그대로 호출합니다 (구독 쿼터 사용, 별도 API 과금 없음)
