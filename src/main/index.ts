@@ -86,6 +86,17 @@ function placeWindow(): void {
   win.setBounds(popupBounds(trayBounds, workArea, cursor))
 }
 
+// 개발 모드에서 등록하면 Electron 기본 앱이 로그인 항목에 들어간다
+const canSetLoginItem = app.isPackaged
+
+function isOpenAtLogin(): boolean {
+  if (!canSetLoginItem) return false
+  const s = app.getLoginItemSettings()
+  // 윈도우의 openAtLogin은 Run 키가 있는지만 본다.
+  // 작업 관리자에서 사용 안 함으로 바꾸면 키는 남으므로 실제로 켜지는지를 따로 읽는다.
+  return IS_WIN ? s.executableWillLaunchAtLogin : s.openAtLogin
+}
+
 function toggleWindow(): void {
   if (!win || !tray) return
   if (win.isVisible()) {
@@ -131,6 +142,14 @@ void app.whenReady().then(() => {
   const contextMenu = Menu.buildFromTemplate([
     { label: '열기', click: toggleWindow },
     { label: '업데이트 확인', click: () => void checkForUpdate(true) },
+    {
+      id: 'openAtLogin',
+      label: '로그인 시 자동 실행',
+      type: 'checkbox',
+      visible: canSetLoginItem,
+      checked: isOpenAtLogin(),
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked })
+    },
     { type: 'separator' },
     {
       label: '종료',
@@ -140,6 +159,12 @@ void app.whenReady().then(() => {
       }
     }
   ])
+  // 시스템 설정이나 작업 관리자에서 바꿨을 수도 있어서 열 때마다 실제 등록 상태로 맞춘다
+  const syncLoginItem = (): void => {
+    const item = contextMenu.getMenuItemById('openAtLogin')
+    if (item) item.checked = isOpenAtLogin()
+  }
+  tray.on('right-click', syncLoginItem)
   if (IS_WIN) {
     // 윈도우의 popUpContextMenu는 position 기본값이 (0,0)이라 프로그램적 호출이 제자리에 뜨지 않는다.
     // setContextMenu를 쓰면 셸이 위치와 키보드 호출을 알아서 처리하고 좌클릭 이벤트도 그대로 온다.

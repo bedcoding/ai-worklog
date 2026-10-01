@@ -175,9 +175,6 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle(IPC.schedulerHistory, () => getSchedulerHistory())
 
-  ipcMain.handle(IPC.appSetAutoLaunch, (_e, enabled: boolean) =>
-    app.setLoginItemSettings({ openAtLogin: enabled })
-  )
   ipcMain.handle(IPC.windowPinGet, () => isWindowPinned())
   ipcMain.handle(IPC.windowPinSet, (_e, pinned: boolean) =>
     setWindowPinned(getWindow(), pinned)
