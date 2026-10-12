@@ -26,6 +26,31 @@ const SEARCH_ICON = (
   </svg>
 )
 
+/**
+ * 글자 수가 바뀌어도 폭이 그대로인 글.
+ * 가장 긴 경우를 보이지 않게 겹쳐 두고 그 폭을 쓴다.
+ * 9/7과 9/13처럼 자릿수가 달라 폭이 바뀌면 옆의 화살표와 줄 머리가 들썩인다.
+ * 09/07처럼 0을 채우는 것보다 읽기 편하다.
+ */
+function FixedWidth({
+  sizer,
+  text,
+  start
+}: {
+  /** 가장 긴 경우. 숫자는 0으로 쓴다 (숫자 폭을 고르게 맞춰 두었다) */
+  sizer: string
+  text: string
+  /** 왼쪽에 붙인다. 없으면 가운데 */
+  start?: boolean
+}): ReactNode {
+  return (
+    <span className={`fixed-width${start ? ' start' : ''}`}>
+      <span aria-hidden="true">{sizer}</span>
+      <span>{text}</span>
+    </span>
+  )
+}
+
 /** 요약에서 검색어에 걸리는 항목. 왜 이 날짜가 걸렸는지 화면에서 보여 주려고 쓴다 */
 function hitItems(s: DaySummary | undefined, q: string): { project: string; work: string }[] {
   if (!s?.items || !q) return []
@@ -489,7 +514,12 @@ export default function SummaryView({
             <button type="button" className="btn" disabled={busy} onClick={() => setCursor(shift(cursor, -1))}>
               ◀
             </button>
-            <strong>{labelOf(shown)}</strong>
+            <strong>
+              <FixedWidth
+                sizer={shown.span === 'week' ? '00/00(월) ~ 00/00(월)' : '0000년 00월'}
+                text={labelOf(shown)}
+              />
+            </strong>
             <button type="button" className="btn" disabled={busy} onClick={() => setCursor(shift(cursor, 1))}>
               ▶
             </button>
@@ -590,7 +620,9 @@ export default function SummaryView({
                 onClick={() => setOpenDate(open ? null : date)}
                 role="button"
               >
-                <strong className="day-date">{shortDateKo(date)}</strong>
+                <strong className="day-date">
+                  <FixedWidth start sizer="00/00(월)" text={shortDateKo(date)} />
+                </strong>
                 {/* 업무 내용이 이 줄의 본문이다. 예전에는 이것이 회색이고 날짜가 검은
                     굵은 글씨여서 무게가 뒤집혀 있었다. 활동이 없는 날만 회색으로 둔다. */}
                 <span className={`grow ellipsis${s?.empty ? ' muted' : ''}`}>

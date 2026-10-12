@@ -100,6 +100,9 @@ nav.tabs button.pin.pinned svg {
 main.content {
   flex: 1;
   overflow-y: auto;
+  /* 스크롤 막대 자리를 늘 비워 둔다.
+     내용이 길어져 막대가 생길 때마다 카드 폭이 줄었다 늘었다 했다. */
+  scrollbar-gutter: stable;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -945,4 +948,22 @@ h4 {
 }
 .compare-side.new {
   border-left: 3px solid var(--ok);
+}
+
+/* 가장 긴 경우를 보이지 않게 겹쳐 두고 그 폭을 쓴다.
+   숫자 폭을 고르게 맞춰야 0으로 쓴 견본이 가장 긴 경우가 된다. */
+.fixed-width {
+  display: inline-grid;
+  justify-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.fixed-width.start {
+  justify-items: start;
+}
+.fixed-width > * {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
+.fixed-width > [aria-hidden] {
+  visibility: hidden;
 }
