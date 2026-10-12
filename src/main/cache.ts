@@ -46,6 +46,9 @@ export const dayDigestPath = (date: string): string =>
   resolvePath('days', ymOf(checked(date, DATE_RE, '날짜')), `${date}.digest.json`)
 export const daySummaryPath = (date: string): string =>
   resolvePath('days', ymOf(checked(date, DATE_RE, '날짜')), `${date}.summary.json`)
+/** 기존 요약을 덮지 않으려고 따로 둔 새 요약. 사용자가 비교해 고를 때까지 남는다 */
+export const dayCandidatePath = (date: string): string =>
+  resolvePath('days', ymOf(checked(date, DATE_RE, '날짜')), `${date}.candidate.json`)
 /** 지난 날짜의 활동 여부 인덱스. 원본 로그 재스캔을 피하는 용도다 */
 export const activityPath = (ym: string): string =>
   resolvePath('activity', `${checked(ym, YM_RE, '월 키')}.json`)

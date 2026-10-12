@@ -3,7 +3,7 @@ import { rangeStateOf } from '@shared/range-state'
 import type { RangeStatus } from '@shared/types'
 
 function status(activeDays: string[], summarizedDays: string[]): RangeStatus {
-  return { start: '2026-08-17', end: '2026-08-23', activeDays, summarizedDays }
+  return { start: '2026-08-17', end: '2026-08-23', activeDays, summarizedDays, candidateDays: [] }
 }
 
 describe('rangeStateOf', () => {

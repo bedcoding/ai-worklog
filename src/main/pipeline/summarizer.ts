@@ -1,6 +1,7 @@
-import { stat } from 'node:fs/promises'
+import { rm, stat } from 'node:fs/promises'
 import {
   claudeWorkdir,
+  dayCandidatePath,
   dayDigestPath,
   daySummaryPath,
   periodPath,
@@ -119,6 +120,10 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
   return readJson<DaySummary>(daySummaryPath(date))
 }
 
+export async function getDayCandidate(date: string): Promise<DaySummary | null> {
+  return readJson<DaySummary>(dayCandidatePath(date))
+}
+
 /**
  * 구간의 활동일과, 그중 요약이 끝난 날짜.
  * end를 오늘로 잘라낸다. 아직 오지 않은 날을 "활동 없음"으로 보이면 안 된다.
@@ -134,15 +139,27 @@ export async function getCachedDaySummary(date: string): Promise<DaySummary | nu
  * @param opts 활동 인덱스 사용 방식. activeDatesInRange로 그대로 넘긴다
  */
 /**
- * 그 요약이 지금의 원본과 맞는가.
+ * 그 요약을 다시 만들 필요가 없는가.
  *
  * 요약에는 만들 때 쓴 다이제스트의 해시가 들어 있다. 원본 로그가 늘었거나 파싱 규칙이
  * 바뀌면 해시가 달라지므로, 파일이 있다는 것만으로 끝났다고 볼 수 없다.
  * 다이제스트가 없으면 판단할 근거가 없다. 그 경우는 맞는 것으로 둔다.
+ *
+ * 해시가 달라도 끝난 것으로 보는 경우가 둘 있다.
+ * 원본이 요약을 만들 때보다 줄었으면 Claude Code가 보존 기간에 따라 옛 로그를 지운 것이다.
+ * 이것을 밀린 날짜로 세면, 이미 정리된 기간에 '밀린 1일'이 뜨고 그것을 누르면 남은 찌꺼기로 요약이 덮인다.
+ * 사용자가 새 요약과 비교한 뒤 기존 것을 남기기로 한 원본도 다시 묻지 않는다.
  */
-function summaryMatches(cached: DaySummary, digest: DayDigest | null | undefined): boolean {
+export function summaryMatches(cached: DaySummary, digest: DayDigest | null | undefined): boolean {
   if (!digest) return true
-  return cached.digestHash === digestHash(digest)
+  const h = digestHash(digest)
+  if (cached.digestHash === h || cached.keptHash === h) return true
+  return cached.promptCount !== undefined && digest.totals.promptCount < cached.promptCount
+}
+
+/** 비교를 기다리는 새 요약이 지금 원본으로 만든 것인가. 그렇다면 다시 만들 것이 없다 */
+function candidateMatches(c: DaySummary | null, digest: DayDigest | null | undefined): boolean {
+  return !!c && !!digest && c.digestHash === digestHash(digest)
 }
 
 export async function getRangeStatus(
@@ -154,20 +171,27 @@ export async function getRangeStatus(
   const endClamped = end > today ? today : end
   if (start > endClamped) {
     return {
-      status: { start, end: endClamped, activeDays: [], summarizedDays: [] },
+      status: { start, end: endClamped, activeDays: [], summarizedDays: [], candidateDays: [] },
       cache: { cachedDays: 0, scannedDays: 0, pendingDays: 0, builtAt: null }
     }
   }
   const { dates, cache } = await activeDatesInRange(start, endClamped, opts)
   const summarizedDays: string[] = []
+  const candidateDays: string[] = []
   for (const d of dates) {
     const cached = await getCachedDaySummary(d)
     if (!cached) continue
+    const candidate = await getDayCandidate(d)
+    if (candidate) candidateDays.push(d)
     // 원본을 새로 읽는 것은 이 함수의 계약이 아니다. 이미 있는 다이제스트 캐시와만 대조한다
     const digest = await readJson<DayDigest>(dayDigestPath(d))
-    if (summaryMatches(cached, digest)) summarizedDays.push(d)
+    // 지금 원본으로 만든 새 요약이 비교를 기다리고 있으면 밀린 것이 아니라 고를 차례다
+    if (summaryMatches(cached, digest) || candidateMatches(candidate, digest)) summarizedDays.push(d)
   }
-  return { status: { start, end: endClamped, activeDays: dates, summarizedDays }, cache }
+  return {
+    status: { start, end: endClamped, activeDays: dates, summarizedDays, candidateDays },
+    cache
+  }
 }
 
 /**
@@ -191,7 +215,7 @@ export async function backfillRange(
   const today = todayKst()
   const endClamped = end > today ? today : end
   if (start > endClamped) {
-    return { start, end: endClamped, activeDays: [], summarizedDays: [] }
+    return { start, end: endClamped, activeDays: [], summarizedDays: [], candidateDays: [] }
   }
 
   onProgress?.({ done: 0, total: 0, currentDate: null, phase: 'scan' })
@@ -207,8 +231,11 @@ export async function backfillRange(
       continue
     }
     const cached = await getCachedDaySummary(d)
+    const digest = digests.get(d)
     // 방금 원본을 훑어 만든 다이제스트가 있다. 여기서의 대조가 가장 정확하다
-    if (!cached || !summaryMatches(cached, digests.get(d))) todo.push(d)
+    if (cached && summaryMatches(cached, digest)) continue
+    if (cached && candidateMatches(await getDayCandidate(d), digest)) continue
+    todo.push(d)
   }
 
   for (let i = 0; i < todo.length; i++) {
@@ -265,8 +292,18 @@ async function generateDaySummary(
   if (cachedSummary && cachedSummary.digestHash === hash && !opts.force) return cachedSummary
 
   const settings = await getSettings()
+  // 지난 날짜에 쓸 만한 요약이 이미 있으면 덮지 않는다.
+  // 오늘은 하루가 끝나지 않아 원본이 늘기만 하고, 사용자가 '오늘 하루 정리하기'를 누르는 것이 곧 새로 쓰라는 뜻이다.
+  const prev = cachedSummary && !cachedSummary.empty && date !== todayKst() ? cachedSummary : null
 
   if (!isActiveDigest(digest)) {
+    // 요약이 있던 날의 원본이 통째로 사라졌다.
+    // '활동 없음'으로 덮으면 그 날이 목록에서도 빠진다.
+    if (prev) {
+      const kept = { ...prev, keptHash: hash }
+      await writeJsonAtomic(daySummaryPath(date), kept)
+      return kept
+    }
     const summary: DaySummary = {
       date,
       digestHash: hash,
@@ -301,10 +338,38 @@ async function generateDaySummary(
             .map((i) => ({ project: i.project ?? '', work: i.work ?? '' })),
           keywords: parsed.keywords ?? []
         }
-      : { fallbackText: run.text.trim() })
+      : { fallbackText: run.text.trim() }),
+    promptCount: digest.totals.promptCount
+  }
+  // 기존 요약은 그대로 두고 새 것은 옆에 둔다.
+  // 무엇이 나은지는 사용자가 보고 고른다.
+  // 원본이 줄었거나 모델이 덜 쓴 경우를 여기서 기계적으로 가를 수 없다.
+  if (prev) {
+    await writeJsonAtomic(dayCandidatePath(date), summary)
+    return prev
   }
   await writeJsonAtomic(daySummaryPath(date), summary)
+  await rm(dayCandidatePath(date), { force: true })
   return summary
+}
+
+/**
+ * 비교를 기다리던 새 요약을 정리한다.
+ * - use: 새 요약으로 바꾼다
+ * - keep: 기존 요약을 남기고, 그 새 요약을 만든 원본에 대해서는 다시 밀린 날짜로 세지 않는다
+ */
+export async function resolveCandidate(date: string, choice: 'use' | 'keep'): Promise<DaySummary> {
+  const candidate = await getDayCandidate(date)
+  const current = await getCachedDaySummary(date)
+  if (!candidate) {
+    if (current) return current
+    throw new Error('비교할 새 요약이 없습니다')
+  }
+  const result =
+    choice === 'use' || !current ? candidate : { ...current, keptHash: candidate.digestHash }
+  await writeJsonAtomic(daySummaryPath(date), result)
+  await rm(dayCandidatePath(date), { force: true })
+  return result
 }
 
 export function periodRangeOf(req: PeriodRequest): { start: string; end: string } {
@@ -418,8 +483,10 @@ export async function getCachedPeriod(key: string): Promise<PeriodSummary | null
  * 부분씩 만든다. 제목과 내용은 보는 데이터가 다르고 고치고 싶은 쪽도 따로이기 때문에,
  * 한 번에 둘을 만들면 마음에 안 드는 한쪽 때문에 두 번을 다시 불러야 한다.
  *
- * 미요약 날짜가 남아 있으면 만들지 않고 거부한다. 예전에는 여기서 조용히 백필해
- * 한 번의 클릭이 N+1 번 호출이 됐다. 백필은 backfillRange로 따로 부른다.
+ * 미요약 날짜가 남아 있어도 지금까지 요약된 날짜만으로 만든다.
+ * 여기서 조용히 백필하지는 않는다.
+ * 예전에 그렇게 해서 한 번의 클릭이 N+1 번 호출이 됐다.
+ * 묶은 날짜를 남겨 두어 화면이 무엇이 빠졌는지 알릴 수 있게 한다.
  */
 export async function ensurePeriodPart(
   req: PeriodRequest,
@@ -437,10 +504,10 @@ export async function ensurePeriodPart(
   const summaries: DaySummary[] = []
   for (const date of activeDates) {
     const cached = await getCachedDaySummary(date)
-    if (!cached) {
-      throw new Error('요약되지 않은 날짜가 남아 있습니다. 전체 정리를 먼저 끝내세요.')
-    }
-    summaries.push(cached)
+    if (cached && !cached.empty) summaries.push(cached)
+  }
+  if (summaries.length === 0) {
+    throw new Error('요약된 날짜가 없습니다. 날짜별 요약을 먼저 만드세요.')
   }
   const settings = await getSettings()
   const label = periodLabelOf(req, start, endClamped)
@@ -461,7 +528,8 @@ export async function ensurePeriodPart(
     end: endClamped,
     model: settings.model,
     modelName: run.model ?? undefined,
-    generatedAt: new Date().toISOString()
+    generatedAt: new Date().toISOString(),
+    days: summaries.map((x) => x.date)
   }
   // 다른 부분은 그대로 둔다. 제목을 다시 만들 때 내용이 사라지면 안 된다
   const prev = await readPeriod(req.key)

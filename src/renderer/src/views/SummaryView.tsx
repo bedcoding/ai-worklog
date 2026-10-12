@@ -107,6 +107,9 @@ export default function SummaryView({
    */
   const [shown, setShown] = useState<Cursor>(() => cursorOf('week', kstDateOf(Date.now())))
   const [summaries, setSummaries] = useState<Map<string, DaySummary>>(new Map())
+  /** 기존 요약을 덮지 않고 옆에 둔 새 요약. 날짜를 펼치면 둘을 비교해 고른다 */
+  const [candidates, setCandidates] = useState<Map<string, DaySummary>>(new Map())
+  const [resolving, setResolving] = useState<string | null>(null)
   const [period, setPeriod] = useState<PeriodSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [busyDate, setBusyDate] = useState<string | null>(null)
@@ -161,11 +164,17 @@ export default function SummaryView({
      * 카드가 접혔다 펴졌다. 기간 요약은 옛 구간 글을 들고 있어 새 제목 밑에 남았다.
      */
     const apply = (
-      r: { status: RangeStatus; summaries: DaySummary[]; cache: ActivityCache },
+      r: {
+        status: RangeStatus
+        summaries: DaySummary[]
+        candidates: DaySummary[]
+        cache: ActivityCache
+      },
       p: PeriodSummary | null
     ): void => {
       setStatus(r.status)
       setSummaries(new Map(r.summaries.map((s) => [s.date, s])))
+      setCandidates(new Map(r.candidates.map((s) => [s.date, s])))
       setPeriod(p)
       setShown(at)
       setPending(r.cache.pendingDays)
@@ -310,6 +319,28 @@ export default function SummaryView({
       })
   }
 
+  // 비교를 끝낸다.
+  // 어느 쪽을 골랐든 남는 요약 하나만 받아 그 자리에 둔다.
+  const resolve = (date: string, choice: 'use' | 'keep'): void => {
+    setResolving(date)
+    setError(null)
+    window.api
+      .resolveCandidate(date, choice)
+      .then((s) => {
+        setSummaries((prev) => new Map(prev).set(date, s))
+        setCandidates((prev) => {
+          const next = new Map(prev)
+          next.delete(date)
+          return next
+        })
+      })
+      .catch((e: unknown) => setError(errMsg(e)))
+      .finally(() => {
+        setResolving(null)
+        load(true)
+      })
+  }
+
   const runBackfill = (force = false): void => {
     setBackfilling(true)
     setError(null)
@@ -349,14 +380,35 @@ export default function SummaryView({
   // loading 일 때는 아무 말도 하지 않는다. 위 카드의 '기록을 읽는 중'이 그 상태를
   // 이미 말하고 있고, 여기서 '기록이 없다'고 하면 거짓이 된다.
   const otherRunning = isOtherRunning(busyInput)
+  const allDays = [...(status?.activeDays ?? [])].sort().reverse()
+  // 기간 요약이 실제로 묶을 수 있는 날짜.
+  // 낡았다고 잡힌 요약도 파일이 있으면 묶인다.
+  const usableDays = allDays.filter((d) => {
+    const s = summaries.get(d)
+    return !!s && !s.empty
+  })
+  const unsummarized = allDays.length - usableDays.length
+  // 다 끝나지 않아도 만들 수 있게 한다.
+  // 주 중간에 지금까지의 것만으로 보고를 쓰는 일이 많다.
+  // 막는 것은 묶을 것이 하나도 없을 때뿐이다.
+  const periodOpen = state.kind === 'ready' || (state.kind === 'pending' && usableDays.length > 0)
   const note = otherRunning
     ? '다른 요약이 만들어지는 중입니다.\n끝나면 다시 누를 수 있습니다.'
-    : state.kind === 'pending'
-      ? `날짜별 요약이 모두 있어야 만들 수 있습니다.\n위 목록에서 빠진 날짜를 먼저 만드세요.`
-      : state.kind === 'empty'
-        ? '이 기간에는 묶을 기록이 없습니다.'
-        : null
-  const allDays = [...(status?.activeDays ?? [])].sort().reverse()
+    : state.kind === 'pending' && usableDays.length === 0
+      ? '날짜별 요약이 하나도 없습니다.\n위 목록에서 먼저 만드세요.'
+      : state.kind === 'pending' && unsummarized > 0
+        ? `요약이 없는 ${unsummarized}일은 빠집니다.\n지금까지 요약한 ${usableDays.length}일로 만듭니다.`
+        : state.kind === 'empty'
+          ? '이 기간에는 묶을 기록이 없습니다.'
+          : null
+  const partTip = (base: string): string =>
+    unsummarized > 0 && usableDays.length > 0
+      ? `${base}\n요약이 없는 ${unsummarized}일은 빠집니다.`
+      : base
+  /** 만들 때 묶지 못했는데 지금은 요약이 있는 날짜 수 */
+  const missingOf = (part: PeriodPart | null): number =>
+    part?.days ? usableDays.filter((d) => !part.days?.includes(d)).length : 0
+  const candidateCount = allDays.filter((d) => candidates.has(d)).length
   const q = query.trim()
   // 요약이 아직 없는 날짜는 검색 중에 감춘다. 걸릴 내용 자체가 없다
   const days = q ? allDays.filter((d) => matchesQuery(summaries.get(d), q)) : allDays
@@ -488,11 +540,20 @@ export default function SummaryView({
           {state.kind === 'ready' && (
             <Tip
               toLeft
-              text={`이미 만든 요약을 덮어씁니다.\nclaude를 ${allDays.length}번 부릅니다.`}
+              text={`claude를 ${allDays.length}번 부릅니다.\n이미 있는 요약은 덮지 않고 비교하게 둡니다.`}
             />
           )}
         </button>
         {error && <div className="error">{error}</div>}
+        {/* 정리가 끝났는데 기존 요약이 그대로면 아무 일도 없었던 것처럼 보인다.
+            새 요약이 어디 있는지 여기서 알린다 */}
+        {candidateCount > 0 && !backfillRunning && (
+          <div className="muted">
+            새 요약이 {candidateCount}일 있습니다. 기존 요약은 그대로 두었습니다.
+            <br />
+            <span className="badge on">새 요약</span>이 붙은 날짜를 펼쳐 비교하세요.
+          </div>
+        )}
       </div>
 
       {/* 구간 전체를 다시 읽는 줄은 두지 않는다. 캐싱은 자동이라 누를 일이 없는데
@@ -546,6 +607,8 @@ export default function SummaryView({
                   // 요약이 이미 있는 날짜를 다시 만들 때도 진행이 보여야 한다.
                   // 예전에는 그 행이 'AI 요약됨'으로 남아, 다른 날짜가 왜 다 잠겼는지 알 수 없었다.
                   <span className="badge busy">생성 중</span>
+                ) : candidates.has(date) ? (
+                  <span className="badge on">새 요약</span>
                 ) : s?.empty ? (
                   <span className="badge">없음</span>
                 ) : s ? (
@@ -590,6 +653,9 @@ export default function SummaryView({
                   busy={workingDate === date}
                   anyBusy={busy}
                   onGenerate={(force) => generateDay(date, force)}
+                  candidate={candidates.get(date) ?? null}
+                  resolving={resolving === date}
+                  onResolve={(choice) => resolve(date, choice)}
                   raw={digests.get(date) ?? null}
                   digestBusy={digestBusy === date}
                   digestErr={digestBusy === date ? null : digestErr}
@@ -623,20 +689,22 @@ export default function SummaryView({
           title="제목"
           oneLine
           part={period?.overview ?? null}
-          locked={busy || state.kind !== 'ready'}
+          missing={missingOf(period?.overview ?? null)}
+          locked={busy || !periodOpen}
           working={composing === 'overview'}
           stream={stream}
           onMake={() => compose('overview')}
-          tip={'날짜별 한 줄 요약만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
+          tip={partTip('날짜별 한 줄 요약만 보고 만듭니다.\nclaude를 1번 부릅니다.')}
         />
         <PeriodPartBlock
           title="내용"
           part={period?.detail ?? null}
-          locked={busy || state.kind !== 'ready'}
+          missing={missingOf(period?.detail ?? null)}
+          locked={busy || !periodOpen}
           working={composing === 'detail'}
           stream={stream}
           onMake={() => compose('detail')}
-          tip={'날짜별 상세 항목만 보고 만듭니다.\nclaude를 1번 부릅니다.'}
+          tip={partTip('날짜별 상세 항목만 보고 만듭니다.\nclaude를 1번 부릅니다.')}
         />
       </div>
     </>
@@ -653,6 +721,7 @@ function PeriodPartBlock({
   title,
   oneLine,
   part,
+  missing,
   locked,
   working,
   stream,
@@ -663,6 +732,8 @@ function PeriodPartBlock({
   /** 한 줄짜리 부분은 굵게 세운다. 여러 줄은 줄바꿈을 살려 그대로 둔다 */
   oneLine?: boolean
   part: PeriodPart | null
+  /** 만든 뒤에 요약이 생겨 이 부분에 빠져 있는 날짜 수 */
+  missing: number
   locked: boolean
   working: boolean
   /** 만들어지는 중인 상태. 다 만들어지면 part로 바뀐다 */
@@ -707,8 +778,16 @@ function PeriodPartBlock({
           model={part.model}
           modelName={part.modelName}
           at={part.generatedAt}
-          {...(part.stale
-            ? { warn: `${shortDateKo(part.end)}까지만 반영됐습니다.\n다시 만드세요.` }
+          {...(part.stale || missing > 0
+            ? {
+                warn: [
+                  part.stale ? `${shortDateKo(part.end)}까지만 반영됐습니다.` : '',
+                  missing > 0 ? `만든 뒤 요약된 ${missing}일이 빠져 있습니다.` : '',
+                  '다시 만드세요.'
+                ]
+                  .filter(Boolean)
+                  .join('\n')
+              }
             : {})}
         />
       )}
@@ -771,13 +850,20 @@ function DayDetail({
   raw,
   digestBusy,
   digestErr,
-  onLoadDigest
+  onLoadDigest,
+  candidate,
+  resolving,
+  onResolve
 }: {
   date: string
   summary: DaySummary | null
   busy: boolean
   anyBusy: boolean
   onGenerate: (force?: boolean) => void
+  /** 기존 요약을 덮지 않고 옆에 둔 새 요약 */
+  candidate: DaySummary | null
+  resolving: boolean
+  onResolve: (choice: 'use' | 'keep') => void
   raw: DayRaw | null
   digestBusy: boolean
   digestErr: string | null
@@ -785,12 +871,14 @@ function DayDetail({
 }): ReactNode {
   const digest = raw?.digest ?? null
   const hasAi = !!summary && !summary.empty
-  const [sub, setSub] = useState<'raw' | 'ai'>(hasAi ? 'ai' : 'raw')
+  const [sub, setSub] = useState<'raw' | 'ai'>(hasAi || candidate ? 'ai' : 'raw')
 
-  // 요약이 막 생성되면 결과가 보이도록 AI 탭으로 전환한다 (false→true 전이에서만)
+  // 요약이 막 생성되면 결과가 보이도록 AI 탭으로 전환한다 (false→true 전이에서만).
+  // 새 요약이 비교를 기다릴 때도 같다.
+  // 원본 탭에 머물면 고를 것이 있다는 것을 모른다.
   useEffect(() => {
-    if (hasAi) setSub('ai')
-  }, [hasAi])
+    if (hasAi || candidate) setSub('ai')
+  }, [hasAi, !!candidate])
 
   /**
    * 행을 펼치는 순간 원본 내역을 확보한다.
@@ -834,25 +922,24 @@ function DayDetail({
         {sub === 'raw' && digest && <CopyButton text={renderDigestText(digest)} label="원본 복사" />}
       </div>
 
+      {sub === 'ai' && candidate && hasAi && (
+        <CandidateCompare
+          current={summary}
+          candidate={candidate}
+          resolving={resolving}
+          locked={anyBusy}
+          onResolve={onResolve}
+        />
+      )}
+
       {sub === 'ai' &&
+        !(candidate && hasAi) &&
         (hasAi ? (
           summary.fallbackText ? (
             <div className="pre">{summary.fallbackText}</div>
           ) : (
             <>
-              <strong className="selectable">{summary.headline}</strong>
-              {/* 프로젝트로 묶는다. 같은 태그가 열 줄 반복되면 정작 다른 부분인
-                  업무 내용이 반복되는 태그에 밀린다. */}
-              <div className="items">
-                {groupByProject(summary.items ?? []).map((g) => (
-                  <div key={g.project} className="item-group">
-                    <div className="muted">[{g.project}]</div>
-                    {g.works.map((work, idx) => (
-                      <div key={idx}>{work}</div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+              <SummaryBody summary={summary} />
               {/* 키워드·모델·생성시각은 요약 본문이 아니라 그 요약에 붙는 정보라 선으로 가른다 */}
               <div className="detail-foot">
                 <div className="row spread">
@@ -870,7 +957,7 @@ function DayDetail({
                       toLeft
                       up
                       text={
-                        'claude를 다시 불러 이 날짜의\n요약을 새로 씁니다.\n구독 쿼터를 사용합니다.'
+                        'claude를 다시 불러 이 날짜의\n요약을 새로 씁니다.\n지난 날짜는 기존 것과 비교해 고릅니다.\n구독 쿼터를 사용합니다.'
                       }
                     />
                   </button>
@@ -951,6 +1038,108 @@ function DayDetail({
           )}
         </>
       )}
+    </div>
+  )
+}
+
+/**
+ * 요약 본문.
+ * 펼친 날짜와 비교 화면이 같은 모양을 쓴다.
+ * 프로젝트로 묶는다.
+ * 같은 태그가 열 줄 반복되면 정작 다른 부분인 업무 내용이 반복되는 태그에 밀린다.
+ */
+function SummaryBody({ summary }: { summary: DaySummary }): ReactNode {
+  if (summary.fallbackText) return <div className="pre">{summary.fallbackText}</div>
+  return (
+    <>
+      <strong className="selectable">{summary.headline}</strong>
+      <div className="items">
+        {groupByProject(summary.items ?? []).map((g) => (
+          <div key={g.project} className="item-group">
+            <div className="muted">[{g.project}]</div>
+            {g.works.map((work, idx) => (
+              <div key={idx}>{work}</div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+/**
+ * 기존 요약과 새 요약을 위아래로 놓고 하나를 고르게 한다.
+ *
+ * 다시 만든 요약이 늘 나은 것은 아니다.
+ * Claude Code는 오래된 로그를 지우므로, 시간이 지나 다시 만들면 남은 일부만으로 쓴 요약이 나온다.
+ * 그래서 지난 날짜는 덮지 않고 이렇게 고르게 한다.
+ * 창이 좁아 좌우로 놓지 않는다.
+ */
+function CandidateCompare({
+  current,
+  candidate,
+  resolving,
+  locked,
+  onResolve
+}: {
+  current: DaySummary
+  candidate: DaySummary
+  resolving: boolean
+  locked: boolean
+  onResolve: (choice: 'use' | 'keep') => void
+}): ReactNode {
+  // 둘 다 원본 크기를 알 때만 비교한다.
+  // 옛 요약에는 이 값이 없다.
+  const shrank =
+    current.promptCount !== undefined &&
+    candidate.promptCount !== undefined &&
+    candidate.promptCount < current.promptCount
+  const basis = (s: DaySummary): string =>
+    s.promptCount !== undefined ? `프롬프트 ${s.promptCount}개로 만듦` : '원본 크기 기록 없음'
+
+  return (
+    <div className="compare">
+      <div className="muted">새 요약을 만들었지만 기존 요약을 덮지 않았습니다. 남길 쪽을 고르세요.</div>
+      {shrank && (
+        <div className="error">
+          새 요약은 원본이 더 적을 때 만들어졌습니다.
+          {'\n'}Claude Code가 오래된 로그를 지웠을 수 있습니다.
+        </div>
+      )}
+      <div className="compare-side">
+        <div className="row spread">
+          <h4>기존</h4>
+          <span className="muted">{basis(current)}</span>
+        </div>
+        <SummaryBody summary={current} />
+        <MadeBy model={current.model} modelName={current.modelName} at={current.generatedAt} />
+      </div>
+      <div className="compare-side new">
+        <div className="row spread">
+          <h4>새 요약</h4>
+          <span className="muted">{basis(candidate)}</span>
+        </div>
+        <SummaryBody summary={candidate} />
+        <MadeBy model={candidate.model} modelName={candidate.modelName} at={candidate.generatedAt} />
+      </div>
+      <div className="row spread">
+        <button
+          type="button"
+          className="btn"
+          disabled={locked || resolving}
+          onClick={() => onResolve('keep')}
+        >
+          기존 유지
+        </button>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={locked || resolving}
+          onClick={() => onResolve('use')}
+        >
+          {resolving ? '바꾸는 중' : '새 요약 사용'}
+        </button>
+      </div>
     </div>
   )
 }

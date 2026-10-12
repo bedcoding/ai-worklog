@@ -157,6 +157,17 @@ export interface DaySummary {
   keywords?: string[]
   /** JSON 파싱 실패 시 원문 텍스트 폴백 */
   fallbackText?: string
+  /**
+   * 만들 때 본 원본 프롬프트 수.
+   * 지금 원본이 이보다 적으면 Claude Code가 옛 로그를 지운 것이다.
+   * 그때 다시 만들면 남은 찌꺼기로 요약이 덮이므로 밀린 날짜로 세지 않는다.
+   */
+  promptCount?: number
+  /**
+   * 새 요약과 비교한 뒤 이 요약을 남기기로 고른 원본의 해시.
+   * 이것이 없으면 기존 것을 골라도 원본 해시가 달라 계속 밀린 날짜로 잡힌다.
+   */
+  keptHash?: string
 }
 
 /**
@@ -176,6 +187,12 @@ export interface PeriodPart {
   generatedAt: string
   /** 구간이 끝나기 전에 만들어 아직 덜 반영된 부분 (조회 시 계산) */
   stale?: boolean
+  /**
+   * 묶은 날짜.
+   * 요약이 다 끝나지 않아도 만들 수 있으므로, 무엇이 빠졌는지 알려면 이것이 있어야 한다.
+   * 이 필드가 생기기 전에 만든 것에는 없다.
+   */
+  days?: string[]
 }
 
 /** 기간 요약의 두 부분. 서로 다른 데이터를 보고 따로 만든다 */
@@ -236,6 +253,8 @@ export interface RangeStatus {
   activeDays: string[]
   /** 요약 캐시가 있는 날짜 목록 (활동 없는 날 센티널은 제외) */
   summarizedDays: string[]
+  /** 새 요약을 만들었지만 기존 요약을 덮지 않고 비교를 기다리는 날짜 */
+  candidateDays: string[]
 }
 
 export interface ClaudeInfo {
@@ -303,6 +322,7 @@ export const IPC = {
   rangeBackfill: 'range:backfill',
   dayGenerate: 'day:generate',
   dayGetDigest: 'day:getDigest',
+  dayResolveCandidate: 'day:resolveCandidate',
   periodGet: 'period:get',
   periodGenerate: 'period:generate',
   periodStream: 'period:stream',
@@ -346,15 +366,27 @@ export interface WorklogApi {
     start: string,
     end: string,
     opts?: { indexOnly?: boolean }
-  ): Promise<{ status: RangeStatus; summaries: DaySummary[]; cache: ActivityCache }>
+  ): Promise<{
+    status: RangeStatus
+    summaries: DaySummary[]
+    /** 비교를 기다리는 새 요약. 기존 요약을 덮지 않고 따로 둔 것이다 */
+    candidates: DaySummary[]
+    cache: ActivityCache
+  }>
   /**
    * 구간의 미요약 활동일을 하나씩 순차 생성한다. 조합은 하지 않는다.
    * 진행률은 onBackfillProgress로 오고 cancelBackfill로 중단할 수 있다.
    */
   /** force 면 이미 있는 요약까지 다시 만든다. 취소하면 null */
   backfillRange(start: string, end: string, force?: boolean): Promise<RangeStatus | null>
-  /** 특정 날짜 요약 생성 (force면 캐시 무시) */
+  /**
+   * 특정 날짜 요약 생성 (force면 캐시 무시).
+   * 지난 날짜에 요약이 이미 있으면 덮지 않고 비교 대기로 둔다.
+   * 그때 돌려주는 것은 기존 요약이다.
+   */
   generateDay(date: string, force?: boolean): Promise<DaySummary>
+  /** 비교 대기 중인 새 요약을 쓸지(use) 기존 것을 남길지(keep) 정한다. 남는 요약을 돌려준다 */
+  resolveCandidate(date: string, choice: 'use' | 'keep'): Promise<DaySummary>
   /**
    * 원본 추출 내역. AI 호출 없이 로컬 로그 파싱만으로 만든다 (토큰 소모 0).
    * 기본은 캐시 우선이며, force=true면 원본 로그를 다시 스캔한다.
@@ -369,7 +401,7 @@ export interface WorklogApi {
     force?: boolean
   ): Promise<{ digest: DayDigest; state: 'scanned' | 'cached' }>
   getPeriod(key: string): Promise<PeriodSummary | null>
-  /** 주간/월간 요약 생성. 구간의 모든 활동일이 요약돼 있어야 한다 (claude 1회) */
+  /** 주간/월간 요약 생성. 지금까지 요약된 날짜만 묶는다 (claude 1회) */
   generatePeriod(req: PeriodRequest, part: PeriodPartKind): Promise<PeriodSummary>
   /**
    * 기간 요약이 만들어지는 동안 글 조각을 받는다.

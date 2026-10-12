@@ -19,6 +19,7 @@ const api: WorklogApi = {
   listRange: (start, end, opts) => ipcRenderer.invoke(IPC.rangeList, start, end, opts),
   backfillRange: (start, end, force) => ipcRenderer.invoke(IPC.rangeBackfill, start, end, force),
   generateDay: (date, force) => ipcRenderer.invoke(IPC.dayGenerate, date, force),
+  resolveCandidate: (date, choice) => ipcRenderer.invoke(IPC.dayResolveCandidate, date, choice),
   getDayDigest: (date, force) => ipcRenderer.invoke(IPC.dayGetDigest, date, force),
   getPeriod: (key) => ipcRenderer.invoke(IPC.periodGet, key),
   generatePeriod: (req, part) => ipcRenderer.invoke(IPC.periodGenerate, req, part),

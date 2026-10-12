@@ -15,7 +15,9 @@ import {
   ensurePeriodPart,
   getCachedDaySummary,
   getCachedPeriod,
-  getRangeStatus
+  getDayCandidate,
+  getRangeStatus,
+  resolveCandidate
 } from './pipeline/summarizer'
 import { cancelBackfill, resetCancel, type ProgressFn } from './pipeline/queue'
 import { DEFAULT_PROMPTS } from './prompts'
@@ -107,7 +109,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
         const s = await getCachedDaySummary(d)
         if (s) summaries.push(s)
       }
-      return { status, summaries, cache }
+      const candidates = []
+      for (const d of status.candidateDays) {
+        const c = await getDayCandidate(d)
+        if (c) candidates.push(c)
+      }
+      return { status, summaries, candidates, cache }
     }
   )
   // 날짜 수만큼 claude를 부르는 유일한 경로다. 기간 요약과 취소 플래그를 공유한다.
@@ -119,7 +126,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
         title: 'WorkLog',
         message: '이 기간의 요약을 모두 다시 만들까요?',
         detail:
-          '이미 만들어 둔 요약을 덮어씁니다. 되돌릴 수 없고, 날짜 수만큼 claude 를 부릅니다.',
+          '날짜 수만큼 claude를 부릅니다.\n이미 요약이 있는 날짜는 덮어쓰지 않고, 새 요약과 비교해 고를 수 있게 둡니다.',
         buttons: ['다시 만들기', '취소'],
         defaultId: 1,
         cancelId: 1
@@ -140,6 +147,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC.dayGenerate, (_e, date: string, force?: boolean) =>
     ensureDaySummary(date, { force })
   )
+  ipcMain.handle(IPC.dayResolveCandidate, (_e, date: string, choice: 'use' | 'keep') =>
+    resolveCandidate(date, choice === 'use' ? 'use' : 'keep')
+  )
   // 캐시가 확실히 최신일 때만 그것을 쓰고, 아니면 그 자리에서 다시 읽는다.
   // 낡은 것을 주고 사용자가 '새로고침'을 누르게 두지 않는다.
   ipcMain.handle(IPC.dayGetDigest, (_e, date: string, force?: boolean) =>
@@ -147,7 +157,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   )
 
   ipcMain.handle(IPC.periodGet, (_e, key: string) => getCachedPeriod(key))
-  // 이미 만들어 둔 일별 요약을 묶기만 한다 (claude 1회). 미요약 날짜가 있으면 거부된다.
+  // 이미 만들어 둔 일별 요약을 묶기만 한다 (claude 1회).
+  // 미요약 날짜는 빼고 묶는다.
   ipcMain.handle(IPC.periodGenerate, async (_e, req: PeriodRequest, part: PeriodPartKind) => {
     if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
     setLongRunning(true)

@@ -887,7 +887,7 @@ form.settings .readonly-box > .ellipsis {
 h3 {
   font-size: 13px;
 }
-/* 기간 요약의 '제목'/'내용' 라벨. 앱에서 h4는 여기 한 곳에만 쓴다.
+/* 기간 요약의 '제목'/'내용' 라벨. 새 요약 비교의 '기존'/'새 요약' 라벨도 같은 모양을 쓴다.
    한 단 내리고 자간을 벌려 라벨로 읽히게 한다. 브라우저 기본 bold를 그대로 두면
    12px 안내문과 무게가 같아 카드 안에 굵은 것이 셋이 됐다. 굵은 것은 요약 문장
    하나여야 눈이 거기로 간다. */
@@ -926,4 +926,23 @@ h4 {
   /* 취소선과 회색만으로는 옆 칸과 구분이 약했다. 눌린 것이 아니라 꺼진 것으로
      읽혀야 하므로 밝기 자체를 떨어뜨린다 */
   opacity: 0.55;
+}
+
+/* 기존 요약과 새 요약 비교. 창이 좁아 위아래로 놓는다.
+   두 덩이는 상자로 가르고, 새 쪽은 왼쪽 띠로 표시한다. 같은 모양이면 어느 쪽이 새 것인지 머리글을 읽어야 안다. */
+.compare {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.compare-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.compare-side.new {
+  border-left: 3px solid var(--ok);
 }
