@@ -1129,13 +1129,8 @@ function CandidateCompare({
 
   return (
     <div className="compare">
-      <div className="muted">새 요약을 만들었지만 기존 요약을 덮지 않았습니다. 남길 쪽을 고르세요.</div>
-      {shrank && (
-        <div className="error">
-          새 요약은 원본이 더 적을 때 만들어졌습니다.
-          {'\n'}Claude Code가 오래된 로그를 지웠을 수 있습니다.
-        </div>
-      )}
+      <div className="muted">둘 중 남길 요약을 고르세요.</div>
+      {shrank && <div className="error">새 요약은 기존보다 적은 원본으로 만들어졌습니다.</div>}
       <div className="compare-side">
         <div className="row spread">
           <h4>기존</h4>
