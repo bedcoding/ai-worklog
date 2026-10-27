@@ -1,13 +1,14 @@
 import { sha256 } from '../cache'
 import { kstHHMM } from '@shared/dates'
+import { renderPromptLine } from '@shared/digest-text'
 import type { DayDigest, DigestPrompt, ProjectDigest } from '@shared/types'
 
 /** 프롬프트 1개 최대 길이 */
 export const PROMPT_MAX_CHARS = 280
 /** 하루 다이제스트에 담는 최대 프롬프트 수 */
 export const MAX_PROMPTS_PER_DAY = 80
-/** 직렬화된 다이제스트 총량 캡 (claude 호출 비용/지연 제어) */
-export const DIGEST_MAX_CHARS = 16_000
+/** 하루 프롬프트 줄 총량 캡 (claude 호출 비용/지연 제어, 프로젝트 머리줄은 세지 않음) */
+export const PROMPT_LINES_MAX_CHARS = 16_000
 /** 유사 프롬프트 병합 기준: 앞 N자가 같으면 반복으로 취급 */
 const DEDUP_PREFIX = 80
 
@@ -141,7 +142,7 @@ export function buildDigest(acc: DayAcc, skippedLines: number): DayDigest {
   }
 }
 
-/** 하루 총 프롬프트 수 캡 + 직렬화 총량 캡 적용 (overflow 기록) */
+/** 하루 총 프롬프트 수 캡 + 프롬프트 줄 총량 캡 적용 (overflow 기록) */
 function applyDayBudget(projects: ProjectDigest[]): void {
   const total = (): number => projects.reduce((n, p) => n + p.prompts.length, 0)
 
@@ -159,7 +160,7 @@ function applyDayBudget(projects: ProjectDigest[]): void {
     }
   }
 
-  while (serializedSize(projects) > DIGEST_MAX_CHARS) {
+  while (promptLinesSize(projects) > PROMPT_LINES_MAX_CHARS) {
     const target = projects.reduce((a, b) => (a.prompts.length >= b.prompts.length ? a : b))
     if (target.prompts.length === 0) break
     target.prompts.pop()
@@ -167,8 +168,19 @@ function applyDayBudget(projects: ProjectDigest[]): void {
   }
 }
 
-function serializedSize(projects: ProjectDigest[]): number {
-  return JSON.stringify(projects).length
+/**
+ * claude에 실제로 들어가는 프롬프트 줄의 총량이다.
+ * 줄마다 줄바꿈 하나를 더한다.
+ *
+ * 예전에는 projects 전체를 JSON으로 직렬화해 쟀다.
+ * 그러면 claude에 보내지도 않는 cwd 전체 경로까지 예산을 먹는다.
+ * 프로젝트 머리줄도 함께 셌는데, 머리줄은 프롬프트를 덜어 내도 줄지 않아서 세션이 하위 폴더를 옮겨 다녀 폴더가 수십 개로 갈린 날은 프롬프트를 다 덜어 내고도 예산을 넘었다.
+ * 실측: 폴더가 60개로 갈린 날 프롬프트 101개가 하나도 남지 않았고, AI 요약은 머리줄만 보고 만들어졌다.
+ */
+function promptLinesSize(projects: ProjectDigest[]): number {
+  let n = 0
+  for (const p of projects) for (const dp of p.prompts) n += renderPromptLine(dp).length + 1
+  return n
 }
 
 function truncate(s: string, max: number): string {

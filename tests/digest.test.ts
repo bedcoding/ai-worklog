@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderDigestText } from '../src/shared/digest-text'
 import {
   MAX_PROMPTS_PER_DAY,
+  PROMPT_LINES_MAX_CHARS,
   PROMPT_MAX_CHARS,
   buildDigest,
   digestHash,
@@ -49,6 +50,38 @@ describe('buildDigest', () => {
     const d = buildDigest(accWith(prompts), 0)
     expect(d.projects[0].prompts.length).toBeLessThanOrEqual(MAX_PROMPTS_PER_DAY)
     expect(d.projects[0].overflow).toBeGreaterThan(0)
+  })
+
+  it('프롬프트 없는 폴더가 많아도 프롬프트를 남긴다', () => {
+    // 세션 안에서 하위 폴더로 옮겨 다니면 폴더마다 프로젝트가 따로 잡힌다.
+    // 머리줄과 cwd까지 예산으로 세던 때는 이런 날 프롬프트를 다 덜어 내도 예산을 넘어, 원본 내역에 프롬프트가 하나도 남지 않았다.
+    const acc = accWith([{ tsMs: Date.parse('2026-07-19T01:00:00Z'), text: '정산 페이지 수정' }])
+    for (let i = 0; i < 80; i++) {
+      const cwd = `/private/tmp/scratchpad/${'sub/'.repeat(50)}wt-${i}`
+      const p = newProjectAcc(cwd)
+      p.sessions.add('s1')
+      p.toolCallCount = 3
+      acc.projects.set(cwd, p)
+    }
+    const d = buildDigest(acc, 0)
+    expect(d.projects.find((p) => p.name === 'proj')?.prompts).toHaveLength(1)
+  })
+
+  it('예산은 claude에 들어가는 프롬프트 줄로 재고 넘는 만큼만 덜어 낸다', () => {
+    const t = Date.parse('2026-07-19T01:00:00Z')
+    // 하루 캡(80개)에는 걸리지 않고 예산만 넘는 양
+    const prompts = Array.from({ length: 70 }, (_, i) => ({
+      tsMs: t + i * 60_000,
+      text: `${i} ${'가'.repeat(PROMPT_MAX_CHARS)}`
+    }))
+    const d = buildDigest(accWith(prompts), 0)
+    const lines = renderDigestText(d).split('\n').filter((l) => l.startsWith('- '))
+    const used = lines.reduce((n, l) => n + l.length + 1, 0)
+    expect(used).toBeLessThanOrEqual(PROMPT_LINES_MAX_CHARS)
+    // 한 줄만 더 담아도 예산을 넘는다.
+    // 필요 이상 덜어 내지 않았다는 뜻이다.
+    expect(used + lines[0].length + 1).toBeGreaterThan(PROMPT_LINES_MAX_CHARS)
+    expect(d.projects[0].overflow).toBe(70 - lines.length)
   })
 
   it('digestHash는 builtAt과 무관하게 안정적이다', () => {
