@@ -578,10 +578,8 @@ export default function SummaryView({
         {/* 정리가 끝났는데 기존 요약이 그대로면 아무 일도 없었던 것처럼 보인다.
             새 요약이 어디 있는지 여기서 알린다 */}
         {candidateCount > 0 && !backfillRunning && (
-          <div className="muted">
-            새 요약이 {candidateCount}일 있습니다. 기존 요약은 그대로 두었습니다.
-            <br />
-            <span className="badge on">새 요약</span>이 붙은 날짜를 펼쳐 비교하세요.
+          <div className="muted candidate-note">
+            <span className="badge on">새 요약</span>이 붙은 {candidateCount}일을 펼쳐 기존 요약과 비교하세요.
           </div>
         )}
       </div>

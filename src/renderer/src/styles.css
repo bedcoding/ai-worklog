@@ -746,6 +746,10 @@ button.btn.icon.on {
   font-family: inherit;
   font-size: 12px;
 }
+/* 정리 버튼 바로 아래 한 줄짜리 안내라 버튼 글자와 같은 가운데에 맞춘다 */
+.candidate-note {
+  text-align: center;
+}
 /* 제목에 없고 항목에만 걸린 날짜. 왜 걸렸는지 그 자리에서 보여 준다 */
 .day-hits {
   padding: 0 12px 8px 12px;
