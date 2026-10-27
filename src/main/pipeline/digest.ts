@@ -31,7 +31,7 @@ export interface ProjectAcc {
 
 export interface DayAcc {
   date: string
-  /** key: cwd */
+  /** key: 대화를 시작한 폴더의 cwdKey (collector의 sessionCwd) */
   projects: Map<string, ProjectAcc>
   /**
    * 이 날짜의 레코드가 나온 로그 파일 경로 → 읽던 시점의 mtime.
@@ -174,7 +174,7 @@ function applyDayBudget(projects: ProjectDigest[]): void {
  *
  * 예전에는 projects 전체를 JSON으로 직렬화해 쟀다.
  * 그러면 claude에 보내지도 않는 cwd 전체 경로까지 예산을 먹는다.
- * 프로젝트 머리줄도 함께 셌는데, 머리줄은 프롬프트를 덜어 내도 줄지 않아서 세션이 하위 폴더를 옮겨 다녀 폴더가 수십 개로 갈린 날은 프롬프트를 다 덜어 내고도 예산을 넘었다.
+ * 프로젝트 머리줄도 함께 셌는데, 머리줄은 프롬프트를 덜어 내도 줄지 않아서 세션이 여러 폴더를 옮겨 다녀 폴더가 수십 개로 갈린 날은 프롬프트를 다 덜어 내고도 예산을 넘었다.
  * 실측: 폴더가 60개로 갈린 날 프롬프트 101개가 하나도 남지 않았고, AI 요약은 머리줄만 보고 만들어졌다.
  */
 function promptLinesSize(projects: ProjectDigest[]): number {

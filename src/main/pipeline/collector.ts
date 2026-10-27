@@ -10,7 +10,7 @@ import { buildDigest, newProjectAcc, type DayAcc } from './digest'
 export interface CollectOptions {
   /** 기본 ~/.claude. 테스트에서 픽스처 디렉토리 주입용 */
   claudeDir?: string
-  /** 수집에서 제외할 cwd (앱 자체 claude-workdir 등) */
+  /** 이 폴더에서 시작한 대화는 수집하지 않는다 (앱 자체 claude-workdir 등) */
   excludeCwds?: string[]
 }
 
@@ -65,6 +65,7 @@ export const cwdKey = (cwd: string, platform: string = process.platform): string
  * (실측: 8/23 레코드보다 뒤에 적힌 8/22 레코드 1380개). 그래서 '하루가 지나면 그 날
  * 다이제스트는 확정'이 아니고, 읽은 파일의 mtime을 남겨 두어야 낡음을 알 수 있다.
  * 날짜 분류는 세션이 아니라 레코드 단위(자정을 넘는 세션도 올바르게 분리).
+ * 프로젝트 분류는 반대로 세션 단위다(아래 sessionCwd).
  */
 export async function collectDigests(
   startDate: string,
@@ -89,6 +90,18 @@ export async function collectDigests(
       input: createReadStream(file.path, 'utf8'),
       crlfDelay: Infinity
     })
+    /**
+     * 이 대화를 시작한 폴더다.
+     * 로그 파일 하나가 대화 하나이고, 대화의 기록은 모두 이 폴더의 프로젝트로 묶는다.
+     *
+     * Claude는 대화 도중 프로젝트 안쪽 폴더나 임시 작업 폴더로 옮겨 가 명령을 실행하고, 그 뒤 레코드의 cwd도 그 폴더로 바뀐다.
+     * 레코드 cwd로 묶던 때는 대화 하나가 들른 폴더 수만큼 프로젝트로 쪼개졌다.
+     * 원본 내역은 프롬프트 없는 프로젝트 줄로 채워졌고, 사람이 친 프롬프트도 임시 폴더 이름의 프로젝트로 잡혔다.
+     *
+     * 날짜 범위 밖의 레코드로도 정한다.
+     * 자정을 넘긴 대화를 다음 날 하루만 스캔해도 같은 폴더로 묶여야 digestHash가 흔들리지 않는다.
+     */
+    let sessionCwd: string | undefined
     for await (const line of rl) {
       if (!line.trim()) continue
       let rec: LogRecord
@@ -100,9 +113,10 @@ export async function collectDigests(
       }
       if (rec.type !== 'user' && rec.type !== 'assistant') continue
       if (rec.isSidechain) continue
+      sessionCwd ??= rec.cwd
       const tsMs = rec.timestamp ? Date.parse(rec.timestamp) : NaN
       if (!Number.isFinite(tsMs) || tsMs < startMs || tsMs >= endMs) continue
-      const cwd = rec.cwd ?? '(알 수 없음)'
+      const cwd = sessionCwd ?? '(알 수 없음)'
       const key = cwdKey(cwd)
       if (excludeCwds.has(key)) continue
 

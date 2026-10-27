@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { collectDigests } from '../src/main/pipeline/collector'
+import { digestHash } from '../src/main/pipeline/digest'
 
 function makeFixture(files: Record<string, string[]>): string {
   const base = mkdtempSync(join(tmpdir(), 'worklog-collector-'))
@@ -174,5 +175,50 @@ describe('collectDigests', () => {
     const proj = digests.get('2026-07-19')!.projects[0]
     expect(proj.sessionCount).toBe(2)
     expect(proj.promptCount).toBe(2)
+  })
+
+  it('한 대화가 여러 폴더를 드나들어도 대화를 시작한 프로젝트 하나로 묶는다', async () => {
+    // Claude가 프로젝트 안쪽 폴더나 임시 작업 폴더로 옮겨 가 일하면 그 뒤 레코드의 cwd가 바뀐다
+    const wt = '/private/tmp/scratchpad/fix-wt'
+    const base = makeFixture({
+      'p1/s1.jsonl': [
+        user('2026-07-19T10:00:00.000Z', '버그 고쳐 줘'),
+        assistant('2026-07-19T10:00:10.000Z', { cwd: `${CWD}/src` }),
+        assistant('2026-07-19T10:00:20.000Z', { cwd: wt }),
+        user('2026-07-19T10:05:00.000Z', '테스트도 돌려 줘', { cwd: wt })
+      ]
+    })
+    const { digests } = await collectDigests('2026-07-19', '2026-07-19', { claudeDir: base })
+    const day = digests.get('2026-07-19')!
+    expect(day.projects.map((p) => p.cwd)).toEqual([CWD])
+    expect(day.projects[0].promptCount).toBe(2)
+    expect(day.projects[0].toolCallCount).toBe(2)
+    expect(day.totals.sessionCount).toBe(1)
+  })
+
+  it('자정을 넘긴 대화는 다음 날만 스캔해도 시작한 프로젝트로 묶는다', async () => {
+    // 스캔 범위에 따라 묶이는 프로젝트가 달라지면 같은 날의 digestHash가 흔들린다
+    const wt = '/private/tmp/scratchpad/fix-wt'
+    const base = makeFixture({
+      'p1/s1.jsonl': [
+        user('2026-07-19T14:50:00.000Z', '어제 밤 작업'),
+        assistant('2026-07-19T15:05:00.000Z', { cwd: wt }),
+        user('2026-07-19T15:10:00.000Z', '자정 넘긴 작업', { cwd: wt })
+      ]
+    })
+    const oneDay = (await collectDigests('2026-07-20', '2026-07-20', { claudeDir: base })).digests
+    const twoDays = (await collectDigests('2026-07-19', '2026-07-20', { claudeDir: base })).digests
+    expect(oneDay.get('2026-07-20')!.projects.map((p) => p.cwd)).toEqual([CWD])
+    expect(digestHash(oneDay.get('2026-07-20')!)).toBe(digestHash(twoDays.get('2026-07-20')!))
+  })
+
+  it('서로 다른 폴더에서 시작한 대화는 따로 잡는다', async () => {
+    const other = '/Users/test/proj-b'
+    const base = makeFixture({
+      'p1/s1.jsonl': [user('2026-07-19T10:00:00.000Z', 'A 작업')],
+      'p2/s2.jsonl': [user('2026-07-19T11:00:00.000Z', 'B 작업', { sessionId: 's2', cwd: other })]
+    })
+    const { digests } = await collectDigests('2026-07-19', '2026-07-19', { claudeDir: base })
+    expect(digests.get('2026-07-19')!.projects.map((p) => p.cwd).sort()).toEqual([CWD, other])
   })
 })

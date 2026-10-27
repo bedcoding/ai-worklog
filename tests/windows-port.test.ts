@@ -175,12 +175,12 @@ describe('cwdKey — 윈도우에서만 대소문자를 무시한다', () => {
 })
 
 describe('collector — 같은 프로젝트가 대소문자로 갈라지지 않는다 (호스트 플랫폼 기준)', () => {
-  const rec = (cwd: string, ts: string, text: string): string =>
+  const rec = (cwd: string, ts: string, text: string, sessionId = 's1'): string =>
     JSON.stringify({
       type: 'user',
       timestamp: ts,
       cwd,
-      sessionId: 's1',
+      sessionId,
       message: { role: 'user', content: [{ type: 'text', text }] }
     })
 
@@ -192,10 +192,9 @@ describe('collector — 같은 프로젝트가 대소문자로 갈라지지 않�
       process.platform === 'win32'
         ? ['D:\\dev\\foo', 'd:\\dev\\foo']
         : ['/Users/me/Foo', '/Users/me/foo']
-    writeFileSync(
-      join(dir, 's1.jsonl'),
-      [rec(a, '2026-07-15T01:00:00.000Z', 'A'), rec(b, '2026-07-15T02:00:00.000Z', 'B')].join('\n')
-    )
+    // 한 대화의 기록은 시작한 폴더로 묶이므로 케이싱 차이는 서로 다른 대화 사이에서 드러난다
+    writeFileSync(join(dir, 's1.jsonl'), rec(a, '2026-07-15T01:00:00.000Z', 'A'))
+    writeFileSync(join(dir, 's2.jsonl'), rec(b, '2026-07-15T02:00:00.000Z', 'B', 's2'))
     const { digests } = await collectDigests('2026-07-15', '2026-07-15', { claudeDir: base })
     const day = digests.get('2026-07-15')
     // 윈도우는 하나로 묶이고, POSIX는 서로 다른 디렉토리이므로 둘로 남는다
