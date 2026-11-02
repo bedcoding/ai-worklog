@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { AUTH_FAILURE_MESSAGE } from '@shared/claude-error'
+import { AUTH_FAILURE_MESSAGE, isAuthFailureMessage } from '@shared/claude-error'
 import type { BackfillProgress, PipelineError } from '@shared/types'
 import StatusBar from './StatusBar'
 import { Tip } from './common'
@@ -34,8 +34,9 @@ export default function App(): ReactNode {
   useEffect(() => window.api.onPipelineError(setPipelineError), [])
 
   /**
-   * 로그인이 풀렸는지는 창이 닫혀 있는 동안에도 바뀐다. 열 때 한 번 읽고 그 뒤로는
-   * push를 받는다. 다시 풀리면 닫아 둔 배너를 되살린다.
+   * 로그인이 풀렸는지는 창이 닫혀 있는 동안에도 바뀐다.
+   * 열 때 한 번 읽고 그 뒤로는 push를 받는다.
+   * main은 로그인 문제로 실패할 때마다 push하므로, 닫아 둔 배너도 다음 실패에 되살아난다.
    */
   useEffect(() => {
     let alive = true
@@ -123,7 +124,8 @@ export default function App(): ReactNode {
           </div>
         </div>
       )}
-      {pipelineError && (
+      {/* 자동 요약이 로그인 문제로 실패했으면 바로 위 로그인 안내가 같은 문장으로 알린다 */}
+      {pipelineError && !isAuthFailureMessage(pipelineError.message) && (
         <div className="progress-wrap">
           <div className="row spread">
             <span className="error grow">{pipelineError.message}</span>

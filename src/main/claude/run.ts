@@ -183,17 +183,39 @@ interface AuthError extends Error {
 /**
  * 종료 코드가 0이 아닐 때 원인 문구를 고른다.
  *
- * stderr만 보던 때가 있었는데, 인증 실패 문구는 stdout으로 나온다. 그래서 화면에는
- * 'claude 종료 코드 1: ' 뒤가 비어 있었고 무엇을 해야 하는지 알 수 없었다.
+ * stderr만 보던 때가 있었는데, 인증 실패 문구는 stdout으로 나온다.
+ * 그래서 화면에는 'claude 종료 코드 1: ' 뒤가 비어 있었고 무엇을 해야 하는지 알 수 없었다.
+ *
+ * 결과 봉투를 받았으면 그 result를 가장 먼저 본다.
+ * claude 2.1.310은 인증 실패도 봉투에 담아 내는데, 봉투가 usage 같은 숫자 필드로 시작해 result가 500자 뒤에 온다.
+ * stream-json도 도구 목록을 담은 init 줄이 맨 앞이라 그 줄만으로 500자를 넘고, result 줄은 맨 끝이다.
+ * stdout 앞부분만 보던 때는 로그인 만료를 일반 오류로 알고 두 번 더 시도했다.
+ *
+ * @param result 결과 봉투의 result. 봉투를 받지 못했으면 넘기지 않는다
  */
-function failureFrom(code: number | null, stderr: string, stdout: string): AuthError {
-  const detail = (stderr.trim() || stdout.trim()).slice(0, 500)
+export function failureFrom(
+  code: number | null,
+  stderr: string,
+  stdout: string,
+  result?: string
+): AuthError {
+  const detail = (result?.trim() || stderr.trim() || stdout.trim()).slice(0, 500)
   if (isAuthFailure(detail)) {
     const e: AuthError = new Error(AUTH_FAILURE_MESSAGE)
     e.authFailure = true
     return e
   }
   return new Error(`claude 종료 코드 ${code}: ${detail}`)
+}
+
+/** json 출력에서 결과 봉투의 result를 꺼낸다. 봉투가 아니면 undefined다 */
+function envelopeResult(stdout: string): string | undefined {
+  try {
+    const r = (JSON.parse(stdout) as ResultEnvelope | null)?.result
+    return typeof r === 'string' ? r : undefined
+  } catch {
+    return undefined
+  }
 }
 
 /** 강제 종료 후에도 close가 오지 않을 때 Promise를 반드시 settle시키는 유예 시간 */
@@ -364,7 +386,8 @@ function runOnce(prompt: string, opts: ClaudeRunOptions): Promise<RunResult> {
         return
       }
       if (code !== 0) {
-        reject(failureFrom(code, stderr, rawHead))
+        const resultText = streaming ? resultLine?.result : envelopeResult(stdout)
+        reject(failureFrom(code, stderr, rawHead, resultText))
         return
       }
       // 스트리밍이든 아니든 최종 결과는 같은 봉투에서 읽는다. 조각은 화면용이고

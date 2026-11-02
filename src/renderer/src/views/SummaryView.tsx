@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { kstDateOf, kstDateTimeKo, shortDateKo } from '@shared/dates'
 import { isBackfillRunning, isBusy, isOtherRunning } from '@shared/busy'
+import { isAuthFailureMessage } from '@shared/claude-error'
 import { groupByProject, renderGroupedItems } from '@shared/day-items'
 import { renderDigestText } from '@shared/digest-text'
 import { rangeStateOf } from '@shared/range-state'
@@ -147,7 +148,14 @@ export default function SummaryView({
   // startedAt이 있으면 초가 올라간다. 모델이 조용한 구간에도 화면이 살아 있어야 한다.
   const [stream, setStream] = useState<StreamState>(IDLE_STREAM)
   const [openDate, setOpenDate] = useState<string | null>(null)
+  // 누른 작업(정리, 요약 생성, 비교 고르기, 조합)이 실패한 이유다.
+  // 목록을 다시 읽어도 지우지 않는다.
+  // 작업이 끝나면 목록을 다시 읽는데, 목록 오류와 한 상태를 쓰던 때는 그 읽기가 방금 띄운 실패를 바로 지웠다.
+  // 그래서 claude가 실패해도 화면에는 아무것도 남지 않았다.
   const [error, setError] = useState<string | null>(null)
+  // 목록을 읽다 난 오류다.
+  // 다시 읽기 시작하면 지운다.
+  const [listError, setListError] = useState<string | null>(null)
   // 한 번 읽은 원본 내역은 메모리에 두고 재사용한다 (날짜를 다시 펼쳐도 재스캔 없음).
   // state는 main이 판정해 준 값이다. builtAt을 보고 짐작하면 규칙이 바뀔 때 어긋난다.
   const [digests, setDigests] = useState<Map<string, DayRaw>>(new Map())
@@ -179,7 +187,7 @@ export default function SummaryView({
     const { start: from, end: to } = rangeOf(at)
     const id = ++reqRef.current
     if (!quiet) setLoading(true)
-    setError(null)
+    setListError(null)
 
     /**
      * 라벨·목록·기간 요약을 한 번에 바꾼다.
@@ -225,7 +233,7 @@ export default function SummaryView({
         apply(r, p)
       })
       .catch((e: unknown) => {
-        if (id === reqRef.current) setError(errMsg(e))
+        if (id === reqRef.current) setListError(errMsg(e))
       })
       .finally(() => {
         if (id === reqRef.current) {
@@ -251,7 +259,12 @@ export default function SummaryView({
     }
   }, [])
 
-  useEffect(load, [load])
+  // 구간을 옮기면 앞 구간에서 실패한 작업의 오류는 지운다.
+  // 목록을 다시 읽는 다른 때(작업이 끝난 뒤, 날짜가 갱신될 때)는 남겨 둔다.
+  useEffect(() => {
+    setError(null)
+    load()
+  }, [load])
   useEffect(() => window.api.onDayUpdated(() => load()), [load])
 
   // 글이 만들어지는 대로 화면에 흘린다. reset은 재시도라 지금까지 받은 것을 버린다.
@@ -574,7 +587,9 @@ export default function SummaryView({
             />
           )}
         </button>
-        {error && <div className="error">{error}</div>}
+        {/* 로그인 만료는 창 위쪽 로그인 안내가 같은 문장으로 알린다 */}
+        {error && !isAuthFailureMessage(error) && <div className="error">{error}</div>}
+        {listError && <div className="error">{listError}</div>}
         {/* 정리가 끝났는데 기존 요약이 그대로면 아무 일도 없었던 것처럼 보인다.
             새 요약이 어디 있는지 여기서 알린다 */}
         {candidateCount > 0 && !backfillRunning && (

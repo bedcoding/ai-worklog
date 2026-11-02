@@ -40,8 +40,15 @@ export function noteRunSuccess(): void {
   set(false)
 }
 
+/**
+ * 인증 실패면 이미 켜져 있어도 다시 알린다.
+ * 화면은 이 알림을 받으면 사용자가 닫아 둔 로그인 안내를 다시 연다.
+ * 로그인 만료는 그 안내 하나로만 띄우므로, 다시 알리지 않으면 안내를 닫은 뒤 누른 작업은 상태바 말고는 흔적 없이 실패한다.
+ */
 export function noteRunFailure(message: string): void {
-  if (isAuthFailure(message)) set(true)
+  if (!isAuthFailure(message)) return
+  failed = true
+  listener?.(true)
 }
 
 /** 지난 자동 실행이 인증 실패로 끝났다면 앱을 켤 때부터 알린다 */

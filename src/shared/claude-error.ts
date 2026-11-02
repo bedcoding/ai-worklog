@@ -36,10 +36,25 @@ export const AUTH_FAILURE_SHORT = '로그인 필요. 터미널에서 claude 실�
 /**
  * claude가 남긴 출력이 인증 실패인가.
  *
- * 종료 코드가 0이 아닐 때의 출력에만 쓴다. 성공한 실행의 본문에는 요약 내용으로
- * 'OAuth'가 들어갈 수 있어서, 성공까지 검사하면 멀쩡한 요약을 오진한다.
+ * 종료 코드가 0이 아닐 때의 출력에만 쓴다.
+ * 성공한 실행의 본문에는 요약 내용으로 'OAuth'가 들어갈 수 있어서, 성공까지 검사하면 멀쩡한 요약을 오진한다.
+ *
+ * 앱이 인증 실패로 판정해 바꿔 쓴 안내 문장도 인증 실패다.
+ * runClaude는 이 문장을 던진 뒤 같은 문장으로 로그인 상태를 켜고, 자동 실행 기록에도 이 문장이 남는다.
+ * CLI 원문 표현만 알아보던 때는 이 문장을 놓쳐서 로그인 안내가 한 번도 켜지지 않았다.
  */
 export function isAuthFailure(text: string | null | undefined): boolean {
   if (!text) return false
+  if (isAuthFailureMessage(text)) return true
   return AUTH_PATTERNS.some((re) => re.test(text))
+}
+
+/**
+ * 앱이 인증 실패로 판정해 바꿔 쓴 안내 문장이 들어 있는가.
+ *
+ * 화면은 이것으로 로그인 안내 배너와 겹치는 오류를 거른다.
+ * CLI 원문 표현까지 넓게 잡으면 claude와 무관한 '401 Unauthorized' 같은 오류까지 화면에서 사라진다.
+ */
+export function isAuthFailureMessage(text: string | null | undefined): boolean {
+  return !!text && text.includes(AUTH_FAILURE_MESSAGE)
 }
