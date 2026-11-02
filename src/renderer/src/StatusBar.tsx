@@ -76,7 +76,7 @@ export default function StatusBar({
   if (error) {
     return (
       <button type="button" className="statusbar" onClick={onOpenSettings}>
-        <span className="error">claude 연결 안 됨. 클릭해 경로를 지정하세요</span>
+        <span className="error">claude 연결 안 됨 (클릭해 경로 지정)</span>
         {appVersion && <span className="appver">v{appVersion}</span>}
       </button>
     )

@@ -117,7 +117,7 @@ export default function App(): ReactNode {
       {authFailed && !authDismissed && (
         <div className="progress-wrap">
           <div className="row spread">
-            <span className="error grow">{AUTH_FAILURE_MESSAGE}</span>
+            <span className="error grow auth-note">{AUTH_FAILURE_MESSAGE}</span>
             <button type="button" className="btn" onClick={() => setAuthDismissed(true)}>
               닫기
             </button>

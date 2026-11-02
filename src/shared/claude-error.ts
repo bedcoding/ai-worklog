@@ -26,12 +26,20 @@ const AUTH_PATTERNS = [
   /run .{0,10}claude \/login/i
 ]
 
-/** 사용자에게 보여줄 문장. 무엇을 해야 하는지까지 적는다 */
+/**
+ * 사용자에게 보여줄 문장이다.
+ * 무엇을 해야 하는지까지 적는다.
+ * 문장마다 줄을 나눈다.
+ * 한 줄로 이어 두면 좁은 창에서 둘째 문장이 중간에서 접혀 다음 줄로 넘어간다.
+ */
 export const AUTH_FAILURE_MESSAGE =
-  'Claude Code 로그인이 만료됐습니다. 터미널에서 claude를 실행해 다시 로그인하세요'
+  'Claude Code 로그인이 만료됐습니다.\n터미널에서 claude를 실행해 다시 로그인하세요.'
 
-/** 상태바처럼 좁은 자리에 쓰는 짧은 형태 */
-export const AUTH_FAILURE_SHORT = '로그인 필요. 터미널에서 claude 실행'
+/**
+ * 상태바처럼 한 줄뿐인 자리에 쓰는 짧은 형태다.
+ * 줄을 나눌 수 없으니 문장 둘을 잇지 않고 한 구절로 둔다.
+ */
+export const AUTH_FAILURE_SHORT = '로그인 필요 (터미널에서 claude 실행)'
 
 /**
  * claude가 남긴 출력이 인증 실패인가.

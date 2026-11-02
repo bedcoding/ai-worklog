@@ -860,7 +860,7 @@ function Working({ stream }: { stream: StreamState }): ReactNode {
     ? 'claude가 쓰고 있습니다'
     : stream.thinking || stream.tokens > 0
       ? 'claude가 생각하고 있습니다'
-      : '요청을 보냈습니다. 첫 응답을 기다립니다'
+      : '요청을 보내고 첫 응답을 기다리고 있습니다'
 
   return (
     <>
@@ -1017,8 +1017,8 @@ function DayDetail({
           )
         ) : (
           <div className="row spread">
-            <span className="muted">
-              AI 요약이 아직 없습니다. 원본 내역은 토큰 소모 없이 볼 수 있어요.
+            <span className="muted lines">
+              {'AI 요약이 아직 없습니다.\n원본 내역은 토큰 소모 없이 볼 수 있습니다.'}
             </span>
             <button
               type="button"

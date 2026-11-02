@@ -526,6 +526,8 @@ function runLabel(r: SchedulerRun): string {
     case 'skipped':
       return `${when}${subject} 건너뜀`
     default:
-      return `${when}${subject} 실패: ${r.error ?? '알 수 없는 오류'}`
+      // 기록은 한 줄씩 쌓인다.
+      // 오류가 문장마다 줄을 나눈 것이면 첫 문장만 둔다.
+      return `${when}${subject} 실패: ${r.error?.split('\n')[0] ?? '알 수 없는 오류'}`
   }
 }

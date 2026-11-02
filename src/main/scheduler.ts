@@ -211,7 +211,7 @@ async function fire(): Promise<void> {
     showNotification(
       summary.empty
         ? `${label}(${target})는 Claude Code 활동 기록이 없습니다`
-        : `${label} 업무 요약 완료. ${summary.headline ?? '요약 탭에서 확인하세요'}`
+        : `${label} 업무 요약 완료\n${summary.headline ?? '요약 탭에서 확인하세요'}`
     )
     onSummaryDone?.(summary)
   } catch (e) {

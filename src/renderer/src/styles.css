@@ -750,6 +750,14 @@ button.btn.icon.on {
 .candidate-note {
   text-align: center;
 }
+/* 로그인 안내는 문장마다 줄을 나눈 두 줄이라 가운데에 맞춘다 */
+.auth-note {
+  text-align: center;
+}
+/* 문장마다 넣은 줄바꿈을 살린다 */
+.lines {
+  white-space: pre-line;
+}
 /* 제목에 없고 항목에만 걸린 날짜. 왜 걸렸는지 그 자리에서 보여 준다 */
 .day-hits {
   padding: 0 12px 8px 12px;

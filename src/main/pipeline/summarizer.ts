@@ -507,7 +507,7 @@ export async function ensurePeriodPart(
     if (cached && !cached.empty) summaries.push(cached)
   }
   if (summaries.length === 0) {
-    throw new Error('요약된 날짜가 없습니다. 날짜별 요약을 먼저 만드세요.')
+    throw new Error('요약된 날짜가 없습니다.\n날짜별 요약을 먼저 만드세요.')
   }
   const settings = await getSettings()
   const label = periodLabelOf(req, start, endClamped)

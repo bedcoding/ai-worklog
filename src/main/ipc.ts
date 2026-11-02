@@ -133,7 +133,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       })
       if (response !== 0) return null
     }
-    if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
+    if (longRunning) throw new Error('다른 요약이 끝난 뒤 다시 시도하세요.')
     setLongRunning(true)
     resetCancel()
     try {
@@ -160,7 +160,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   // 이미 만들어 둔 일별 요약을 묶기만 한다 (claude 1회).
   // 미요약 날짜는 빼고 묶는다.
   ipcMain.handle(IPC.periodGenerate, async (_e, req: PeriodRequest, part: PeriodPartKind) => {
-    if (longRunning) throw new Error('다른 요약이 생성 중입니다. 완료 후 다시 시도하세요.')
+    if (longRunning) throw new Error('다른 요약이 끝난 뒤 다시 시도하세요.')
     setLongRunning(true)
     try {
       return await ensurePeriodPart(req, part, (e) =>

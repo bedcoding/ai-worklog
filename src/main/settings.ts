@@ -17,7 +17,8 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 export const SETTINGS_UNREADABLE =
-  '설정 파일을 읽을 수 없습니다. 백신·백업 프로그램이 파일을 사용 중일 수 있습니다. ' +
+  '설정 파일을 읽을 수 없습니다.\n' +
+  '백신이나 백업 프로그램이 파일을 쓰고 있을 수 있습니다.\n' +
   '잠시 후 다시 시도해 주세요.'
 
 /**

@@ -188,7 +188,7 @@ export async function locateClaude(override?: string | null): Promise<string> {
   const found = await autoDetect()
   if (found) return found
   throw new Error(
-    'claude CLI를 찾지 못했습니다. 설정 탭에서 claude 실행 파일 경로를 직접 지정해 주세요.'
+    'claude CLI를 찾지 못했습니다.\n설정 탭에서 claude 실행 파일 경로를 지정해 주세요.'
   )
 }
 
