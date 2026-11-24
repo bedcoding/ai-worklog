@@ -1042,7 +1042,8 @@ function DayDetail({
           {digestBusy && <Spinner label="원본 내역 추출 중 (AI 호출 없음)" />}
           {digest && (
             <>
-              {digest.projects.length === 0 ? (
+              {/* 대화가 하나도 남지 않은 날에도 그날 커밋은 보인다 */}
+              {digest.projects.length === 0 && !digest.commits?.length ? (
                 <div className="muted">기록이 없습니다.</div>
               ) : (
                 <div className="pre">{renderDigestText(digest)}</div>

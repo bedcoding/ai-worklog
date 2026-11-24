@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { DayDigest } from '@shared/types'
-import { dayDigestPath, initCache, writeJsonAtomic } from '../src/main/cache'
+import { dayDigestPath, initCache, readJson, writeJsonAtomic } from '../src/main/cache'
 import { ensureDayDigest } from '../src/main/pipeline/summarizer'
 
 /** 소스 파일 목록을 지정할 수 있는 최소 다이제스트 */
@@ -102,5 +102,19 @@ describe('원본 내역 캐시를 쓸지 판정', () => {
     // 그 뒤로는 stat 몇 번으로 끝난다
     await writeJsonAtomic(dayDigestPath('2026-07-15'), digestWith('2026-07-15', AFTER_DAY))
     expect((await ensureDayDigest('2026-07-15', { claudeDir: emptyDir })).state).toBe('scanned')
+  })
+
+  it('커밋을 모으기 전에 만든 캐시는 프롬프트를 다시 읽지 않고 커밋만 붙인다', async () => {
+    // 다시 읽으면 그사이 지운 대화만큼 원본이 줄어든다
+    await writeJsonAtomic(
+      dayDigestPath('2026-07-15'),
+      digestWith('2026-07-15', AFTER_DAY, [{ path: logFile, mtimeMs: AT }])
+    )
+    const r = await ensureDayDigest('2026-07-15', { claudeDir: emptyDir })
+    expect(r.state).toBe('cached')
+    expect(r.digest.projects[0]?.prompts).toEqual([{ hhmm: '13:54', text: '작업' }])
+    expect(r.digest.commits).toEqual([])
+    // 모았다는 표식을 남겨 다음에 열 때는 다시 모으지 않는다
+    expect((await readJson<DayDigest>(dayDigestPath('2026-07-15')))?.commits).toEqual([])
   })
 })

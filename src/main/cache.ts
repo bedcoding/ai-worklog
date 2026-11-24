@@ -57,6 +57,11 @@ export const periodPath = (key: string): string =>
   resolvePath('periods', `${checked(key, PERIOD_RE, '기간 키')}.json`)
 /** claude CLI 실행용 전용 cwd. collector가 이 경로를 수집에서 제외한다 */
 export const claudeWorkdir = (): string => resolvePath('claude-workdir')
+/**
+ * 커밋을 읽어 본 git 저장소 목록이다.
+ * 그 저장소에서 한 대화를 모두 지워도 커밋을 계속 찾으려고 기억해 둔다.
+ */
+export const knownReposPath = (): string => resolvePath('repos.json')
 
 /**
  * 윈도우 전용 일시적 실패 코드.

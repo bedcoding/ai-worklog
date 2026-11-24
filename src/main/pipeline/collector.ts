@@ -164,6 +164,58 @@ export async function collectDigests(
   return { digests, skippedLines }
 }
 
+/**
+ * 시작 폴더는 대개 첫 몇 줄 안에 있다.
+ * 큰 파일을 끝까지 읽지 않도록 상한을 둔다.
+ */
+const SESSION_CWD_SCAN_LINES = 500
+
+/**
+ * 이 시각 이후에 쓰인 대화들이 시작한 폴더 목록이다.
+ * 커밋을 찾을 저장소 후보로 쓴다.
+ * 시작 폴더를 정하는 규칙은 collectDigests의 sessionCwd와 같다.
+ */
+export async function sessionCwdsSince(
+  sinceMs: number,
+  opts: CollectOptions = {}
+): Promise<string[]> {
+  const claudeDir = opts.claudeDir ?? join(homedir(), '.claude')
+  const excludeCwds = new Set((opts.excludeCwds ?? []).map((c) => cwdKey(c)))
+  const found = new Map<string, string>()
+  for (const file of await listJsonlFiles(join(claudeDir, 'projects'), sinceMs)) {
+    const cwd = await firstSessionCwd(file.path)
+    if (!cwd) continue
+    const key = cwdKey(cwd)
+    if (!excludeCwds.has(key) && !found.has(key)) found.set(key, cwd)
+  }
+  return [...found.values()]
+}
+
+async function firstSessionCwd(path: string): Promise<string | undefined> {
+  const input = createReadStream(path, 'utf8')
+  const rl = createInterface({ input, crlfDelay: Infinity })
+  let n = 0
+  try {
+    for await (const line of rl) {
+      if (++n > SESSION_CWD_SCAN_LINES) return undefined
+      if (!line.trim()) continue
+      let rec: LogRecord
+      try {
+        rec = JSON.parse(line) as LogRecord
+      } catch {
+        continue
+      }
+      if (rec.type !== 'user' && rec.type !== 'assistant') continue
+      if (rec.isSidechain) continue
+      if (rec.cwd) return rec.cwd
+    }
+    return undefined
+  } finally {
+    rl.close()
+    input.destroy()
+  }
+}
+
 /** mtime도 함께 준다. 다이제스트에 남겨 두면 나중에 바뀌었는지 볼 수 있다 */
 interface LogFile {
   path: string

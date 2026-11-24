@@ -88,6 +88,35 @@ export interface ProjectDigest {
   overflow?: number
 }
 
+/** 그날 작성한 내 git 커밋 하나 */
+export interface DigestCommit {
+  /**
+   * 작성 시각(KST HH:MM)이다.
+   * 체리픽이나 리베이스로 바뀌는 커밋 시각이 아니다.
+   */
+  hhmm: string
+  subject: string
+  /** 본문 앞부분 (본문이 없는 커밋이면 없다) */
+  body?: string
+}
+
+/** 저장소 하나에서 그날 작성한 내 커밋 */
+export interface RepoCommits {
+  /**
+   * 저장소 폴더 이름이다.
+   * 워크트리에서 작업했어도 원래 저장소 이름이다.
+   */
+  name: string
+  /**
+   * 이 커밋을 함께 보일 원본 프로젝트의 cwd.
+   * 그날 이 저장소에서 한 대화가 남아 있지 않으면 없다.
+   */
+  projectCwd?: string
+  commits: DigestCommit[]
+  /** 하루 상한을 넘어 뺀 커밋 수 */
+  overflow?: number
+}
+
 /**
  * 다이제스트를 만들 때 읽은 로그 파일 하나.
  *
@@ -124,6 +153,17 @@ export interface DayDigest {
    * 새 세션이 생길 때마다 낡은 것으로 잡힌다.
    */
   sources?: DigestSource[]
+  /**
+   * 그날 작성한 내 git 커밋을 저장소별로 모은 것이다.
+   * 없으면 커밋을 모으기 전에 만든 옛 캐시다.
+   *
+   * 대화 로그만 보던 때는 대화를 지우면 그 작업이 요약에서 통째로 빠졌다.
+   * 커밋은 대화를 지워도 저장소에 남는다.
+   *
+   * digestHash에는 넣지 않는다.
+   * 넣으면 이 필드가 생긴 것만으로 지난 요약이 전부 낡은 것으로 잡힌다.
+   */
+  commits?: RepoCommits[]
 }
 
 /** 렌더러에 digest 원문 대신 넘기는 가벼운 메타 */

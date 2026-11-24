@@ -192,7 +192,12 @@ export function isActiveDigest(d: DayDigest): boolean {
   return d.totals.promptCount > 0
 }
 
-/** 캐시 무효화 키. builtAt/skippedLines 등 비본질 필드는 제외 */
+/**
+ * 캐시 무효화 키다.
+ * builtAt, skippedLines 같은 비본질 필드는 넣지 않는다.
+ * 커밋(commits)도 넣지 않는다.
+ * 넣으면 커밋을 모으기 시작한 것만으로 지난 요약이 전부 다시 만들 대상이 된다.
+ */
 export function digestHash(d: DayDigest): string {
   return sha256(JSON.stringify({ date: d.date, projects: d.projects }))
 }

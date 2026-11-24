@@ -4,6 +4,7 @@ import {
   dayCandidatePath,
   dayDigestPath,
   daySummaryPath,
+  knownReposPath,
   periodPath,
   readJson,
   writeJsonAtomic
@@ -32,6 +33,7 @@ import type {
 import { renderDigestText } from '@shared/digest-text'
 import { activeDatesInRange, activityInRange, recordScanned } from './activity'
 import { collectDigests } from './collector'
+import { attachCommits } from './commits'
 import { buildDigest, digestHash, isActiveDigest } from './digest'
 import { throwIfCancelled, type ProgressFn } from './queue'
 
@@ -97,6 +99,36 @@ export interface DigestOptions {
  */
 export type DigestState = 'scanned' | 'cached'
 
+/** 커밋을 읽어 본 저장소 목록 (knownReposPath) */
+interface KnownRepos {
+  dirs: string[]
+}
+
+/**
+ * 원본에 그날 작성한 커밋을 붙이고, 이번에 확인한 저장소를 기억해 둔다.
+ * 기억해 둔 저장소는 그 저장소에서 한 대화를 모두 지워도 계속 본다.
+ */
+async function withCommits(
+  digests: Map<string, DayDigest>,
+  start: string,
+  end: string,
+  claudeDir?: string
+): Promise<void> {
+  const known = (await readJson<KnownRepos>(knownReposPath()))?.dirs ?? []
+  const found = await attachCommits(digests, start, end, {
+    excludeCwds: [claudeWorkdir()],
+    knownRepos: known,
+    ...(claudeDir ? { claudeDir } : {})
+  })
+  // git이 없어 확인하지 못했으면 기억해 둔 목록을 지우지 않는다
+  if (!found) return
+  const next = [...new Set(found)].sort()
+  if (next.join('\n') !== [...known].sort().join('\n')) {
+    const data: KnownRepos = { dirs: next }
+    await writeJsonAtomic(knownReposPath(), data)
+  }
+}
+
 export async function ensureDayDigest(
   date: string,
   opts: DigestOptions = {}
@@ -104,6 +136,13 @@ export async function ensureDayDigest(
   if (!opts.force) {
     const cachedDigest = await readJson<DayDigest>(dayDigestPath(date))
     if (cachedDigest && (await digestUsable(cachedDigest))) {
+      // 커밋을 모으기 전에 만든 캐시다.
+      // 프롬프트는 다시 읽지 않고 커밋만 붙인다.
+      // 다시 읽으면 그사이 지운 대화만큼 원본이 줄어든다.
+      if (!cachedDigest.commits) {
+        await withCommits(new Map([[date, cachedDigest]]), date, date, opts.claudeDir)
+        await writeJsonAtomic(dayDigestPath(date), cachedDigest)
+      }
       return { digest: cachedDigest, state: 'cached' }
     }
   }
@@ -111,7 +150,10 @@ export async function ensureDayDigest(
     excludeCwds: [claudeWorkdir()],
     ...(opts.claudeDir ? { claudeDir: opts.claudeDir } : {})
   })
-  const digest = digests.get(date) ?? emptyDigest(date)
+  // 대화가 하나도 남지 않은 날에도 그날 커밋은 원본에 보이게 둔다
+  if (!digests.has(date)) digests.set(date, emptyDigest(date))
+  await withCommits(digests, date, date, opts.claudeDir)
+  const digest = digests.get(date) as DayDigest
   await writeJsonAtomic(dayDigestPath(date), digest)
   return { digest, state: 'scanned' }
 }
@@ -223,6 +265,9 @@ export async function backfillRange(
   // 이미 원본을 훑었다. 그 결과를 남겨 두지 않으면 정리가 끝난 직후의
   // 목록 조회가 같은 500MB를 다시 읽는다.
   await recordScanned(digests, start, endClamped)
+  // 요약에 넣을 커밋을 붙인다.
+  // 날짜마다 따로 읽지 않고 기간 전체를 저장소마다 한 번에 읽는다.
+  await withCommits(digests, start, endClamped)
 
   const todo: string[] = []
   for (const d of dates) {

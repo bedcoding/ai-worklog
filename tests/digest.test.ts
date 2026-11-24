@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { DayDigest, RepoCommits } from '@shared/types'
 import { renderDigestText } from '../src/shared/digest-text'
 import {
   MAX_PROMPTS_PER_DAY,
@@ -105,5 +106,57 @@ describe('buildDigest', () => {
     expect(text).toContain('[프로젝트: proj]')
     expect(text).toContain('10:00 정산 페이지 수정')
     expect(text).toContain('브랜치: main')
+  })
+})
+
+describe('renderDigestText: git 커밋', () => {
+  const base: DayDigest = {
+    date: '2026-07-15',
+    projects: [
+      {
+        name: 'web',
+        cwd: '/work/web',
+        branches: [],
+        sessionCount: 1,
+        promptCount: 1,
+        toolCallCount: 0,
+        tokens: { input: 0, output: 0 },
+        prompts: [{ hhmm: '10:00', text: '버튼 고쳐 줘' }]
+      }
+    ],
+    totals: { sessionCount: 1, promptCount: 1, toolCallCount: 0, tokens: { input: 0, output: 0 } },
+    skippedLines: 0,
+    builtAt: '2026-07-15T03:00:00.000Z'
+  }
+  const commits: RepoCommits[] = [
+    {
+      name: 'web',
+      projectCwd: '/work/web',
+      commits: [{ hhmm: '11:26', subject: '버튼 색 변경', body: '시안에 맞췄다.\n다크 모드도 확인했다.' }]
+    },
+    { name: 'lib', commits: [{ hhmm: '15:00', subject: '의존성 갱신' }], overflow: 2 }
+  ]
+
+  it('그날 대화한 프로젝트 아래에 커밋을 붙이고, 대화가 없는 저장소는 따로 보인다', () => {
+    expect(renderDigestText({ ...base, commits })).toBe(
+      [
+        '[프로젝트: web] 세션 1 · 프롬프트 1 · 도구 호출 0',
+        '- 10:00 버튼 고쳐 줘',
+        'git 커밋:',
+        '- 11:26 버튼 색 변경',
+        '  시안에 맞췄다.',
+        '  다크 모드도 확인했다.',
+        '',
+        '[프로젝트: lib] 이날 대화 기록 없음',
+        'git 커밋:',
+        '- 15:00 의존성 갱신',
+        '(외 2건 생략)'
+      ].join('\n')
+    )
+  })
+
+  it('커밋이 붙어도 digestHash는 그대로다', () => {
+    // 커밋을 모으기 시작한 것만으로 지난 요약이 전부 다시 만들 대상이 되면 안 된다
+    expect(digestHash({ ...base, commits })).toBe(digestHash(base))
   })
 })
